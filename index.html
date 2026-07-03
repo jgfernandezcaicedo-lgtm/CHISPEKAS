@@ -141,6 +141,8 @@ h1{font-family:'DM Serif Display',Georgia,serif;font-weight:400;letter-spacing:-
 .btna:hover{background:var(--amd)}
 .btng{background:var(--s2);color:var(--t);border:1px solid var(--bd)}
 .btng:hover{background:var(--bd)}
+.stab{background:var(--s2);color:var(--t2);border:1px solid var(--bd)}
+.stab.on{background:var(--am);color:#fff;border-color:var(--am)}
 .sm{padding:5px 12px;font-size:12px;border-radius:9px}
 .ib{width:31px;height:31px;border-radius:9px;background:var(--s2);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;transition:all .15s;flex-shrink:0}
 .ib:hover{background:var(--bd)}
@@ -433,18 +435,11 @@ body.dark #dlbl,body.dark #dlbl2{color:var(--t2)}
     <button class="nb" id="nb-dashboard"   onclick="go('dashboard')"  ><span class="ni">🏠</span>Inicio</button>
     <button class="nb" id="nb-reservas"    onclick="go('reservas')"   ><span class="ni">📅</span>Reservas</button>
     <button class="nb" id="nb-catalogo"    onclick="go('catalogo')"   ><span class="ni">🎪</span>Catálogo</button>
-    <button class="nb" id="nb-calendario"  onclick="go('calendario')" ><span class="ni">🗓️</span>Calendario</button>
   </div>
   <div class="ng" style="margin-top:6px">
-    <div class="ngl">Análisis</div>
-    <button class="nb" id="nb-financiero"  onclick="go('financiero')" ><span class="ni">💵</span>Financiero</button>
+    <div class="ngl">Negocio</div>
+    <button class="nb" id="nb-financiero"  onclick="go('financiero')" ><span class="ni">💵</span>Finanzas</button>
     <button class="nb" id="nb-clientes"    onclick="go('clientes')"   ><span class="ni">👥</span>Clientes</button>
-    <button class="nb" id="nb-analisis"    onclick="go('analisis')"   ><span class="ni">📊</span>Análisis</button>
-  </div>
-  <div class="ng" style="margin-top:6px">
-    <div class="ngl">Herramientas</div>
-    <button class="nb" id="nb-inventario"  onclick="go('inventario')" ><span class="ni">📦</span>Inventario</button>
-    <button class="nb" id="nb-reporte"     onclick="go('reporte')"    ><span class="ni">📋</span>Reporte</button>
   </div>
   <div class="sbf">
     <div id="user-info-sb"></div>
@@ -469,7 +464,6 @@ body.dark #dlbl,body.dark #dlbl2{color:var(--t2)}
       <button id="dm-btn" onclick="toggleDark()" style="width:32px;height:32px;border-radius:9px;background:var(--s2);border:1px solid var(--bd);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center" title="Modo oscuro">🌙</button>
       <div style="display:flex;gap:6px">
         <button class="btn btnd sm" onclick="openNewRes()">＋ Nueva</button>
-        <button class="btn sm" style="background:#e7fbe9;color:#128C7E;border:1.5px solid #a7f3d0;font-weight:700" onclick="openQuickRes()">⚡ Rápido</button>
       </div>
     </div>
   </div>
@@ -509,7 +503,7 @@ body.dark #dlbl,body.dark #dlbl2{color:var(--t2)}
         <div style="display:flex;gap:6px;flex-wrap:wrap">
           <input class="inp" style="width:150px;font-size:13px" placeholder="Buscar..." id="res-q" oninput="renderRes()">
           <select class="inp" id="res-sort" onchange="renderRes()" style="width:125px;font-size:12px"><option value="date-desc">📅 Fecha ↓ (reciente)</option><option value="date-asc">📅 Fecha ↑ (antigua)</option><option value="total-desc">💰 Mayor valor</option><option value="client-asc">👤 A-Z</option></select>
-          <button class="btn btnd sm" onclick="openNewRes()">＋</button><button class="btn sm" style="background:#e7fbe9;color:#128C7E;border:1.5px solid #a7f3d0;font-weight:700" onclick="openQuickRes()">⚡</button>
+          <button class="btn btnd sm" onclick="openNewRes()">＋</button>
           <button class="btn btng sm" onclick="openSheetsSync()" title="Exportar a Google Sheets">📊</button>
         </div>
       </div>
@@ -525,81 +519,124 @@ body.dark #dlbl,body.dark #dlbl2{color:var(--t2)}
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:9px">
         <div><h1 style="font-size:24px">Catálogo</h1><p style="color:var(--t2);font-size:12px;margin-top:2px" id="cat-cnt"></p></div>
         <div style="display:flex;gap:5px;flex-wrap:wrap">
+          <button class="btn btnd sm" onclick="openEditProd(null)">＋ Agregar</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;margin-bottom:14px">
+        <button class="btn stab on" id="cat-stab-productos" onclick="setCatSub('productos')">Productos</button>
+        <button class="btn stab" id="cat-stab-disponibilidad" onclick="setCatSub('disponibilidad')">Disponibilidad</button>
+      </div>
+
+      <div id="cat-sub-productos">
+        <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:14px">
           <button class="btn btng sm" id="cf-todos"      onclick="setCF('todos')"     >Todos</button>
           <button class="btn btng sm" id="cf-inflable"   onclick="setCF('inflable')"  >🏰</button>
           <button class="btn btng sm" id="cf-mobiliario" onclick="setCF('mobiliario')">🪑</button>
           <button class="btn btng sm" id="cf-snack"      onclick="setCF('snack')"     >🍿</button>
-          <button class="btn btnd sm" onclick="openEditProd(null)">＋ Agregar</button>
         </div>
+        <div class="g3" id="prod-grid"></div>
       </div>
-      <div class="g3" id="prod-grid"></div>
-    </div>
 
-    <!-- CALENDARIO -->
-    <div id="v-calendario" style="display:none">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-        <h1 style="font-size:24px">Calendario</h1>
-        <div style="display:flex;align-items:center;gap:7px">
-          <button class="ib" onclick="calP()" style="font-size:16px">‹</button>
-          <span style="font-weight:600;font-size:13px;min-width:125px;text-align:center" id="cal-title"></span>
-          <button class="ib" onclick="calN()" style="font-size:16px">›</button>
+      <div id="cat-sub-disponibilidad" style="display:none">
+        <div style="display:flex;justify-content:flex-end;align-items:center;gap:7px;margin-bottom:14px">
+          <label style="font-size:12px;font-weight:600;color:var(--t2)">Fecha:</label>
+          <input class="inp" type="date" id="inv-date" style="width:150px;font-size:13px" oninput="renderInv()">
+        </div>
+        <div class="kg" id="inv-kpis" style="margin-bottom:14px"></div>
+        <div class="g2" style="margin-bottom:13px">
+          <div class="card cp">
+            <div class="ch"><div class="ct">📦 Disponibilidad en la fecha</div></div>
+            <div id="inv-avail"></div>
+          </div>
+          <div class="card cp">
+            <div class="ch"><div class="ct">📅 Próximas fechas / ocupados</div></div>
+            <div id="inv-busy"></div>
+          </div>
+        </div>
+        <div class="card cp">
+          <div class="ch"><div class="ct">📊 Uso por producto</div><div class="cs">Últimos 30 días</div></div>
+          <div id="inv-usage"></div>
         </div>
       </div>
-      <div class="card cp">
-        <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:4px">
-          <div style="text-align:center;font-size:10px;font-weight:600;color:var(--t3);padding:3px 0">D</div>
-          <div style="text-align:center;font-size:10px;font-weight:600;color:var(--t3);padding:3px 0">L</div>
-          <div style="text-align:center;font-size:10px;font-weight:600;color:var(--t3);padding:3px 0">M</div>
-          <div style="text-align:center;font-size:10px;font-weight:600;color:var(--t3);padding:3px 0">X</div>
-          <div style="text-align:center;font-size:10px;font-weight:600;color:var(--t3);padding:3px 0">J</div>
-          <div style="text-align:center;font-size:10px;font-weight:600;color:var(--t3);padding:3px 0">V</div>
-          <div style="text-align:center;font-size:10px;font-weight:600;color:var(--t3);padding:3px 0">S</div>
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px" id="cal-grid"></div>
-      </div>
-      <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap" id="cal-leg"></div>
     </div>
 
     <!-- FINANCIERO -->
     <div id="v-financiero" style="display:none">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:9px">
-        <div><h1 style="font-size:24px">Financiero</h1><p style="color:var(--t2);font-size:12px;margin-top:2px">Ingresos y tendencias</p></div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+      <div style="margin-bottom:14px"><h1 style="font-size:24px">Finanzas</h1><p style="color:var(--t2);font-size:12px;margin-top:2px">Ingresos, tendencias y reportes</p></div>
+      <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap">
+        <button class="btn stab on" id="fin-stab-resumen" onclick="setFinSub('resumen')">Resumen</button>
+        <button class="btn stab" id="fin-stab-analisis" onclick="setFinSub('analisis')">Análisis</button>
+        <button class="btn stab" id="fin-stab-reportes" onclick="setFinSub('reportes')">Reportes</button>
+      </div>
+
+      <!-- RESUMEN -->
+      <div id="fin-sub-resumen">
+        <div style="display:flex;justify-content:flex-end;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:16px">
           <select class="inp" id="fin-yr" onchange="renderFin()" style="width:90px;font-size:13px"></select>
           <button class="btn btng sm" onclick="openMetaModal()">🎯 Meta</button>
           <button class="btn btng sm" onclick="openSheetsSync()">📊 Sheets</button>
         </div>
-      </div>
-      <div class="kg" id="fin-kpis" style="margin-bottom:16px"></div>
-      <div id="fin-compare"></div>
-      <div id="fin-meta-bar"></div>
-      <div class="g2" style="margin-bottom:13px">
-        <div class="card cp">
-          <div class="ch"><div><div class="ct">Ingresos mensuales</div><div class="cs">Confirmados · Soles (S/)</div></div></div>
-          <div style="position:relative;height:185px"><canvas id="ch-fin-bar"></canvas></div>
+        <div class="kg" id="fin-kpis" style="margin-bottom:16px"></div>
+        <div id="fin-compare"></div>
+        <div id="fin-meta-bar"></div>
+        <div class="g2" style="margin-bottom:13px">
+          <div class="card cp">
+            <div class="ch"><div><div class="ct">Ingresos mensuales</div><div class="cs">Confirmados · Soles (S/)</div></div></div>
+            <div style="position:relative;height:185px"><canvas id="ch-fin-bar"></canvas></div>
+          </div>
+          <div class="card cp">
+            <div class="ch"><div class="ct">Por categoría</div></div>
+            <div style="display:flex;align-items:center;gap:14px">
+              <div style="width:115px;height:115px;flex-shrink:0;position:relative"><canvas id="ch-fin-cat"></canvas></div>
+              <div id="fin-cat-leg" style="flex:1"></div>
+            </div>
+          </div>
         </div>
-        <div class="card cp">
-          <div class="ch"><div class="ct">Por categoría</div></div>
-          <div style="display:flex;align-items:center;gap:14px">
-            <div style="width:115px;height:115px;flex-shrink:0;position:relative"><canvas id="ch-fin-cat"></canvas></div>
-            <div id="fin-cat-leg" style="flex:1"></div>
+        <div class="g2">
+          <div class="card cp"><div class="ch"><div class="ct">Top productos</div><div class="cs">Por veces alquilado</div></div><div id="fin-top"></div></div>
+          <div class="card cp"><div class="ch"><div class="ct">Pipeline</div><div class="cs">Por estado</div></div><div id="fin-pipe"></div></div>
+        </div>
+        <div class="g2" style="margin-top:13px;margin-bottom:13px">
+          <div class="card cp">
+            <div class="ch"><div class="ct">📈 Proyección 3 meses</div><div class="cs">Basada en historial</div></div>
+            <div id="fin-proyeccion"></div>
+          </div>
+          <div class="card cp">
+            <div class="ch"><div class="ct">💳 Cobros pendientes</div><div class="cs">Adelantos recibidos — saldos por cobrar</div></div>
+            <div id="fin-cobros"></div>
           </div>
         </div>
       </div>
-      <div class="g2">
-        <div class="card cp"><div class="ch"><div class="ct">Top productos</div><div class="cs">Por veces alquilado</div></div><div id="fin-top"></div></div>
-        <div class="card cp"><div class="ch"><div class="ct">Pipeline</div><div class="cs">Por estado</div></div><div id="fin-pipe"></div></div>
-      </div>
-      <div class="g2" style="margin-top:13px;margin-bottom:13px">
-        <div class="card cp">
-          <div class="ch"><div class="ct">📈 Proyección 3 meses</div><div class="cs">Basada en historial</div></div>
-          <div id="fin-proyeccion"></div>
+
+      <!-- ANÁLISIS -->
+      <div id="fin-sub-analisis" style="display:none">
+        <div class="kg" id="an-kpis" style="margin-bottom:14px"></div>
+        <div class="g2" style="margin-bottom:13px">
+          <div class="card cp"><div class="ch"><div class="ct">Tipos de evento</div><div class="cs">Por frecuencia</div></div><div style="position:relative;height:180px"><canvas id="ch-an-types"></canvas></div></div>
+          <div class="card cp"><div class="ch"><div class="ct">Meses más activos</div><div class="cs">Todos los años</div></div><div style="position:relative;height:180px"><canvas id="ch-an-months"></canvas></div></div>
         </div>
-        <div class="card cp">
-          <div class="ch"><div class="ct">💳 Cobros pendientes</div><div class="cs">Adelantos recibidos — saldos por cobrar</div></div>
-        <div id="fin-cobros"></div>
+        <div class="g2" style="margin-bottom:13px">
+          <div class="card cp"><div class="ch"><div class="ct">Días más solicitados</div></div><div style="position:relative;height:165px"><canvas id="ch-an-days"></canvas></div></div>
+          <div class="card cp"><div class="ch"><div class="ct">Ticket promedio por tipo</div></div><div id="an-tickets"></div></div>
+        </div>
+        <div class="g2" style="margin-bottom:13px">
+          <div class="card cp"><div class="ch"><div class="ct">📍 Distritos más activos</div></div><div id="an-distritos"></div></div>
+          <div class="card cp"><div class="ch"><div class="ct">📣 Cómo llegan los clientes</div></div><div style="position:relative;height:190px"><canvas id="ch-an-src"></canvas></div><div id="an-src-warning"></div></div>
+        </div>
+        <div class="g2">
+          <div class="card cp"><div class="ch"><div class="ct">Conversión mensual</div><div class="cs">Total vs confirmados</div></div><div style="position:relative;height:175px"><canvas id="ch-an-conv"></canvas></div></div>
+          <div class="card cp"><div class="ch"><div class="ct">Top productos alquilados</div><div class="cs">Veces contratado</div></div><div id="an-top-prod"></div></div>
         </div>
       </div>
+
+      <!-- REPORTES -->
+      <div id="fin-sub-reportes" style="display:none">
+        <div style="display:flex;justify-content:flex-end;gap:6px;flex-wrap:wrap;margin-bottom:14px">
+          <select class="inp" id="rep-yr" style="width:90px;font-size:13px" onchange="renderRep()"></select>
+          <select class="inp" id="rep-mo" style="width:110px;font-size:13px" onchange="renderRep()"></select>
+          <button class="btn btnd sm" onclick="exportRepPDF()">⬇ PDF</button>
+        </div>
+        <div id="rep-content"></div>
       </div>
     </div>
 
@@ -641,77 +678,6 @@ body.dark #dlbl,body.dark #dlbl2{color:var(--t2)}
       </div>
     </div>
 
-
-    <!-- ANÁLISIS UNIFICADO -->
-    <div id="v-analisis" style="display:none">
-      <div style="margin-bottom:14px">
-        <h1 style="font-size:24px">Análisis</h1>
-        <p style="color:var(--t2);font-size:12px;margin-top:2px">Eventos, captación, temporadas y tendencias</p>
-      </div>
-      <!-- KPIs -->
-      <div class="kg" id="an-kpis" style="margin-bottom:14px"></div>
-      <!-- ROW 1: Tipos + Temporadas -->
-      <div class="g2" style="margin-bottom:13px">
-        <div class="card cp"><div class="ch"><div class="ct">Tipos de evento</div><div class="cs">Por frecuencia</div></div><div style="position:relative;height:180px"><canvas id="ch-an-types"></canvas></div></div>
-        <div class="card cp"><div class="ch"><div class="ct">Meses más activos</div><div class="cs">Todos los años</div></div><div style="position:relative;height:180px"><canvas id="ch-an-months"></canvas></div></div>
-      </div>
-      <!-- ROW 2: Días + Ticket -->
-      <div class="g2" style="margin-bottom:13px">
-        <div class="card cp"><div class="ch"><div class="ct">Días más solicitados</div></div><div style="position:relative;height:165px"><canvas id="ch-an-days"></canvas></div></div>
-        <div class="card cp"><div class="ch"><div class="ct">Ticket promedio por tipo</div></div><div id="an-tickets"></div></div>
-      </div>
-      <!-- ROW 3: Distritos + Fuentes -->
-      <div class="g2" style="margin-bottom:13px">
-        <div class="card cp"><div class="ch"><div class="ct">📍 Distritos más activos</div></div><div id="an-distritos"></div></div>
-        <div class="card cp"><div class="ch"><div class="ct">📣 Cómo llegan los clientes</div></div><div style="position:relative;height:190px"><canvas id="ch-an-src"></canvas></div><div id="an-src-warning"></div></div>
-      </div>
-      <!-- ROW 4: Conversión + Top Productos -->
-      <div class="g2">
-        <div class="card cp"><div class="ch"><div class="ct">Conversión mensual</div><div class="cs">Total vs confirmados</div></div><div style="position:relative;height:175px"><canvas id="ch-an-conv"></canvas></div></div>
-        <div class="card cp"><div class="ch"><div class="ct">Top productos alquilados</div><div class="cs">Veces contratado</div></div><div id="an-top-prod"></div></div>
-      </div>
-    </div>
-
-
-    <!-- INVENTARIO -->
-    <div id="v-inventario" style="display:none">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:9px">
-        <div><h1 style="font-size:24px">Inventario</h1><p style="color:var(--t2);font-size:12px;margin-top:2px">Control de disponibilidad por fecha</p></div>
-        <div style="display:flex;align-items:center;gap:7px">
-          <label style="font-size:12px;font-weight:600;color:var(--t2)">Fecha:</label>
-          <input class="inp" type="date" id="inv-date" style="width:150px;font-size:13px" oninput="renderInv()">
-        </div>
-      </div>
-      <div class="kg" id="inv-kpis" style="margin-bottom:14px"></div>
-      <div class="g2" style="margin-bottom:13px">
-        <div class="card cp">
-          <div class="ch"><div class="ct">📦 Disponibilidad en la fecha</div></div>
-          <div id="inv-avail"></div>
-        </div>
-        <div class="card cp">
-          <div class="ch"><div class="ct">📅 Próximas fechas / ocupados</div></div>
-          <div id="inv-busy"></div>
-        </div>
-      </div>
-      <div class="card cp">
-        <div class="ch"><div class="ct">📊 Uso por producto</div><div class="cs">Últimos 30 días</div></div>
-        <div id="inv-usage"></div>
-      </div>
-    </div>
-
-    <!-- REPORTE MENSUAL -->
-    <div id="v-reporte" style="display:none">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:9px">
-        <div><h1 style="font-size:24px">Reporte Mensual</h1><p style="color:var(--t2);font-size:12px;margin-top:2px">Resumen ejecutivo exportable</p></div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap">
-          <select class="inp" id="rep-yr" style="width:90px;font-size:13px" onchange="renderRep()"></select>
-          <select class="inp" id="rep-mo" style="width:110px;font-size:13px" onchange="renderRep()"></select>
-          <button class="btn btnd sm" onclick="exportRepPDF()">⬇ PDF</button>
-        </div>
-      </div>
-      <div id="rep-content"></div>
-    </div>
-
   </div>
 </div>
 </div>
@@ -723,17 +689,9 @@ body.dark #dlbl,body.dark #dlbl2{color:var(--t2)}
     <button class="bn" id="bn-reservas"   onclick="go('reservas')"  ><span class="bnico">📅</span><span class="bnlbl">Reservas</span></button>
     <button class="bn" id="bn-catalogo"   onclick="go('catalogo')"  ><span class="bnico">🎪</span><span class="bnlbl">Catálogo</span></button>
     <button class="bn" id="bn-financiero" onclick="go('financiero')"><span class="bnico">💵</span><span class="bnlbl">Finanzas</span></button>
-    <button class="bn" id="bn-more"       onclick="tglMore()"       ><span class="bnico">⋯</span><span class="bnlbl">Más</span></button>
+    <button class="bn" id="bn-clientes"   onclick="go('clientes')"  ><span class="bnico">👥</span><span class="bnlbl">Clientes</span></button>
   </div>
 </nav>
-<div class="mm" id="mm">
-  <p class="lbl" style="padding:0 8px 8px">Más secciones</p>
-  <button class="mmi" onclick="go('clientes');closeMore()"   ><span style="font-size:18px">👥</span> Clientes</button>
-  <button class="mmi" onclick="go('analisis');closeMore()"   ><span style="font-size:18px">📊</span> Análisis</button>
-  <button class="mmi" onclick="go('calendario');closeMore()" ><span style="font-size:18px">🗓️</span> Calendario</button>
-  <button class="mmi" onclick="go('inventario');closeMore()"  ><span style="font-size:18px">📦</span> Inventario</button>
-  <button class="mmi" onclick="go('reporte');closeMore()"     ><span style="font-size:18px">📋</span> Reporte</button>
-</div>
 
 <div id="toast"></div>
 <div class="ov" id="ov-sign"><div class="sheet shlg"><div class="shh"></div><div class="shd"><span class="sht">✍️ Firma Digital del Cliente</span><button class="xb" onclick="closeOv('ov-sign')">×</button></div><div class="shb" id="sign-b"></div></div></div>
@@ -856,10 +814,9 @@ function addToGCal(rid){
 }
 let products=[],reservations=[],referrals=[];
 let tab="dashboard",cf="todos",sf="todos";
-let calY=new Date().getFullYear(),calM=new Date().getMonth();
 let eRid=null,ePid=null,revId=null;
 let selP=[],pCF="todos",pAv=true,sEmo="🎪",pPh="";
-let revR=0,mO=false;
+let revR=0;
 const CH={};
 
 Chart.defaults.font.family="'DM Sans',sans-serif";
@@ -1609,11 +1566,9 @@ function tmplKpi(k) {
 function renderAll(){
   renderDash();
   if(tab==="reservas")renderRes();
-  if(tab==="catalogo")renderCat();
-  if(tab==="calendario")renderCal();
-  if(tab==="financiero")renderFin();
+  if(tab==="catalogo"){renderCat();renderInv();}
+  if(tab==="financiero"){renderFin();renderAnalisis();renderRep();}
   if(tab==="clientes")renderCli();
-  if(tab==="analisis")renderAnalisis();
 }
 
 /* DASHBOARD */
@@ -1678,69 +1633,6 @@ function renderCat(){
 
 
 /* ════════════════ § CALENDARIO ════════════════ */
-
-function renderCal(){
-  document.getElementById("cal-title").textContent=MF[calM]+" "+calY;
-  const fd=new Date(calY,calM,1).getDay(),days=new Date(calY,calM+1,0).getDate(),td=new Date();
-  let h="";
-  for(let i=0;i<fd;i++)h+="<div></div>";
-  for(let d=1;d<=days;d++){
-    const dateStr=calY+"-"+String(calM+1).padStart(2,"0")+"-"+String(d).padStart(2,"0");
-    const evs=reservations.filter(r=>r.date===dateStr);
-    const isT=td.getFullYear()===calY&&td.getMonth()===calM&&td.getDate()===d;
-    h+=`<div onclick="calDayClick('${dateStr}')" style="border-radius:9px;padding:3px;min-height:44px;border:1.5px solid ${isT?"var(--am)":evs.length?"#fde68a":"var(--bd)"};background:${evs.length?"#fffbec":"var(--s)"};cursor:pointer;transition:box-shadow .15s" onmouseenter="this.style.boxShadow='var(--sh2)'" onmouseleave="this.style.boxShadow=''">
-      <div style="font-weight:${isT?700:500};color:${isT?"var(--amd)":"var(--t)"};font-size:11px;text-align:center;margin-bottom:2px">${d}</div>
-      ${evs.map(r=>{const sm=SM[r.status]||SM.cotizacion;return `<div style="background:${sm.bg};color:${sm.c};border-radius:3px;padding:1px 3px;font-size:8px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:1px">${esc(r.client)}</div>`;}).join("")}
-    </div>`;
-  }
-  document.getElementById("cal-grid").innerHTML=h;
-  document.getElementById("cal-leg").innerHTML=SFLOW.map(s=>`<div style="display:flex;align-items:center;gap:5px"><div style="width:8px;height:8px;border-radius:2px;background:${SM[s].bg};border:1.5px solid ${SM[s].br}"></div><span style="font-size:11px;font-weight:500;color:var(--t2)">${SM[s].i} ${SM[s].l}</span></div>`).join("");
-}
-
-function calDayClick(dateStr){
-  const evs=reservations.filter(r=>r.date===dateStr);
-  const d=new Date(dateStr+"T12:00:00");
-  const label=d.toLocaleDateString("es-PE",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
-  const menu=document.createElement("div");
-  menu.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px)";
-  const evHTML=evs.length
-    ?evs.map(r=>{const sm=SM[r.status]||SM.cotizacion;return `
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:11px 14px;background:var(--s2);border-radius:12px;margin-bottom:7px;border:1px solid var(--bd)">
-        <div style="min-width:0">
-          <p style="font-weight:700;font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.client)}</p>
-          <p style="font-size:11px;color:var(--t2);margin-top:2px">${esc(r.event)}${r.horaInicio?" · "+esc(r.horaInicio):""}</p>
-        </div>
-        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;margin-left:10px">
-          <span class="badge" style="background:${sm.bg};color:${sm.c};border:1px solid ${sm.br}">${sm.l}</span>
-          <span style="font-weight:700;color:var(--gr);font-size:13px">${fM(r.total)}</span>
-          <button onclick="openView('${r.id}');this.closest('[style*=fixed]').remove()" style="background:var(--aml);border:1px solid var(--am);color:var(--amd);border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">Ver</button>
-        </div>
-      </div>`;}).join("")
-    :`<div style="text-align:center;padding:20px 0;color:var(--t3)"><div style="font-size:32px;margin-bottom:8px">📭</div><p style="font-size:13px;font-weight:600;color:var(--t2)">Sin eventos este día</p></div>`;
-  menu.innerHTML=`
-    <div style="background:var(--s);border-radius:24px 24px 0 0;width:100%;max-width:520px;padding:20px 18px;padding-bottom:calc(20px + env(safe-area-inset-bottom));box-shadow:var(--sh3);max-height:80vh;overflow-y:auto">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-        <div>
-          <p style="font-weight:700;font-size:15px">${label}</p>
-          <p style="font-size:11px;color:var(--t2);margin-top:2px">${evs.length} evento${evs.length!==1?"s":""}</p>
-        </div>
-        <button onclick="this.closest('[style*=fixed]').remove()" style="background:var(--s2);border:1px solid var(--bd);border-radius:50%;width:28px;height:28px;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--t2)">×</button>
-      </div>
-      ${evHTML}
-      <button onclick="openNewRes();this.closest('[style*=fixed]').remove()" style="display:block;width:100%;margin-top:10px;background:var(--t);color:#fff;border:none;border-radius:12px;padding:12px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">＋ Nueva reserva este día</button>
-    </div>`;
-  document.body.appendChild(menu);
-  menu.addEventListener("click",e=>{if(e.target===menu)menu.remove();});
-}
-function calP() {
-  if(calM === 0) { calM = 11; calY--; } else calM--;
-  renderCal();
-}
-function calN() {
-  if(calM === 11) { calM = 0; calY++; } else calM++;
-  renderCal();
-}
-
 
 /* ════════════════ § FINANCIERO ════════════════ */
 
@@ -2332,20 +2224,6 @@ function buildResF(r){
   const iT=r?.total||0,iA=r?.adelanto||0,iD=r?.discount||0,iE=r?.extras||0;
   document.getElementById("sr-b").innerHTML=`
   <div style="display:flex;flex-direction:column;gap:13px">
-    <!-- PEGAR DATOS BUTTON -->
-    <div style="background:var(--aml);border:1.5px solid var(--am);border-radius:12px;padding:12px 14px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-        <div>
-          <p style="font-weight:700;font-size:13px;color:var(--amd)">📋 Pegar datos del cliente</p>
-          <p style="font-size:11px;color:var(--t2);margin-top:2px">Pega el texto de WhatsApp y se llena solo</p>
-        </div>
-        <button onclick="solicitarDatosWA()" style="background:var(--am);color:#fff;border:none;border-radius:8px;padding:6px 12px;font-family:inherit;font-size:11.5px;font-weight:700;cursor:pointer">💬 Pedir datos</button>
-      </div>
-      <div style="display:flex;gap:7px">
-        <textarea id="paste-raw" class="inp" placeholder="Pega aquí el mensaje del cliente..." style="min-height:52px;flex:1;font-size:12px;resize:none"></textarea>
-        <button onclick="parsePastedData()" style="background:var(--t);color:#fff;border:none;border-radius:9px;padding:0 14px;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap">Llenar →</button>
-      </div>
-    </div>
     <div>
       <p class="lbl" style="margin-bottom:8px">Datos del evento</p>
       <div class="g2m" style="gap:8px;margin-bottom:8px">
@@ -3124,201 +3002,6 @@ function setTipoCliente(tipo){
 }
 
 
-/* ══ PARSEAR DATOS PEGADOS DE WHATSAPP ══ */
-function parsePastedData(){
-  const raw=document.getElementById("paste-raw")?.value?.trim();
-  if(!raw){toast("Pega primero el texto del cliente","err");return;}
-
-  let nombre="",dni="",ruc="",razon="",tel="",email="",direccion="",distrito="",evento="",fecha="",horaI="",horaF="",notas="";
-
-  const lines=raw.split(/\n/).map(l=>l.trim()).filter(Boolean);
-
-  for(const line of lines){
-    const l=line.toLowerCase();
-
-    // DNI — 8 digits
-    const dniM=line.match(/\bDNI[:\s#°]*(\d{8})\b/i);
-    if(dniM){dni=dniM[1];continue;}
-
-    // RUC — 11 digits
-    const rucM=line.match(/\bRUC[:\s#°]*(\d{11})\b/i);
-    if(rucM){ruc=rucM[1];continue;}
-
-    // Standalone 8-digit number = DNI
-    const num8=line.match(/^\d{8}$/);
-    if(num8&&!dni){dni=num8[0];continue;}
-
-    // Standalone 11-digit number = RUC
-    const num11=line.match(/^\d{11}$/);
-    if(num11&&!ruc){ruc=num11[0];continue;}
-
-    // Phone
-    const telM=line.match(/(?:cel(?:ular)?|tel(?:éfono)?|whatsapp|wp|📱)?[:\s]*(\+?51?\s?9\d{2}\s?\d{3}\s?\d{3})/i);
-    if(telM&&!tel){tel=telM[1].replace(/\s/g,"");continue;}
-
-    // Email
-    const emailM=line.match(/[\w.-]+@[\w.-]+\.\w+/);
-    if(emailM&&!email){email=emailM[0];continue;}
-
-    // Dirección
-    if(/^(?:dir(?:ección)?|address|domicilio|ubicación|av\.|jr\.|calle|urb\.|psje\.|alt\.)[:\s]/i.test(line)){
-      const val=line.replace(/^(?:dir(?:ección)?|address|domicilio|ubicación)[:\s]*/i,"").trim();
-      if(!direccion)direccion=val;
-      else notas+=(notas?" · ":"")+val;
-      continue;
-    }
-
-    // Distrito / ciudad
-    if(/^(?:distrito|dist\.|ciudad|san |mira|surco|choril|la mol|lince|barranco|pueblo|ate|comas|sjl|sjm|surquillo|jesus|pueblo libre|magdalena|breña|rímac|cercado)/i.test(line)){
-      if(!distrito)distrito=line.replace(/^(?:distrito|dist\.)[:\s]*/i,"").trim();
-      continue;
-    }
-
-    // Evento type
-    const evM=line.match(/^(?:evento|tipo[:\s]|celebración)[:\s]*(.+)/i);
-    if(evM&&!evento){evento=evM[1].trim();continue;}
-    // Common event keywords
-    if(/cumpleaños|birthday|boda|matrimonio|matrimoni|graduaci|quincea|corpor|baby shower|bautizo|aniversario|fiesta/i.test(l)&&!evento){
-      evento=line.replace(/^(?:evento|tipo)[:\s]*/i,"").trim();continue;
-    }
-
-    // Date — detect "sábado 11 de abril" / "11/04/2026" / "11-04-26"
-    const dateISO=line.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
-    if(dateISO&&!fecha){
-      const d=dateISO[1].padStart(2,"0"),m=dateISO[2].padStart(2,"0");
-      let y=dateISO[3];if(y.length===2)y="20"+y;
-      fecha=y+"-"+m+"-"+d;continue;
-    }
-    const dateWords=line.match(/(?:lunes|martes|miércoles|jueves|viernes|sábado|domingo)?,?\s*(\d{1,2})\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\s*(?:de\s*)?(\d{4})?/i);
-    if(dateWords&&!fecha){
-      const MESES={enero:"01",febrero:"02",marzo:"03",abril:"04",mayo:"05",junio:"06",julio:"07",agosto:"08",septiembre:"09",octubre:"10",noviembre:"11",diciembre:"12"};
-      const d=dateWords[1].padStart(2,"0"),m=MESES[dateWords[2].toLowerCase()];
-      const y=dateWords[3]||new Date().getFullYear();
-      fecha=y+"-"+m+"-"+d;continue;
-    }
-
-    // Time
-    const timeM=line.match(/(?:hora|inicio|start|desde|a las?)[:\s]*(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i);
-    if(timeM&&!horaI){
-      let h=parseInt(timeM[1]),mn=timeM[2]||"00";
-      const ap=(timeM[3]||"").toLowerCase();
-      if(ap==="pm"&&h<12)h+=12;
-      if(ap==="am"&&h===12)h=0;
-      horaI=String(h).padStart(2,"0")+":"+mn;continue;
-    }
-    // Standalone time like "5pm" or "17:00"
-    const timeAlone=line.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)$/i);
-    if(timeAlone&&!horaI){
-      let h=parseInt(timeAlone[1]),mn=timeAlone[2]||"00";
-      const ap=(timeAlone[3]||"").toLowerCase();
-      if(ap==="pm"&&h<12)h+=12;
-      if(ap==="am"&&h===12)h=0;
-      horaI=String(h).padStart(2,"0")+":"+mn;continue;
-    }
-
-    // Name — first line that looks like a full name (no keywords, 2+ words, no digits)
-    if(!nombre&&/^[A-ZÁÉÍÓÚÑÜ][a-záéíóúñü]+ [A-ZÁÉÍÓÚÑÜ]/.test(line)&&!/[:\d]/.test(line)){
-      nombre=line.trim();continue;
-    }
-
-    // Catch-all for remaining lines → notas
-    if(line.length>3&&!/^(hola|buenos|gracias|ok|sí|si|no\b)/i.test(line)){
-      notas+=(notas?" · ":"")+line;
-    }
-  }
-
-  // Apply to form
-  let filled=0;
-  const set=(id,val)=>{const el=document.getElementById(id);if(el&&val){el.value=val;filled++;}};
-
-  if(nombre) set("f-cli",nombre);
-  if(tel)    set("f-tel",tel);
-  if(email)  set("f-email",email);
-  if(evento) set("f-ev",evento);
-  if(fecha)  set("f-dt",fecha);
-  if(horaI)  set("f-hinicio",horaI);
-  if(horaF)  set("f-hfin",horaF);
-  if(direccion) set("f-direccion",direccion);
-  if(notas)  set("f-notes",notas);
-
-  // Distrito — try to extract from dirección if not found separately
-  if(!distrito&&direccion){
-    const distM=direccion.match(/,\s*([A-ZÁÉÍÓÚÑÜ][a-záéíóúñü\s]+)$/);
-    if(distM)distrito=distM[1].trim();
-  }
-  if(distrito) set("f-distrito",distrito);
-
-  // DNI / RUC toggle
-  if(ruc){
-    setTipoCliente("empresa");
-    set("f-ruc",ruc);
-    if(razon)set("f-razon",razon);
-    else if(nombre){
-      // if ruc detected, the name line was probably the empresa name
-      const razEl=document.getElementById("f-razon");
-      if(razEl&&!razEl.value)razEl.value=nombre;
-    }
-  } else {
-    setTipoCliente("natural");
-    if(dni)set("f-dni",dni);
-  }
-
-  // Update date badge
-  if(fecha){updateTemporadaBadge();showDateConflict(fecha,eRid||"");}
-
-  // Clear paste area
-  const pasteEl=document.getElementById("paste-raw");
-  if(pasteEl)pasteEl.value="";
-
-  if(filled>0){
-    toast(`✅ ${filled} campos llenados automáticamente`);
-  } else {
-    toast("No se detectaron datos. Verifica el formato.","warn");
-  }
-}
-
-/* ══ SOLICITAR DATOS POR WHATSAPP ══ */
-function solicitarDatosWA(){
-  // Check if there's a phone number from previous reservations to suggest,
-  // otherwise open generic template
-  const template=`Hola! 👋 Para agendar tu evento con *CHISPEKAS* ⚡ necesito los siguientes datos:
-
-👤 *Nombre completo*:
-🪪 *DNI* (o RUC si es empresa):
-📱 *Teléfono*:
-🎉 *Tipo de evento*:
-📅 *Fecha*:
-⏰ *Hora de inicio*:
-📍 *Dirección*:
-🏘️ *Distrito*:
-
-¡Gracias! Con esa info preparo tu cotización 🎊`;
-
-  // Copy to clipboard
-  navigator.clipboard?.writeText(template).then(()=>{
-    toast("📋 Plantilla copiada — pégala en WhatsApp");
-  }).catch(()=>{
-    // Fallback: open whatsapp with template
-    window.open("https://wa.me/?text="+encodeURIComponent(template),"_blank");
-  });
-
-  // Also show a preview
-  const menu=document.createElement("div");
-  menu.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px)";
-  menu.innerHTML=`
-    <div style="background:var(--s);border-radius:24px 24px 0 0;width:100%;max-width:520px;padding:20px 18px;padding-bottom:calc(20px + env(safe-area-inset-bottom));box-shadow:var(--sh3)">
-      <p style="font-weight:700;font-size:15px;margin-bottom:4px">💬 Solicitar datos al cliente</p>
-      <p style="font-size:11.5px;color:var(--t2);margin-bottom:12px">Mensaje copiado al portapapeles. También puedes enviarlo directamente:</p>
-      <div style="background:var(--s2);border-radius:12px;padding:12px;font-size:11.5px;color:var(--t2);line-height:1.7;margin-bottom:14px;white-space:pre-line;border:1px solid var(--bd)">${template.replace(/\*/g,"<b>").replace(/\*/g,"</b>")}</div>
-      <div style="display:flex;gap:8px">
-        <button onclick="window.open('https://wa.me/?text='+encodeURIComponent(\`${template}\`),'_blank');this.closest('[style*=fixed]').remove()" style="flex:1;background:#25d366;color:#fff;border:none;border-radius:12px;padding:12px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">Abrir WhatsApp</button>
-        <button onclick="this.closest('[style*=fixed]').remove()" style="background:var(--s2);border:1px solid var(--bd);border-radius:12px;padding:12px 16px;font-family:inherit;font-size:13px;cursor:pointer;color:var(--t)">Cerrar</button>
-      </div>
-    </div>`;
-  document.body.appendChild(menu);
-  menu.addEventListener("click",e=>{if(e.target===menu)menu.remove();});
-}
-
 
 /* ══ CLIENT AUTOCOMPLETE ══ */
 function onCliInput(el){
@@ -3663,154 +3346,9 @@ function renderProyeccion(){
 }
 
 
-/* ══ REGISTRO RÁPIDO WHATSAPP ══ */
-function openQuickRes(){
-  const overlay=document.createElement("div");
-  overlay.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px)";
-
-  const clients=[...new Set(reservations.map(r=>r.client))].sort();
-  const datalistOpts=clients.map(c=>`<option value="${esc(c)}">`).join("");
-
-  overlay.innerHTML=`
-    <div style="background:var(--s);border-radius:24px 24px 0 0;width:100%;max-width:520px;padding:22px 18px;padding-bottom:calc(22px + env(safe-area-inset-bottom));box-shadow:var(--sh3)">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-        <div>
-          <div style="display:flex;align-items:center;gap:8px">
-            <span style="background:#e7fbe9;border:1.5px solid #a7f3d0;color:#128C7E;border-radius:8px;padding:3px 9px;font-size:11px;font-weight:800">💬 WhatsApp</span>
-          </div>
-          <p style="font-weight:700;font-size:16px;margin-top:6px">Registro rápido</p>
-          <p style="font-size:11.5px;color:var(--t2);margin-top:2px">5 campos — 10 segundos</p>
-        </div>
-        <button onclick="this.closest('[style*=fixed]').remove()" style="background:var(--s2);border:1px solid var(--bd);border-radius:50%;width:30px;height:30px;font-size:16px;cursor:pointer;color:var(--t2)">×</button>
-      </div>
-
-      <div style="display:flex;flex-direction:column;gap:10px">
-        <!-- Cliente -->
-        <div class="fld">
-          <label class="flbl">👤 Nombre del cliente *</label>
-          <input class="inp" id="qr-cli" placeholder="Nombre completo" list="qr-cli-list" oninput="qrCliInput(this.value)" autocomplete="off">
-          <datalist id="qr-cli-list">${datalistOpts}</datalist>
-        </div>
-
-        <!-- Fecha + Evento en fila -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-          <div class="fld">
-            <label class="flbl">📅 Fecha *</label>
-            <input class="inp" id="qr-date" type="date" value="">
-          </div>
-          <div class="fld">
-            <label class="flbl">⏰ Hora inicio</label>
-            <input class="inp" id="qr-hora" placeholder="Ej. 15 o 15:30" onblur="fmtHora(this)">
-          </div>
-        </div>
-
-        <!-- Tipo evento + Precio en fila -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-          <div class="fld">
-            <label class="flbl">🎉 Tipo de evento *</label>
-            <input class="inp" id="qr-ev" placeholder="Cumpleaños, boda...">
-          </div>
-          <div class="fld">
-            <label class="flbl">💰 Precio S/</label>
-            <input class="inp" id="qr-total" type="number" placeholder="0" min="0">
-          </div>
-        </div>
-
-        <!-- Distrito -->
-        <div class="fld">
-          <label class="flbl">📍 Distrito</label>
-          <input class="inp" id="qr-distrito" placeholder="Ej. Miraflores, Surco...">
-        </div>
-      </div>
-
-      <!-- Tasa de cierre mini -->
-      <div id="qr-stats" style="background:var(--s2);border:1px solid var(--bd);border-radius:10px;padding:8px 12px;margin-top:12px;display:flex;justify-content:space-between;align-items:center">
-        <span style="font-size:11px;color:var(--t2)">💬 Conversaciones WhatsApp</span>
-        <span style="font-size:11px;font-weight:700;color:var(--t)" id="qr-rate-text">—</span>
-      </div>
-
-      <div style="display:flex;gap:8px;margin-top:14px">
-        <button onclick="saveQuickRes()" style="flex:1;background:#128C7E;color:#fff;border:none;border-radius:13px;padding:13px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer">✓ Guardar</button>
-        <button onclick="this.closest('[style*=fixed]').remove()" style="background:var(--s2);border:1px solid var(--bd);color:var(--t2);border-radius:13px;padding:13px 16px;font-family:inherit;font-size:13px;cursor:pointer">Cancelar</button>
-      </div>
-    </div>`;
-
-  document.body.appendChild(overlay);
-  overlay.addEventListener("click",e=>{if(e.target===overlay)overlay.remove();});
-
-  // Set today's date as default
-  document.getElementById("qr-date").value=new Date().toISOString().slice(0,10);
-
-  // Show WhatsApp stats
-  const waTotal=reservations.filter(r=>r.status==="whatsapp"||r._fromWhatsapp).length;
-  const waConf=reservations.filter(r=>r._fromWhatsapp&&r.status==="confirmado").length;
-  const allWa=reservations.filter(r=>r._fromWhatsapp).length;
-  const rate=allWa?Math.round(waConf/allWa*100):null;
-  const rateEl=document.getElementById("qr-rate-text");
-  if(rateEl)rateEl.textContent=rate!==null?`Tasa de cierre: ${rate}% (${waConf}/${allWa})`:`${reservations.filter(r=>r.status==="whatsapp").length} en conversación`;
-}
-
-function qrCliInput(val){
-  if(!val)return;
-  const match=reservations.filter(r=>r.client.toLowerCase()===val.toLowerCase()).sort((a,b)=>b.date.localeCompare(a.date))[0];
-  if(!match)return;
-  // Auto-fill distrito if known
-  const dis=document.getElementById("qr-distrito");
-  if(dis&&!dis.value&&match.distrito)dis.value=match.distrito;
-}
-
-function saveQuickRes(){
-  const cli=(document.getElementById("qr-cli")?.value||"").trim();
-  const date=document.getElementById("qr-date")?.value||"";
-  const ev=(document.getElementById("qr-ev")?.value||"").trim();
-  if(!cli){toast("⚠️ Ingresa el nombre del cliente","warn");return;}
-  if(!ev){toast("⚠️ Ingresa el tipo de evento","warn");return;}
-
-  const hora=document.getElementById("qr-hora")?.value||"";
-  const total=parseFloat(document.getElementById("qr-total")?.value||"0")||0;
-  const distrito=(document.getElementById("qr-distrito")?.value||"").trim();
-
-  const newRes={
-    id:"r"+uid(),
-    client:cli,
-    event:ev,
-    date:date,
-    horaInicio:hora,
-    horaFin:"",
-    phone:"",email:"",dni:"",ruc:"",razon:"",
-    direccion:"",distrito:distrito,notes:"",
-    status:"whatsapp",
-    payStatus:"pendiente_pago",
-    source:"WhatsApp",
-    products:[],
-    total:total,
-    discount:0,extras:0,adelanto:0,
-    rating:0,review:"",
-    signature:"",signedAt:"",
-    changelog:[{ts:new Date().toISOString(),changes:["Creado desde registro rápido WhatsApp"]}],
-    _fromWhatsapp:true,
-  };
-
-  reservations.push(newRes);
-  Store.one("reservations",newRes);
-  renderAll();
-
-  // Close overlay
-  document.querySelector("[style*='backdrop-filter']")?.remove();
-  toast("💬 Registrado — completa los datos cuando confirme");
-
-  // Offer to open full form
-  setTimeout(()=>{
-    if(confirm("¿Abrir para completar datos adicionales?")){
-      openEditRes(newRes.id);
-    }
-  },300);
-}
-
-
 /* ════════════════ § NAVEGACIÓN Y UI ════════════════ */
 
-const TITLES={dashboard:"Inicio",reservas:"Reservaciones",catalogo:"Catálogo",calendario:"Calendario",financiero:"Financiero",clientes:"Clientes",marketing:"Marketing","eventos-ana":"Análisis de Eventos",inventario:"Inventario",reporte:"Reporte Mensual"};
+const TITLES={dashboard:"Inicio",reservas:"Reservaciones",catalogo:"Catálogo",financiero:"Finanzas",clientes:"Clientes"};
 function go(t){
   tab=t;
   document.querySelectorAll("[id^='v-']").forEach(el=>el.style.display="none");
@@ -3820,13 +3358,28 @@ function go(t){
   document.getElementById("top-title").textContent=TITLES[t]||t;
   closeSB();
   if(t==="reservas")renderRes();
-  if(t==="catalogo")renderCat();
-  if(t==="calendario")renderCal();
-  if(t==="financiero")renderFin();
+  if(t==="catalogo"){renderCat();renderInv();}
+  if(t==="financiero"){renderFin();renderAnalisis();renderRep();}
   if(t==="clientes")renderCli();
-  if(t==="analisis")renderAnalisis();
-  if(t==="inventario")renderInv();
-  if(t==="reporte")renderRep();
+}
+
+/* CATÁLOGO — sub-tabs (Productos / Disponibilidad) */
+function setCatSub(s){
+  document.getElementById("cat-sub-productos").style.display=s==="productos"?"block":"none";
+  document.getElementById("cat-sub-disponibilidad").style.display=s==="disponibilidad"?"block":"none";
+  document.getElementById("cat-stab-productos").classList.toggle("on",s==="productos");
+  document.getElementById("cat-stab-disponibilidad").classList.toggle("on",s==="disponibilidad");
+  if(s==="disponibilidad")renderInv();
+}
+
+/* FINANZAS — sub-tabs (Resumen / Análisis / Reportes) */
+function setFinSub(s){
+  ["resumen","analisis","reportes"].forEach(k=>{
+    document.getElementById("fin-sub-"+k).style.display=k===s?"block":"none";
+    document.getElementById("fin-stab-"+k).classList.toggle("on",k===s);
+  });
+  if(s==="analisis")renderAnalisis();
+  if(s==="reportes")renderRep();
 }
 
 /* SIDEBAR */
@@ -3838,17 +3391,6 @@ function closeSB() {
   document.getElementById("sidebar").classList.remove("open");
   document.getElementById("sb-bg").classList.remove("open");
 }
-
-/* MORE MENU */
-function tglMore() {
-  mO = !mO;
-  document.getElementById("mm").classList.toggle("open", mO);
-}
-function closeMore() {
-  mO = false;
-  document.getElementById("mm").classList.remove("open");
-}
-document.addEventListener("click",e=>{const mm=document.getElementById("mm");if(mO&&mm&&!mm.contains(e.target)&&!e.target.closest("#bn-more"))closeMore();});
 
 /* OVERLAYS */
 function openOv(id) { document.getElementById(id).classList.add("open"); }
