@@ -476,8 +476,12 @@ body.dark #dlbl,body.dark #dlbl2{color:var(--t2)}
         <h1 style="font-size:28px;margin-bottom:3px" id="dash-g">Buenos días ⚡</h1>
         <p style="color:var(--t2);font-size:13px">Resumen de <strong>CHISPEKAS</strong></p>
       </div>
+      <div class="card cp" style="margin-bottom:13px">
+        <div class="ch"><div class="ct">Próximos eventos</div><button class="btn btng sm" onclick="go('reservas')">Ver todos →</button></div>
+        <div id="d-evs"></div>
+      </div>
       <div class="kg" id="d-kpis"></div>
-      <div class="g2" style="margin-bottom:13px">
+      <div class="g2">
         <div class="card cp">
           <div class="ch"><div><div class="ct">Ingresos del año</div><div class="cs" id="d-yr-lbl"></div></div></div>
           <div style="position:relative;height:165px"><canvas id="ch-income"></canvas></div>
@@ -489,10 +493,6 @@ body.dark #dlbl,body.dark #dlbl2{color:var(--t2)}
             <div id="d-st-leg" style="flex:1;min-width:0"></div>
           </div>
         </div>
-      </div>
-      <div class="card cp">
-        <div class="ch"><div class="ct">Próximos eventos</div><button class="btn btng sm" onclick="go('reservas')">Ver todos →</button></div>
-        <div id="d-evs"></div>
       </div>
     </div>
 
@@ -528,13 +528,15 @@ body.dark #dlbl,body.dark #dlbl2{color:var(--t2)}
       </div>
 
       <div id="cat-sub-productos">
-        <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:14px">
-          <button class="btn btng sm" id="cf-todos"      onclick="setCF('todos')"     >Todos</button>
-          <button class="btn btng sm" id="cf-inflable"   onclick="setCF('inflable')"  >🏰</button>
-          <button class="btn btng sm" id="cf-mobiliario" onclick="setCF('mobiliario')">🪑</button>
-          <button class="btn btng sm" id="cf-snack"      onclick="setCF('snack')"     >🍿</button>
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px">
+          <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center" id="cat-filters"></div>
+          <div style="display:flex;gap:5px;flex-shrink:0">
+            <button class="btn stab on sm" id="cat-view-tarjetas" onclick="setCatView('tarjetas')">🖼️ Tarjetas</button>
+            <button class="btn stab sm" id="cat-view-lista" onclick="setCatView('lista')">📋 Lista</button>
+          </div>
         </div>
         <div class="g3" id="prod-grid"></div>
+        <div id="prod-list" style="display:none"></div>
       </div>
 
       <div id="cat-sub-disponibilidad" style="display:none">
@@ -571,23 +573,23 @@ body.dark #dlbl,body.dark #dlbl2{color:var(--t2)}
 
       <!-- RESUMEN -->
       <div id="fin-sub-resumen">
-        <div style="display:flex;justify-content:flex-end;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:16px">
+        <div style="display:flex;justify-content:flex-end;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
           <select class="inp" id="fin-yr" onchange="renderFin()" style="width:90px;font-size:13px"></select>
           <button class="btn btng sm" onclick="openMetaModal()">🎯 Meta</button>
           <button class="btn btng sm" onclick="openSheetsSync()">📊 Sheets</button>
         </div>
-        <div class="kg" id="fin-kpis" style="margin-bottom:16px"></div>
+        <div class="kg" id="fin-kpis" style="margin-bottom:12px"></div>
         <div id="fin-compare"></div>
         <div id="fin-meta-bar"></div>
-        <div class="g2" style="margin-bottom:13px">
+        <div class="g2" style="margin-bottom:10px">
           <div class="card cp">
             <div class="ch"><div><div class="ct">Ingresos mensuales</div><div class="cs">Confirmados · Soles (S/)</div></div></div>
-            <div style="position:relative;height:185px"><canvas id="ch-fin-bar"></canvas></div>
+            <div style="position:relative;height:150px"><canvas id="ch-fin-bar"></canvas></div>
           </div>
           <div class="card cp">
             <div class="ch"><div class="ct">Por categoría</div></div>
             <div style="display:flex;align-items:center;gap:14px">
-              <div style="width:115px;height:115px;flex-shrink:0;position:relative"><canvas id="ch-fin-cat"></canvas></div>
+              <div style="width:95px;height:95px;flex-shrink:0;position:relative"><canvas id="ch-fin-cat"></canvas></div>
               <div id="fin-cat-leg" style="flex:1"></div>
             </div>
           </div>
@@ -596,7 +598,7 @@ body.dark #dlbl,body.dark #dlbl2{color:var(--t2)}
           <div class="card cp"><div class="ch"><div class="ct">Top productos</div><div class="cs">Por veces alquilado</div></div><div id="fin-top"></div></div>
           <div class="card cp"><div class="ch"><div class="ct">Pipeline</div><div class="cs">Por estado</div></div><div id="fin-pipe"></div></div>
         </div>
-        <div class="g2" style="margin-top:13px;margin-bottom:13px">
+        <div class="g2" style="margin-top:10px;margin-bottom:10px">
           <div class="card cp">
             <div class="ch"><div class="ct">📈 Proyección 3 meses</div><div class="cs">Basada en historial</div></div>
             <div id="fin-proyeccion"></div>
@@ -701,6 +703,32 @@ body.dark #dlbl,body.dark #dlbl2{color:var(--t2)}
 <div class="ov" id="ov-res" style="align-items:stretch;justify-content:stretch"><div class="sheet" style="max-width:100%;max-height:100%;height:100%;border-radius:0;display:flex;flex-direction:column"><div class="shh" style="display:none"></div><div class="shd"><span class="sht" id="sr-t">Nueva reserva</span><button class="xb" onclick="closeOv('ov-res')">×</button></div><div class="shb" style="flex:1;overflow-y:auto" id="sr-b"></div></div></div>
 <div class="ov" id="ov-prod"><div class="sheet"><div class="shh"></div><div class="shd"><span class="sht" id="sp-t">Producto</span><button class="xb" onclick="closeOv('ov-prod')">×</button></div><div class="shb" id="sp-b"></div></div></div>
 <div class="ov" id="ov-rev" ><div class="sheet"><div class="shh"></div><div class="shd"><span class="sht" id="srev-t">Reseña</span><button class="xb" onclick="closeOv('ov-rev')">×</button></div><div class="shb" id="srev-b"></div></div></div>
+<div class="ov" id="ov-cli-edit"><div class="sheet"><div class="shh"></div><div class="shd"><span class="sht" id="cli-edit-title">✏️ Editar cliente</span><button class="xb" onclick="closeCliEdit()">×</button></div>
+  <div class="shb">
+    <div style="display:flex;flex-direction:column;gap:11px">
+      <div class="fld"><label class="flbl">Nombre</label><input class="inp" id="cli-edit-name" placeholder="Nombre completo"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
+        <div class="fld"><label class="flbl">Teléfono</label><input class="inp" id="cli-edit-phone" placeholder="999 999 999"></div>
+        <div class="fld"><label class="flbl">Email</label><input class="inp" id="cli-edit-email" type="email" placeholder="correo@ejemplo.com"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
+        <div class="fld"><label class="flbl">DNI</label><input class="inp" id="cli-edit-dni" placeholder="12345678"></div>
+        <div class="fld"><label class="flbl">RUC</label><input class="inp" id="cli-edit-ruc" placeholder="20123456789"></div>
+      </div>
+      <div class="fld">
+        <label class="flbl">Cómo llegó</label>
+        <select class="inp" id="cli-edit-src">
+          <option value="">Sin especificar</option>
+          <option>Publicidad Facebook</option><option>Publicidad Instagram</option><option>Marketplace Facebook</option><option>Recomendado</option><option>WhatsApp</option><option>Google</option><option>TikTok</option><option>Otro</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="btn btnd" style="flex:1;justify-content:center" onclick="saveCliEdit()">✓ Guardar cambios</button>
+      <button class="btn btng" onclick="closeCliEdit()">Cancelar</button>
+    </div>
+  </div>
+</div></div>
 
 <!-- LOGIN OVERLAY -->
 <div id="login-overlay" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:99999;flex-direction:column;align-items:center;justify-content:center;padding:24px">
@@ -759,7 +787,8 @@ function waPhone(phone) {
 const MS=["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
 const MF=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DF=["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
-const CAT={inflable:{l:"Inflable",bg:"#fff7ed",c:"#c2410c",br:"#fed7aa",i:"🏰"},mobiliario:{l:"Mobiliario",bg:"#eff6ff",c:"#1d4ed8",br:"#bfdbfe",i:"🪑"},snack:{l:"Snack",bg:"#f0fdf4",c:"#15803d",br:"#bbf7d0",i:"🍿"}};
+let CAT={inflable:{l:"Inflable",bg:"#fff7ed",c:"#c2410c",br:"#fed7aa",i:"🏰"},mobiliario:{l:"Mobiliario",bg:"#eff6ff",c:"#1d4ed8",br:"#bfdbfe",i:"🪑"},snack:{l:"Snack",bg:"#f0fdf4",c:"#15803d",br:"#bbf7d0",i:"🍿"}};
+try{Object.assign(CAT,JSON.parse(localStorage.getItem("ck_categories")||"{}"));}catch(e){}
 const PM={pagado:{bg:"#f0fdf4",c:"#15803d",br:"#bbf7d0",l:"Pagado",i:"✅"},parcial:{bg:"#fffbeb",c:"#b45309",br:"#fde68a",l:"Parcial",i:"💛"},pendiente_pago:{bg:"#fff5f5",c:"#dc2626",br:"#fecaca",l:"Pendiente",i:"🔴"}};
 const SM={whatsapp:{bg:"#e7fbe9",c:"#128C7E",br:"#a7f3d0",l:"WhatsApp",i:"💬"},cotizacion:{bg:"#f5f3ff",c:"#7c3aed",br:"#ddd6fe",l:"Cotización",i:"📋"},pendiente:{bg:"#fffbeb",c:"#b45309",br:"#fde68a",l:"Pendiente",i:"⏳"},confirmado:{bg:"#f0fdf4",c:"#15803d",br:"#bbf7d0",l:"Confirmado",i:"✅"},cancelado:{bg:"#fef2f2",c:"#dc2626",br:"#fecaca",l:"Cancelado",i:"❌"}};
 const SFLOW=["whatsapp","cotizacion","pendiente","confirmado","cancelado"];
@@ -1442,6 +1471,10 @@ function tmplEventoCard(r) {
           style="display:inline-flex;align-items:center;gap:2px;background:#e7fbe9;border:1.5px solid #a7f3d0;border-radius:6px;padding:3px 8px;font-family:inherit;font-size:10.5px;font-weight:700;cursor:pointer;color:#128C7E;text-decoration:none">
           💬 Abrir chat
         </a>
+        <button onclick="addToGCal('${r.id}')"
+          style="display:inline-flex;align-items:center;gap:2px;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:6px;padding:3px 8px;font-family:inherit;font-size:10.5px;font-weight:700;cursor:pointer;color:#1d4ed8">
+          🗓️ Agendar
+        </button>
         <button onclick="openView('${r.id}')"
           style="display:inline-flex;align-items:center;gap:2px;background:var(--s2);border:1px solid var(--bd);border-radius:6px;padding:3px 8px;font-family:inherit;font-size:10.5px;font-weight:600;cursor:pointer;color:var(--t2)">
           👁 Ver
@@ -1479,6 +1512,7 @@ function tmplResRow(r) {
       <td>
         <div>
           <p style="font-weight:700;font-size:13px;color:var(--t)">${fD(r.date)}</p>
+          <p style="font-size:9.5px;font-weight:700;color:${pm2.c};margin-top:1px">${pm2.i} ${pm2.l}</p>
           ${r.horaInicio ? `<p style="font-size:10px;color:var(--t3)">${esc(r.horaInicio)}${r.horaFin ? " → " + esc(r.horaFin) : ""}</p>` : ""}
         </div>
       </td>
@@ -1491,20 +1525,10 @@ function tmplResRow(r) {
             style="display:inline-flex;align-items:center;gap:3px;background:${sm.bg};border:1.5px solid ${sm.br};border-radius:7px;padding:4px 8px;font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;color:${sm.c};white-space:nowrap">
             ${sm.i} ${sm.l}
           </button>
-          <!-- Pago -->
-          <button onclick="openPagoRapido('${r.id}')" title="Pago"
-            style="display:inline-flex;align-items:center;gap:3px;background:${pm2.bg};border:1.5px solid ${pm2.br};border-radius:7px;padding:4px 8px;font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;color:${pm2.c};white-space:nowrap">
-            ${pm2.i} ${pm2.l}
-          </button>
           <!-- Ver -->
           <button onclick="openView('${r.id}')" title="Ver detalle"
             style="display:inline-flex;align-items:center;gap:3px;background:var(--s2);border:1px solid var(--bd);border-radius:7px;padding:4px 8px;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;color:var(--t2);white-space:nowrap">
             👁 Ver
-          </button>
-          <!-- Google Calendar -->
-          <button onclick="addToGCal('${r.id}')" title="Agendar"
-            style="display:inline-flex;align-items:center;gap:3px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:7px;padding:4px 8px;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;color:#15803d;white-space:nowrap">
-            📅 Agendar
           </button>
           <!-- Más opciones -->
           <button onclick="openResMenu('${r.id}')" title="Más acciones"
@@ -1518,7 +1542,7 @@ function tmplResRow(r) {
 
 /** Card de producto en el Catálogo */
 function tmplProdCard(p) {
-  const cm = CAT[p.category];
+  const cm = CAT[p.category] || {l:p.category||"Sin categoría",i:"📦",bg:"var(--s2)",c:"var(--t2)",br:"var(--bd)"};
   const foto = p.photo
     ? `<img src="${p.photo}" style="width:100%;height:95px;object-fit:cover;border-radius:11px;margin-bottom:11px">`
     : `<div style="width:100%;height:72px;background:${cm.bg};border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:32px;margin-bottom:11px">${p.emoji}</div>`;
@@ -1622,13 +1646,83 @@ function renderRes(){
 
 /* ════════════════ § CATÁLOGO ════════════════ */
 
+let catView = localStorage.getItem("ck_catview") || "tarjetas";
+
+function renderCatFilters(){
+  const el=document.getElementById("cat-filters");
+  if(!el)return;
+  const keys=Object.keys(CAT);
+  el.innerHTML = `<button class="btn ${cf==="todos"?"btna":"btng"} sm" onclick="setCF('todos')">Todos</button>`
+    + keys.map(c=>`<button class="btn ${cf===c?"btna":"btng"} sm" onclick="setCF('${c}')">${CAT[c].i} ${CAT[c].l}</button>`).join("")
+    + `<button class="btn btng sm" onclick="addCategory()" title="Crear nueva categoría" style="color:var(--amd)">＋ Categoría</button>`;
+}
+
+function addCategory(){
+  const nombre=(prompt("Nombre de la nueva categoría (ej. Piscinas, Carritos):")||"").trim();
+  if(!nombre)return;
+  const key=nombre.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g,"_").replace(/^_|_$/g,"");
+  if(!key){toast("⚠️ Nombre inválido","warn");return;}
+  if(CAT[key]){toast("Esa categoría ya existe","warn");return;}
+  const emoji=(prompt("Un emoji para representarla (ej. 🏊, 🛒):","🎪")||"🎪").trim().slice(0,4)||"🎪";
+  const palette=[
+    {bg:"#f5f0ff",c:"#7c3aed",br:"#ddd6fe"},{bg:"#fdf2f8",c:"#be185d",br:"#fbcfe8"},
+    {bg:"#f0fdfa",c:"#0f766e",br:"#99f6e4"},{bg:"#fefce8",c:"#a16207",br:"#fef08a"},
+  ];
+  const style=palette[Object.keys(CAT).length % palette.length];
+  CAT[key]={l:nombre,i:emoji,...style};
+  const custom=JSON.parse(localStorage.getItem("ck_categories")||"{}");
+  custom[key]=CAT[key];
+  localStorage.setItem("ck_categories",JSON.stringify(custom));
+  toast("✅ Categoría \""+nombre+"\" creada");
+  renderCatFilters();
+  renderCat();
+  const sel=document.getElementById("fp-c");
+  if(sel){
+    sel.innerHTML=Object.keys(CAT).map(k=>`<option value="${k}">${CAT[k].i} ${CAT[k].l}</option>`).join("")+`<option value="__new__">＋ Nueva categoría...</option>`;
+    sel.value=key;
+  }
+}
+
+function setCatView(v){
+  catView=v;
+  localStorage.setItem("ck_catview",v);
+  document.getElementById("cat-view-tarjetas").classList.toggle("on",v==="tarjetas");
+  document.getElementById("cat-view-lista").classList.toggle("on",v==="lista");
+  document.getElementById("prod-grid").style.display=v==="tarjetas"?"grid":"none";
+  document.getElementById("prod-list").style.display=v==="lista"?"block":"none";
+}
+
 function renderCat(){
   const fp=products.filter(p=>cf==="todos"||p.category===cf);
   const cnt=document.getElementById("cat-cnt");if(cnt)cnt.textContent=products.filter(p=>p.available).length+" disponibles de "+products.length;
-  ["todos","inflable","mobiliario","snack"].forEach(c=>{const b=document.getElementById("cf-"+c);if(b)b.className=cf===c?"btn btna sm":"btn btng sm";});
+  renderCatFilters();
   document.getElementById("prod-grid").innerHTML = fp.length
     ? fp.map(tmplProdCard).join("")
     : `<div style="grid-column:1/-1"><div class="empty"><div class="ei">📦</div><div class="et">Sin productos</div></div></div>`;
+  document.getElementById("prod-list").innerHTML = fp.length
+    ? `<div class="card cp"><table style="width:100%"><tbody>${fp.map(tmplProdRow).join("")}</tbody></table></div>`
+    : `<div class="empty"><div class="ei">📦</div><div class="et">Sin productos</div></div>`;
+  setCatView(catView);
+}
+
+/** Fila compacta de producto — sin fotos, para catálogos grandes */
+function tmplProdRow(p){
+  const cm=CAT[p.category]||{l:p.category,i:"📦",bg:"var(--s2)",c:"var(--t2)",br:"var(--bd)"};
+  const dispColor=p.available?"var(--gr)":"var(--rd)";
+  const dispLabel=p.available?(p.stock>1?"×"+(p.stock||1):"Disp."):"No disp.";
+  return `<tr class="hv" style="border-bottom:1px solid var(--bg)">
+    <td style="padding:9px 6px;width:26px;font-size:16px">${p.emoji}</td>
+    <td style="padding:9px 6px">
+      <p style="font-weight:600;font-size:12.5px">${esc(p.name)}</p>
+      <span style="font-size:9.5px;font-weight:600;background:${cm.bg};color:${cm.c};border:1px solid ${cm.br};padding:1px 6px;border-radius:7px">${cm.l}</span>
+    </td>
+    <td style="padding:9px 6px;text-align:right;white-space:nowrap"><span style="font-weight:700;color:var(--amd);font-size:13px">${fM(p.price)}</span></td>
+    <td style="padding:9px 6px;text-align:right;white-space:nowrap"><span style="font-size:10.5px;font-weight:600;color:${dispColor}">${dispLabel}</span></td>
+    <td style="padding:9px 6px;text-align:right;white-space:nowrap">
+      <button class="ib" onclick="openEditProd('${p.id}')">✏️</button>
+      <button class="ib" onclick="delProd('${p.id}')" style="background:#fff5f5">🗑</button>
+    </td>
+  </tr>`;
 }
 
 
@@ -1657,12 +1751,12 @@ function renderFin(){
   const mon=MS.map((m,i)=>yc.filter(r=>parseInt(r.date.slice(5,7))-1===i).reduce((s,r)=>s+r.total,0));
   const mxM=Math.max(...mon,1);
   mkCh("ch-fin-bar",{type:"bar",data:{labels:MS,datasets:[{data:mon,backgroundColor:mon.map(v=>`rgba(245,166,35,${.12+.76*(v/mxM)})`),borderColor:"#f5a623",borderWidth:1.5,borderRadius:7,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>" "+fM(c.raw)}}},scales:{x:{grid:{display:false},ticks:{font:{size:10}}},y:{grid:{color:"rgba(0,0,0,.04)"},ticks:{callback:v=>v>=1000?"S/"+v/1000+"k":"S/"+v,font:{size:10}}}}}});
-  const ctot={inflable:0,mobiliario:0,snack:0};
+  const ctot={};
   yc.forEach(r=>r.products.forEach(pid=>{const p=products.find(x=>x.id===pid);if(p)ctot[p.category]=(ctot[p.category]||0)+p.price;}));
-  const cv=Object.values(ctot),ck=Object.keys(ctot),cclr=["#f5a623","#0071e3","#34c759"];
-  mkCh("ch-fin-cat",{type:"doughnut",data:{labels:ck.map(c=>CAT[c].l),datasets:[{data:cv,backgroundColor:cclr,borderWidth:2,borderColor:"#fff"}]},options:{responsive:true,maintainAspectRatio:false,cutout:"67%",plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>" "+c.label+": "+fM(c.raw)}}}}});
+  const ck=Object.keys(ctot).filter(c=>ctot[c]>0),cv=ck.map(c=>ctot[c]),cclr=ck.map(c=>(CAT[c]||{}).c||"#8e8e93");
+  mkCh("ch-fin-cat",{type:"doughnut",data:{labels:ck.map(c=>(CAT[c]||{l:c}).l),datasets:[{data:cv,backgroundColor:cclr,borderWidth:2,borderColor:"#fff"}]},options:{responsive:true,maintainAspectRatio:false,cutout:"67%",plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>" "+c.label+": "+fM(c.raw)}}}}});
   const cs=cv.reduce((s,v)=>s+v,0)||1;
-  document.getElementById("fin-cat-leg").innerHTML=ck.map((c,i)=>`<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px"><div style="width:8px;height:8px;border-radius:50%;background:${cclr[i]};flex-shrink:0"></div><span style="font-size:11.5px;color:var(--t2);flex:1">${CAT[c].l}</span><span style="font-weight:600;font-size:11.5px">${Math.round(cv[i]/cs*100)}%</span></div>`).join("");
+  document.getElementById("fin-cat-leg").innerHTML=ck.map((c,i)=>`<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px"><div style="width:8px;height:8px;border-radius:50%;background:${cclr[i]};flex-shrink:0"></div><span style="font-size:11.5px;color:var(--t2);flex:1">${(CAT[c]||{l:c}).l}</span><span style="font-weight:600;font-size:11.5px">${Math.round(cv[i]/cs*100)}%</span></div>`).join("");
   const pu={};reservations.filter(r=>r.status==="confirmado").forEach(r=>r.products.forEach(pid=>{pu[pid]=(pu[pid]||0)+1;}));
   const tp=Object.entries(pu).sort((a,b)=>b[1]-a[1]).slice(0,8),mx=tp[0]?.[1]||1;
   document.getElementById("fin-top").innerHTML=tp.length?tp.map(([pid,cnt],i)=>{const p=products.find(x=>x.id===pid);if(!p)return"";return `<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;margin-bottom:3px"><div style="display:flex;align-items:center;gap:5px"><span style="font-size:10px;font-weight:700;color:var(--t3);width:14px">#${i+1}</span><span style="font-size:12.5px">${p.emoji} ${esc(p.name)}</span></div><span style="font-weight:700;color:var(--amd);font-size:12px">${cnt} alquiler${cnt!==1?"es":""}</span></div><div class="pb"><div class="pf" style="width:${cnt/mx*100}%;background:var(--am)"></div></div></div>`;}).join(""):
@@ -1679,7 +1773,10 @@ function renderFin(){
       +cobros.map(r=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--bg)"><div><p style="font-weight:600;font-size:12.5px">${esc(r.client)}</p><p style="font-size:10.5px;color:var(--t2)">${fD(r.date)} · ${esc(r.event)}</p></div><div style="text-align:right;flex-shrink:0;margin-left:8px"><p style="font-weight:700;color:var(--rd);font-size:13px">${fM(Math.max(0,(r.total||0)-(r.adelanto||0)))}</p><p style="font-size:9.5px;color:var(--t3)">${r.adelanto>0?"Adelanto: "+fM(r.adelanto):"Sin adelanto"}</p></div></div>`).join("")
       :`<div class="empty" style="padding:16px"><div class="ei">✅</div><div class="et">Sin cobros pendientes</div></div>`;
   }
-  setTimeout(()=>{renderFinExtra();renderMetaBar(yc.reduce((s,r)=>s+r.total,0));renderProyeccion();},50);
+  const now_=new Date();
+  const curMoPrefix=now_.getFullYear()+"-"+String(now_.getMonth()+1).padStart(2,"0");
+  const mc=conf.filter(r=>r.date?.startsWith(curMoPrefix));
+  setTimeout(()=>{renderFinExtra();renderMetaBar(mc.reduce((s,r)=>s+r.total,0));renderProyeccion();},50);
 }
 
 
@@ -1935,6 +2032,8 @@ function openResMenu(rid) {
         <button onclick="this.closest('[style*=fixed]').remove()" style="background:var(--s2);border:1px solid var(--bd);border-radius:50%;width:28px;height:28px;font-size:15px;cursor:pointer;color:var(--t2)">×</button>
       </div>
       ${btn("✏️","Editar reserva",    "#eff6ff","#bfdbfe","#1d4ed8", `openEditRes('${rid}')`)}
+      ${btn("💳","Cambiar pago",      "#fff8ec","#fde68a","#92400e", `openPagoRapido('${rid}')`)}
+      ${btn("🗓️","Agendar en Google Calendar", "#eff6ff","#bfdbfe","#1d4ed8", `addToGCal('${rid}')`)}
       ${btn("💬","WhatsApp",          "#e7fbe9","#a7f3d0","#128C7E", `openWAMenu('${rid}')`)}
       ${btn("📄","Cotización PDF",    "#f5f3ff","#ddd6fe","#7c3aed", `openDoc('${rid}','cotizacion')`)}
       ${btn("📋","Contrato PDF",      "#f5f3ff","#ddd6fe","#7c3aed", `openDoc('${rid}','contrato')`)}
@@ -2343,7 +2442,7 @@ function openEditProd(pid){
   document.getElementById("sp-b").innerHTML=`
     <div class="g2m" style="gap:9px;margin-bottom:2px">
       <div class="fld"><label class="flbl">Nombre *</label><input class="inp" id="fp-n" value="${esc(p?.name||"")}" placeholder="Ej. Castillo Mediano"></div>
-      <div class="fld"><label class="flbl">Categoría</label><select class="inp" id="fp-c"><option value="inflable" ${(p?.category||"inflable")==="inflable"?"selected":""}>🏰 Inflable</option><option value="mobiliario" ${p?.category==="mobiliario"?"selected":""}>🪑 Mobiliario</option><option value="snack" ${p?.category==="snack"?"selected":""}>🍿 Snack</option></select></div>
+      <div class="fld"><label class="flbl">Categoría</label><select class="inp" id="fp-c" onchange="if(this.value==='__new__'){this.value=p?.category||Object.keys(CAT)[0];addCategory();}">${Object.keys(CAT).map(k=>`<option value="${k}" ${(p?.category||Object.keys(CAT)[0])===k?"selected":""}>${CAT[k].i} ${CAT[k].l}</option>`).join("")}<option value="__new__">＋ Nueva categoría...</option></select></div>
       <div class="fld"><label class="flbl">Precio S/ *</label><input class="inp" id="fp-p" type="number" value="${p?.price||""}" placeholder="0" min="0"></div>
       <div class="fld"><label class="flbl">📦 Stock (unidades)</label><input class="inp" id="fp-stock" type="number" value="${p?.stock||1}" placeholder="1" min="1" style="width:100%"></div>
       <div class="fld"><label class="flbl">Disponibilidad</label><div style="display:flex;gap:5px;margin-top:2px"><button id="av-t" onclick="setPAv(true)" style="flex:1;padding:7px;border-radius:9px;border:1.5px solid;font-family:inherit;font-weight:600;font-size:11.5px;cursor:pointer;border-color:${pAv?"var(--gr)":"var(--bd)"};background:${pAv?"#f0fdf4":"white"};color:${pAv?"var(--gr)":"var(--t2)"}">✅ Disponible</button><button id="av-f" onclick="setPAv(false)" style="flex:1;padding:7px;border-radius:9px;border:1.5px solid;font-family:inherit;font-weight:600;font-size:11.5px;cursor:pointer;border-color:${!pAv?"var(--rd)":"var(--bd)"};background:${!pAv?"#fff5f5":"white"};color:${!pAv?"var(--rd)":"var(--t2)"}">❌ No disp.</button></div></div>
