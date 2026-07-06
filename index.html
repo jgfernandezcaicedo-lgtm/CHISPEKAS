@@ -441,6 +441,10 @@ body.dark #dlbl,body.dark #dlbl2{color:var(--t2)}
     <button class="nb" id="nb-financiero"  onclick="go('financiero')" ><span class="ni">💵</span>Finanzas</button>
     <button class="nb" id="nb-clientes"    onclick="go('clientes')"   ><span class="ni">👥</span>Clientes</button>
   </div>
+  <div class="ng" style="margin-top:6px">
+    <div class="ngl">Mini Racks</div>
+    <button class="nb" id="nb-racks"       onclick="go('racks')"      ><span class="ni">🛠️</span>Racks</button>
+  </div>
   <div class="sbf">
     <div id="user-info-sb"></div>
     <div class="sr" style="margin-bottom:10px"><div class="dot" id="dot"></div><span id="dlbl">Conectando...</span></div>
@@ -680,6 +684,61 @@ body.dark #dlbl,body.dark #dlbl2{color:var(--t2)}
       </div>
     </div>
 
+    <!-- MINI RACKS -->
+    <div id="v-racks" style="display:none">
+      <div style="margin-bottom:14px"><h1 style="font-size:24px">🛠️ Mini Racks</h1><p style="color:var(--t2);font-size:12px;margin-top:2px">Ventas, stock y clientes — negocio aparte de Chispekas</p></div>
+      <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap">
+        <button class="btn stab on" id="mr-stab-ventas" onclick="setMRSub('ventas')">Ventas</button>
+        <button class="btn stab" id="mr-stab-stock" onclick="setMRSub('stock')">Stock</button>
+        <button class="btn stab" id="mr-stab-clientes" onclick="setMRSub('clientes')">Clientes</button>
+        <button class="btn stab" id="mr-stab-analisis" onclick="setMRSub('analisis')">Análisis</button>
+      </div>
+
+      <!-- VENTAS -->
+      <div id="mr-sub-ventas">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+          <p style="font-size:12px;color:var(--t2)" id="mr-ventas-cnt"></p>
+          <button class="btn btnd sm" onclick="openMRVenta()">＋ Nueva venta</button>
+        </div>
+        <div class="card cp"><div class="tw" id="mr-ventas-tbl"></div></div>
+      </div>
+
+      <!-- STOCK -->
+      <div id="mr-sub-stock" style="display:none">
+        <div class="kg" id="mr-stock-kpis" style="margin-bottom:14px"></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+          <p style="font-size:13px;font-weight:700">Productos</p>
+          <div style="display:flex;gap:6px">
+            <button class="btn btng sm" onclick="openMRProd()">＋ Producto</button>
+            <button class="btn btnd sm" onclick="openMRCompra()">📦 Registrar compra</button>
+          </div>
+        </div>
+        <div class="card cp"><div class="tw" id="mr-stock-tbl"></div></div>
+        <div class="card cp" style="margin-top:13px">
+          <div class="ch"><div class="ct">Historial de compras</div></div>
+          <div class="tw" id="mr-compras-tbl"></div>
+        </div>
+      </div>
+
+      <!-- CLIENTES -->
+      <div id="mr-sub-clientes" style="display:none">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+          <input class="inp" placeholder="Buscar..." id="mr-cli-q" oninput="renderMRClientes()" style="width:180px;font-size:13px">
+        </div>
+        <div class="card cp"><div class="tw" id="mr-cli-tbl"></div></div>
+      </div>
+
+      <!-- ANÁLISIS -->
+      <div id="mr-sub-analisis" style="display:none">
+        <div class="kg" id="mr-an-kpis" style="margin-bottom:14px"></div>
+        <div class="g2" style="margin-bottom:13px">
+          <div class="card cp"><div class="ch"><div class="ct">Ventas por mes</div></div><div style="position:relative;height:170px"><canvas id="ch-mr-ventas"></canvas></div></div>
+          <div class="card cp"><div class="ch"><div class="ct">Margen por producto</div></div><div id="mr-an-margen"></div></div>
+        </div>
+        <div class="card cp"><div class="ch"><div class="ct">🏆 Mejores clientes</div></div><div id="mr-an-top-cli"></div></div>
+      </div>
+    </div>
+
   </div>
 </div>
 </div>
@@ -692,6 +751,7 @@ body.dark #dlbl,body.dark #dlbl2{color:var(--t2)}
     <button class="bn" id="bn-catalogo"   onclick="go('catalogo')"  ><span class="bnico">🎪</span><span class="bnlbl">Catálogo</span></button>
     <button class="bn" id="bn-financiero" onclick="go('financiero')"><span class="bnico">💵</span><span class="bnlbl">Finanzas</span></button>
     <button class="bn" id="bn-clientes"   onclick="go('clientes')"  ><span class="bnico">👥</span><span class="bnlbl">Clientes</span></button>
+    <button class="bn" id="bn-racks"      onclick="go('racks')"     ><span class="bnico">🛠️</span><span class="bnlbl">Racks</span></button>
   </div>
 </nav>
 
@@ -728,6 +788,18 @@ body.dark #dlbl,body.dark #dlbl2{color:var(--t2)}
       <button class="btn btng" onclick="closeCliEdit()">Cancelar</button>
     </div>
   </div>
+</div></div>
+
+<div class="ov" id="ov-mr-venta"><div class="sheet"><div class="shh"></div><div class="shd"><span class="sht">🛠️ Nueva venta — Mini Racks</span><button class="xb" onclick="closeOv('ov-mr-venta')">×</button></div>
+  <div class="shb" id="mrv-body"></div>
+</div></div>
+
+<div class="ov" id="ov-mr-compra"><div class="sheet"><div class="shh"></div><div class="shd"><span class="sht">📦 Registrar compra de stock</span><button class="xb" onclick="closeOv('ov-mr-compra')">×</button></div>
+  <div class="shb" id="mrc-body"></div>
+</div></div>
+
+<div class="ov" id="ov-mr-prod"><div class="sheet"><div class="shh"></div><div class="shd"><span class="sht">✏️ Producto — Mini Racks</span><button class="xb" onclick="closeOv('ov-mr-prod')">×</button></div>
+  <div class="shb" id="mrp-body"></div>
 </div></div>
 
 <!-- LOGIN OVERLAY -->
@@ -842,6 +914,7 @@ function addToGCal(rid){
   window.open(url,"_blank");toast("📅 Agendado: "+r.client+" · Google Calendar");
 }
 let products=[],reservations=[],referrals=[];
+let mrClients=[],mrProducts=[],mrPurchases=[],mrSales=[];
 let tab="dashboard",cf="todos",sf="todos";
 let eRid=null,ePid=null,revId=null;
 let selP=[],pCF="todos",pAv=true,sEmo="🎪",pPh="";
@@ -937,10 +1010,14 @@ const Store={
     try {
       if(window._fbReady) {
         const { collection, getDocs } = window._fb;
-        const [ps, rs, rf] = await Promise.all([
+        const [ps, rs, rf, mrc, mrp, mrpu, mrs] = await Promise.all([
           getDocs(collection(window._db, "products")),
           getDocs(collection(window._db, "reservations")),
-          getDocs(collection(window._db, "referrals"))
+          getDocs(collection(window._db, "referrals")),
+          getDocs(collection(window._db, "mr_clients")),
+          getDocs(collection(window._db, "mr_products")),
+          getDocs(collection(window._db, "mr_purchases")),
+          getDocs(collection(window._db, "mr_sales"))
         ]);
         if(ps.empty) {
           await this.save("products", DP);
@@ -951,6 +1028,10 @@ const Store={
           reservations = rs.docs.map(d => d.data());
           referrals   = rf.docs.map(d => d.data());
         }
+        mrClients  = mrc.docs.map(d=>d.data());
+        mrProducts = mrp.docs.map(d=>d.data());
+        mrPurchases= mrpu.docs.map(d=>d.data());
+        mrSales    = mrs.docs.map(d=>d.data());
       } else {
         const sp  = localStorage.getItem("ck_products");
         const sr  = localStorage.getItem("ck_reservations");
@@ -962,6 +1043,10 @@ const Store={
         products     = sp  ? JSON.parse(sp)  : DP;
         reservations = sr  ? JSON.parse(sr)  : DR;
         referrals    = srf ? JSON.parse(srf) : [];
+        mrClients   = JSON.parse(localStorage.getItem("ck_mr_clients")  ||"[]");
+        mrProducts  = JSON.parse(localStorage.getItem("ck_mr_products") ||"[]");
+        mrPurchases = JSON.parse(localStorage.getItem("ck_mr_purchases")||"[]");
+        mrSales     = JSON.parse(localStorage.getItem("ck_mr_sales")    ||"[]");
       }
       setSaved();
       renderAll();
@@ -984,6 +1069,7 @@ function mkCh(id, cfg) {
    ═══════════════════════════════════════════════ */
 function buildPDF(r, type) {
   const isCot = type === "cotizacion";
+  const isNota = type === "nota_venta";
 
   /* ── DATES ── */
   const today      = new Date().toLocaleDateString("es-PE",{day:"2-digit",month:"2-digit",year:"numeric"});
@@ -1059,6 +1145,32 @@ function buildPDF(r, type) {
     :`<tr><td colspan="2" style="padding:8px 10px;font-size:9px;color:#B8A070;font-style:italic">Servicio personalizado</td></tr>`;
 
   /* ── PRICING SECTION ── */
+  /* ── NOTA DE VENTA: ítems con precio + total simple ── */
+  const prodRowsPriced=rp.length
+    ?rp.map((p,i)=>`<tr style="${i%2?"background:rgba(200,134,10,.04)":""}">
+        <td style="padding:5px 10px;font-size:14px;width:26px;border-bottom:1px solid rgba(200,134,10,.1)">${p.emoji||"✦"}</td>
+        <td style="padding:5px 10px;border-bottom:1px solid rgba(200,134,10,.1)"><span style="font-size:10px;font-weight:600;color:#2a1f0a">${esc(p.name)}</span></td>
+        <td style="padding:5px 10px;text-align:right;border-bottom:1px solid rgba(200,134,10,.1);font-size:9.5px;color:#6B5B2A;white-space:nowrap">${fM(p.price||0)}</td>
+      </tr>`).join("")
+    :`<tr><td colspan="3" style="padding:8px 10px;font-size:9px;color:#B8A070;font-style:italic">Servicio personalizado</td></tr>`;
+
+  const pagado = adelanto + Math.max(0,base-adelanto-resta); // adelanto + cualquier abono ya reflejado en resta
+  const totalPagado = base - resta; // lo efectivamente cobrado hasta hoy
+  const pricingNota=`
+    ${disc>0?`<tr><td style="padding:4px 10px;font-size:9px;color:#9A3A1A;border-bottom:1px solid rgba(200,134,10,.08)">Descuento</td><td style="padding:4px 10px;text-align:right;font-size:9px;font-weight:600;color:#9A3A1A;border-bottom:1px solid rgba(200,134,10,.08)">− ${fM(disc)}</td></tr>`:""}
+    ${extra>0?`<tr><td style="padding:4px 10px;font-size:9px;color:#6B5B2A;border-bottom:1px solid rgba(200,134,10,.08)">🚗 Movilidad / traslado</td><td style="padding:4px 10px;text-align:right;font-size:9px;font-weight:600;color:#6B5B2A;border-bottom:1px solid rgba(200,134,10,.08)">${fM(extra)}</td></tr>`:""}
+    <tr style="background:rgba(200,134,10,.07)">
+      <td style="padding:10px;font-size:13px;font-weight:800;color:#2a1f0a;border-top:1.5px solid rgba(200,134,10,.4)">TOTAL</td>
+      <td style="padding:10px;text-align:right;font-size:20px;font-weight:900;color:#C8860A;border-top:1.5px solid rgba(200,134,10,.4)">${fM(base)}</td>
+    </tr>
+    <tr style="background:rgba(34,139,34,.05)">
+      <td style="padding:5px 10px;font-size:9px;color:#2D6A2D;font-weight:600">Pagado</td>
+      <td style="padding:5px 10px;text-align:right;font-size:9.5px;font-weight:700;color:#2D6A2D">${fM(totalPagado)}</td>
+    </tr>
+    ${resta>0
+      ?`<tr style="background:rgba(139,26,26,.05)"><td style="padding:7px 10px;font-size:10.5px;font-weight:800;color:#2a1f0a">SALDO PENDIENTE</td><td style="padding:7px 10px;text-align:right;font-size:14px;font-weight:900;color:#8B1A1A">${fM(resta)}</td></tr>`
+      :`<tr style="background:rgba(34,139,34,.08)"><td style="padding:7px 10px;font-size:10.5px;font-weight:800;color:#2D6A2D">✓ PAGADO COMPLETO</td><td style="padding:7px 10px;text-align:right;font-size:12px;font-weight:800;color:#2D6A2D">—</td></tr>`}`;
+
   const pricingCot=`
     ${extra>0?`<tr><td style="padding:4px 10px;font-size:9px;color:#6B5B2A;border-bottom:1px solid rgba(200,134,10,.08)">🚗 Movilidad / traslado</td><td style="padding:4px 10px;text-align:right;font-size:9px;font-weight:600;color:#6B5B2A;border-bottom:1px solid rgba(200,134,10,.08)">${fM(extra)}</td></tr>`:""}
     ${disc>0?`<tr><td style="padding:4px 10px;font-size:9px;color:#9A3A1A;border-bottom:1px solid rgba(200,134,10,.08)">Descuento</td><td style="padding:4px 10px;text-align:right;font-size:9px;font-weight:600;color:#9A3A1A;border-bottom:1px solid rgba(200,134,10,.08)">− ${fM(disc)}</td></tr>`:""}
@@ -1172,7 +1284,7 @@ function buildPDF(r, type) {
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>${isCot?"Cotización":"Contrato"} — ${esc(r.client)}</title>
+  <title>${isCot?"Cotización":isNota?"Nota de Venta":"Contrato"} — ${esc(r.client)}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Jost:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
@@ -1297,15 +1409,15 @@ function buildPDF(r, type) {
 
   <!-- ══ HEADER CENTRADO ══ -->
   <div class="hdr">
-    <div class="doc-badge">${isCot?"— Cotización de Servicios —":"— Contrato de Servicios —"}</div>
+    <div class="doc-badge">${isCot?"— Cotización de Servicios —":isNota?"— Nota de Venta —":"— Contrato de Servicios —"}</div>
     <div style="margin:4px 0 6px">${logo}</div>
     <div style="font-family:'Cormorant Garamond',serif;font-size:10px;font-style:italic;color:#9A7A3A;letter-spacing:.12em">Inflables · Snacks · Mobiliario para Eventos</div>
     <div class="rule"></div>
     <div class="meta">
       <span>N° <b>${docNum}</b></span>
       <span>Emitido: <b>${today}</b></span>
-      ${isCot?`<span>Válido hasta: <b>${validStr}</b></span>`:`<span>Lima, ${today}</span>`}
-      <span>Estado: <b>${SM[r.status]?.l||r.status}</b></span>
+      ${isCot?`<span>Válido hasta: <b>${validStr}</b></span>`:isNota?`<span>Lima, ${today}</span>`:`<span>Lima, ${today}</span>`}
+      <span>Estado: <b>${isNota?(resta>0?"Saldo pendiente":"Pagado"):(SM[r.status]?.l||r.status)}</b></span>
     </div>
     <div class="socials">
       ${[["📸","@chispekas"],["👍","Eventos Khaleesi"],["🎵","@chispekas"],["💬","923 912 992"]].map(([i,l])=>`<span class="soc">${i} ${l}</span>`).join("")}
@@ -1342,7 +1454,7 @@ function buildPDF(r, type) {
       <div>
         <div class="stitle">Servicios Incluidos</div>
         <div class="svc">
-          <table><tbody>${prodRows}</tbody></table>
+          <table><tbody>${isNota?prodRowsPriced:prodRows}</tbody></table>
         </div>
         <div class="stitle" style="margin-top:10px">Datos de Pago</div>
         <table class="kv">
@@ -1356,11 +1468,12 @@ function buildPDF(r, type) {
       <div>
         <div class="stitle">Resumen de Precios</div>
         <div class="pricing">
-          <table><tbody>${isCot?pricingCot:pricingCon}</tbody></table>
+          <table><tbody>${isCot?pricingCot:isNota?pricingNota:pricingCon}</tbody></table>
         </div>
       </div>
     </div>
 
+    ${isNota ? "" : `
     <!-- CONDITIONS -->
     <div class="cond-wrap">
       <div class="stitle">${isCot?"Condiciones":"Cláusulas del Contrato"}</div>
@@ -1377,13 +1490,14 @@ function buildPDF(r, type) {
       </div>
       ${sigs}
     </div>
+    `}
 
   </div><!-- end body -->
 
   <!-- FOOTER -->
   <div class="ftr">
     <div class="rule" style="margin-bottom:8px"></div>
-    <div style="font-family:'Cormorant Garamond',serif;font-size:11px;font-weight:600;color:#C8860A;letter-spacing:.08em">CHISPEKAS ✦ Hacemos tu evento inolvidable</div>
+    <div style="font-family:'Cormorant Garamond',serif;font-size:11px;font-weight:600;color:#C8860A;letter-spacing:.08em">CHISPEKAS ✦ ${isNota?"Gracias por tu preferencia":"Hacemos tu evento inolvidable"}</div>
     <div style="font-size:7.5px;color:#B8A070;margin-top:3px">RUC 10451501211 · Giuliana Beatriz Pérez Escobar · 923 912 992</div>
   </div>
 
@@ -1593,6 +1707,7 @@ function renderAll(){
   if(tab==="catalogo"){renderCat();renderInv();}
   if(tab==="financiero"){renderFin();renderAnalisis();renderRep();}
   if(tab==="clientes")renderCli();
+  if(tab==="racks")renderMR();
 }
 
 /* DASHBOARD */
@@ -2037,6 +2152,7 @@ function openResMenu(rid) {
       ${btn("💬","WhatsApp",          "#e7fbe9","#a7f3d0","#128C7E", `openWAMenu('${rid}')`)}
       ${btn("📄","Cotización PDF",    "#f5f3ff","#ddd6fe","#7c3aed", `openDoc('${rid}','cotizacion')`)}
       ${btn("📋","Contrato PDF",      "#f5f3ff","#ddd6fe","#7c3aed", `openDoc('${rid}','contrato')`)}
+      ${btn("🧾","Nota de Venta",     "#f0fdf4","#bbf7d0","#15803d", `openDoc('${rid}','nota_venta')`)}
       ${btn("✍️","Firma digital",     "#fff8ec","var(--am)","var(--amd)", `openSign('${rid}')`)}
       ${btn("⭐","Agregar reseña",    "#fff8ec","#fde68a","#92400e", `openRev('${rid}')`)}
       ${btn("📋","Duplicar reserva",  "var(--s2)","var(--bd)","var(--t2)", `dupRes('${rid}')`)}
@@ -2219,6 +2335,10 @@ function openView(rid){
       <button onclick="openDoc('${r.id}','contrato')"
         style="display:inline-flex;align-items:center;gap:4px;background:#f5f3ff;border:1.5px solid #ddd6fe;border-radius:8px;padding:6px 11px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;color:#7c3aed">
         📋 Contrato
+      </button>
+      <button onclick="openDoc('${r.id}','nota_venta')"
+        style="display:inline-flex;align-items:center;gap:4px;background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:8px;padding:6px 11px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;color:#15803d">
+        🧾 Nota de venta
       </button>
     </div>
 
@@ -2510,9 +2630,28 @@ function saveRev() {
   reservations = reservations.map(x => x.id === revId ? { ...x, rating: revR, review: txt } : x);
   const u = reservations.find(x => x.id === revId);
   Store.one("reservations", u);
+  syncPublicReview(u);
   closeOv("ov-rev");
   renderAll();
   toast("Reseña guardada ⭐");
+}
+
+/** Publica (o retira) una copia segura de la reseña para la página pública.
+    Solo nombre de pila + evento + estrellas + comentario — nunca teléfono, DNI, dirección ni montos. */
+function syncPublicReview(r){
+  const qualifies = r.rating>=4 && (r.review||"").trim().length>0;
+  if(qualifies){
+    Store.one("public_reviews",{
+      id:r.id,
+      name:(r.client||"").trim().split(" ")[0]||"Cliente",
+      event:r.event||"",
+      rating:r.rating,
+      review:r.review,
+      date:r.date||""
+    });
+  } else {
+    Store.del("public_reviews", r.id);
+  }
 }
 
 
@@ -3445,9 +3584,387 @@ function renderProyeccion(){
 }
 
 
+/* ════════════════ § MINI RACKS (negocio aparte) ════════════════ */
+
+function setMRSub(s){
+  ["ventas","stock","clientes","analisis"].forEach(k=>{
+    document.getElementById("mr-sub-"+k).style.display=k===s?"block":"none";
+    document.getElementById("mr-stab-"+k).classList.toggle("on",k===s);
+  });
+  if(s==="stock")renderMRStock();
+  if(s==="clientes")renderMRClientes();
+  if(s==="analisis")renderMRAnalisis();
+}
+
+function renderMR(){ renderMRVentas(); }
+
+/** Stock actual = todo lo comprado − todo lo vendido, para ese producto */
+function mrStock(pid){
+  const in_ = mrPurchases.filter(c=>c.productId===pid).reduce((s,c)=>s+(c.cantidad||0),0);
+  const out = mrSales.filter(v=>v.productId===pid).reduce((s,v)=>s+(v.cantidad||0),0);
+  return in_-out;
+}
+
+/* ── VENTAS ── */
+function renderMRVentas(){
+  const cnt=document.getElementById("mr-ventas-cnt");
+  if(cnt)cnt.textContent=mrSales.length+" venta"+(mrSales.length!==1?"s":"")+" registrada"+(mrSales.length!==1?"s":"");
+  const rows=[...mrSales].sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
+  document.getElementById("mr-ventas-tbl").innerHTML = rows.length
+    ? `<table style="width:100%"><tbody>${rows.map(v=>{
+        const saldo=Math.max(0,(v.total||0)-(v.pagado||0));
+        return `<tr style="border-bottom:1px solid var(--bg)">
+          <td style="padding:9px 6px">
+            <p style="font-weight:700;font-size:12.5px">${esc(v.cliente)}</p>
+            <p style="font-size:10.5px;color:var(--t2)">${esc(v.producto)} × ${v.cantidad} · ${fD(v.fecha)}</p>
+          </td>
+          <td style="padding:9px 6px;text-align:right;white-space:nowrap">
+            <p style="font-weight:800;color:var(--amd);font-size:13px">${fM(v.total)}</p>
+            <p style="font-size:9.5px;font-weight:700;color:${saldo>0?"var(--rd)":"var(--gr)"}">${saldo>0?"Saldo "+fM(saldo):"Pagado"}</p>
+          </td>
+          <td style="padding:9px 6px;text-align:right;white-space:nowrap">
+            ${v.telefono?`<a href="https://wa.me/${waPhone(v.telefono)}" target="_blank" class="ib" style="text-decoration:none;background:#e7fbe9" title="WhatsApp">💬</a>`:""}
+            <button class="ib" onclick="genMRNotaVenta('${v.id}')" title="Nota de venta">🧾</button>
+            <button class="ib" onclick="delMRVenta('${v.id}')" title="Eliminar" style="background:#fff5f5">🗑</button>
+          </td>
+        </tr>`;}).join("")}</tbody></table>`
+    : `<div class="empty"><div class="ei">🛠️</div><div class="et">Sin ventas todavía</div></div>`;
+}
+
+function openMRVenta(){
+  const prodOpts=mrProducts.map(p=>{const st=mrStock(p.id);const warn=st<=0?"⚠️ AGOTADO — ":st<=2?"⚠️ ":"";return `<option value="${p.id}" data-precio="${p.precioVenta||0}">${warn}${esc(p.name)} (stock: ${st})</option>`;}).join("");
+  const cliOpts=`<option value="">— Nuevo cliente —</option>`+mrClients.map(c=>`<option value="${esc(c.name)}">${esc(c.name)}</option>`).join("");
+  const html=`
+    <div style="display:flex;flex-direction:column;gap:11px">
+      <div class="fld"><label class="flbl">Cliente existente</label><select class="inp" id="mrv-cli-sel" onchange="document.getElementById('mrv-cli').value=this.value">${cliOpts}</select></div>
+      <div class="fld"><label class="flbl">Nombre del cliente *</label><input class="inp" id="mrv-cli" placeholder="Nombre completo"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
+        <div class="fld"><label class="flbl">Teléfono</label><input class="inp" id="mrv-tel" placeholder="999 999 999"></div>
+        <div class="fld"><label class="flbl">DNI</label><input class="inp" id="mrv-dni" placeholder="12345678"></div>
+      </div>
+      <div class="fld"><label class="flbl">Producto *</label><select class="inp" id="mrv-prod" onchange="const o=this.selectedOptions[0];document.getElementById('mrv-precio').value=o?o.dataset.precio:0">${prodOpts||"<option value=''>— Crea un producto primero en Stock —</option>"}</select></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
+        <div class="fld"><label class="flbl">Cantidad *</label><input class="inp" id="mrv-cant" type="number" min="1" value="1" oninput="mrvCalc()"></div>
+        <div class="fld"><label class="flbl">Precio unitario (S/) *</label><input class="inp" id="mrv-precio" type="number" min="0" value="0" oninput="mrvCalc()"></div>
+      </div>
+      <div class="fld"><label class="flbl">Dirección de entrega</label><input class="inp" id="mrv-dir" placeholder="Distrito, referencia..."></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
+        <div class="fld"><label class="flbl">Costo de delivery (S/)</label><input class="inp" id="mrv-delivery" type="number" min="0" value="0"></div>
+        <div class="fld"><label class="flbl">Fecha</label><input class="inp" id="mrv-fecha" type="date" value="${new Date().toISOString().slice(0,10)}"></div>
+      </div>
+      <div class="fld"><label class="flbl">Pagado (S/)</label><input class="inp" id="mrv-pagado" type="number" min="0" value="0"></div>
+      <div style="background:var(--aml);border-radius:10px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:11.5px;font-weight:600;color:var(--amd)">TOTAL</span>
+        <span style="font-size:18px;font-weight:800" id="mrv-total-preview">S/ 0</span>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="btn btnd" style="flex:1;justify-content:center" onclick="saveMRVenta()">✓ Guardar venta</button>
+      <button class="btn btng" onclick="closeOv('ov-mr-venta')">Cancelar</button>
+    </div>`;
+  document.getElementById("mrv-body").innerHTML=html;
+  openOv("ov-mr-venta");
+  setTimeout(()=>{const s=document.getElementById("mrv-prod");if(s&&s.selectedOptions[0])document.getElementById("mrv-precio").value=s.selectedOptions[0].dataset.precio||0;mrvCalc();},0);
+}
+function mrvCalc(){
+  const cant=parseFloat(document.getElementById("mrv-cant")?.value)||0;
+  const precio=parseFloat(document.getElementById("mrv-precio")?.value)||0;
+  const el=document.getElementById("mrv-total-preview");
+  if(el)el.textContent=fM(cant*precio);
+}
+function saveMRVenta(){
+  const cliente=(document.getElementById("mrv-cli")?.value||"").trim();
+  const prodSel=document.getElementById("mrv-prod");
+  const productId=prodSel?.value||"";
+  const producto=(prodSel?.selectedOptions[0]?.textContent||"").replace(/⚠️\s*(AGOTADO\s*—\s*)?/,"").replace(/\s*\(stock.*\)/,"")||"";
+  const prodObj=mrProducts.find(x=>x.id===productId);
+  const codigo=prodObj?.codigo||"";
+  const descripcion=prodObj?.descripcion||"";
+  const cantidad=parseFloat(document.getElementById("mrv-cant")?.value)||0;
+  const precio=parseFloat(document.getElementById("mrv-precio")?.value)||0;
+  if(!cliente){toast("⚠️ Falta el nombre del cliente","warn");return;}
+  if(!productId){toast("⚠️ Selecciona un producto","warn");return;}
+  if(cantidad<=0||precio<=0){toast("⚠️ Revisa cantidad y precio","warn");return;}
+  const stockDisp=mrStock(productId);
+  if(cantidad>stockDisp){ if(!confirm(`Solo tienes ${stockDisp} en stock. ¿Registrar la venta de todos modos?`))return; }
+
+  const total=cantidad*precio;
+  const venta={
+    id:"mrv"+uid(), cliente, telefono:(document.getElementById("mrv-tel")?.value||"").trim(),
+    dni:(document.getElementById("mrv-dni")?.value||"").trim(),
+    productId, producto, codigo, descripcion, cantidad, precioUnitario:precio, total,
+    direccion:(document.getElementById("mrv-dir")?.value||"").trim(),
+    costoDelivery:parseFloat(document.getElementById("mrv-delivery")?.value)||0,
+    pagado:parseFloat(document.getElementById("mrv-pagado")?.value)||0,
+    fecha:document.getElementById("mrv-fecha")?.value||new Date().toISOString().slice(0,10),
+  };
+  mrSales.push(venta);
+  Store.one("mr_sales",venta);
+
+  // upsert cliente
+  let cli=mrClients.find(c=>c.name.toLowerCase()===cliente.toLowerCase());
+  if(!cli){
+    cli={id:"mrcli"+uid(),name:cliente,phone:venta.telefono};
+    mrClients.push(cli);
+  } else if(venta.telefono && !cli.phone){
+    cli.phone=venta.telefono;
+  }
+  Store.one("mr_clients",cli);
+
+  closeOv("ov-mr-venta");
+  renderMRVentas();
+  toast("✅ Venta registrada");
+}
+function delMRVenta(id){
+  if(!confirm("¿Eliminar esta venta? Esto también libera el stock."))return;
+  mrSales=mrSales.filter(v=>v.id!==id);
+  Store.del("mr_sales",id);
+  renderMRVentas();
+  toast("Venta eliminada");
+}
+
+/* ── STOCK ── */
+function renderMRStock(){
+  const totalUnidades=mrProducts.reduce((s,p)=>s+mrStock(p.id),0);
+  const valorStock=mrProducts.reduce((s,p)=>s+mrStock(p.id)*(p.costoUnitario||0),0);
+  document.getElementById("mr-stock-kpis").innerHTML=`
+    <div class="kpi"><div class="kv">${totalUnidades}</div><div class="kl">Unidades en stock</div></div>
+    <div class="kpi"><div class="kv">${fM(valorStock)}</div><div class="kl">Valor de inventario</div></div>
+    <div class="kpi"><div class="kv">${mrProducts.length}</div><div class="kl">Productos</div></div>
+    <div class="kpi"><div class="kv">${mrPurchases.length}</div><div class="kl">Compras registradas</div></div>`;
+
+  document.getElementById("mr-stock-tbl").innerHTML = mrProducts.length
+    ? `<table style="width:100%"><tbody>${mrProducts.map(p=>{
+        const stock=mrStock(p.id);
+        const margen=p.precioVenta&&p.costoUnitario?Math.round((p.precioVenta-p.costoUnitario)/p.precioVenta*100):null;
+        const low=stock>0&&stock<=2, out=stock<=0;
+        return `<tr style="border-bottom:1px solid var(--bg)">
+          <td style="padding:9px 6px"><p style="font-weight:700;font-size:12.5px">${esc(p.name)}</p><p style="font-size:10.5px;color:var(--t2)">Costo ${fM(p.costoUnitario||0)} → Venta ${fM(p.precioVenta||0)}${margen!==null?` · Margen ${margen}%`:""}</p>${p.descripcion?`<p style="font-size:9.5px;color:var(--t3);margin-top:2px;max-width:280px">${esc(p.descripcion.slice(0,90))}${p.descripcion.length>90?"…":""}</p>`:""}</td>
+          <td style="padding:9px 6px;text-align:right;white-space:nowrap">
+            <span style="font-weight:800;font-size:14px;color:${out?"var(--rd)":low?"var(--am)":"var(--gr)"}">${stock}</span>
+            <p style="font-size:9px;color:var(--t3)">en stock</p>
+            ${out?`<p style="font-size:9px;font-weight:700;color:var(--rd)">⚠️ Agotado</p>`:low?`<p style="font-size:9px;font-weight:700;color:var(--am)">⚠️ Stock bajo</p>`:""}
+          </td>
+          <td style="padding:9px 6px;text-align:right"><button class="ib" onclick="openMRProd('${p.id}')">✏️</button></td>
+        </tr>`;}).join("")}</tbody></table>`
+    : `<div class="empty"><div class="ei">📦</div><div class="et">Sin productos — crea uno para empezar</div></div>`;
+
+  const compras=[...mrPurchases].sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
+  document.getElementById("mr-compras-tbl").innerHTML = compras.length
+    ? `<table style="width:100%"><tbody>${compras.map(c=>`<tr style="border-bottom:1px solid var(--bg)">
+        <td style="padding:8px 6px"><p style="font-weight:600;font-size:12px">${esc(c.producto)} × ${c.cantidad}</p><p style="font-size:10px;color:var(--t2)">${esc(c.proveedor||"—")} · ${fD(c.fecha)}</p></td>
+        <td style="padding:8px 6px;text-align:right;font-size:12px;font-weight:700">${fM((c.cantidad||0)*(c.costoUnitario||0))}</td>
+      </tr>`).join("")}</tbody></table>`
+    : `<p style="font-size:12px;color:var(--t3);padding:6px">Sin compras registradas todavía</p>`;
+}
+
+function openMRProd(id){
+  const p=id?mrProducts.find(x=>x.id===id):null;
+  const html=`
+    <div style="display:flex;flex-direction:column;gap:11px">
+      <div class="fld"><label class="flbl">Nombre del producto *</label><input class="inp" id="mrp-nombre" value="${p?esc(p.name):""}" placeholder="Mini Rack Industrial Reforzado"></div>
+      <div class="fld"><label class="flbl">Código</label><input class="inp" id="mrp-codigo" value="${p?esc(p.codigo||""):""}" placeholder="Ej. RACK-01"></div>
+      <div class="fld"><label class="flbl">Descripción (dimensiones, material, capacidad...)</label><textarea class="inp" id="mrp-desc" rows="3" placeholder="Ej. 2.00m x 2.00m x 0.60m · 4 niveles · hasta 200kg/nivel · acero Q235">${p?esc(p.descripcion||""):""}</textarea></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
+        <div class="fld"><label class="flbl">Costo unitario (S/)</label><input class="inp" id="mrp-costo" type="number" min="0" value="${p?.costoUnitario||0}"></div>
+        <div class="fld"><label class="flbl">Precio de venta (S/)</label><input class="inp" id="mrp-precio" type="number" min="0" value="${p?.precioVenta||550}"></div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="btn btnd" style="flex:1;justify-content:center" onclick="saveMRProd('${id||""}')">✓ Guardar</button>
+      <button class="btn btng" onclick="closeOv('ov-mr-prod')">Cancelar</button>
+    </div>`;
+  document.getElementById("mrp-body").innerHTML=html;
+  openOv("ov-mr-prod");
+}
+function saveMRProd(id){
+  const name=(document.getElementById("mrp-nombre")?.value||"").trim();
+  if(!name){toast("⚠️ Falta el nombre","warn");return;}
+  const codigo=(document.getElementById("mrp-codigo")?.value||"").trim();
+  const descripcion=(document.getElementById("mrp-desc")?.value||"").trim();
+  const costoUnitario=parseFloat(document.getElementById("mrp-costo")?.value)||0;
+  const precioVenta=parseFloat(document.getElementById("mrp-precio")?.value)||0;
+  let p=id?mrProducts.find(x=>x.id===id):null;
+  if(p){ p.name=name; p.codigo=codigo; p.descripcion=descripcion; p.costoUnitario=costoUnitario; p.precioVenta=precioVenta; }
+  else { p={id:"mrp"+uid(),name,codigo,descripcion,costoUnitario,precioVenta}; mrProducts.push(p); }
+  Store.one("mr_products",p);
+  closeOv("ov-mr-prod");
+  renderMRStock();
+  toast("✅ Producto guardado");
+}
+
+function openMRCompra(){
+  const prodOpts=mrProducts.map(p=>`<option value="${p.id}" data-costo="${p.costoUnitario||0}">${esc(p.name)}</option>`).join("");
+  const html=`
+    <div style="display:flex;flex-direction:column;gap:11px">
+      <div class="fld"><label class="flbl">Producto *</label><select class="inp" id="mrc-prod" onchange="const o=this.selectedOptions[0];document.getElementById('mrc-costo').value=o?o.dataset.costo:0">${prodOpts||"<option value=''>— Crea un producto primero —</option>"}</select></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
+        <div class="fld"><label class="flbl">Cantidad *</label><input class="inp" id="mrc-cant" type="number" min="1" value="1"></div>
+        <div class="fld"><label class="flbl">Costo unitario (S/) *</label><input class="inp" id="mrc-costo" type="number" min="0" value="0"></div>
+      </div>
+      <div class="fld"><label class="flbl">Proveedor</label><input class="inp" id="mrc-prov" placeholder="Nombre del proveedor"></div>
+      <div class="fld"><label class="flbl">Fecha</label><input class="inp" id="mrc-fecha" type="date" value="${new Date().toISOString().slice(0,10)}"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="btn btnd" style="flex:1;justify-content:center" onclick="saveMRCompra()">✓ Registrar compra</button>
+      <button class="btn btng" onclick="closeOv('ov-mr-compra')">Cancelar</button>
+    </div>`;
+  document.getElementById("mrc-body").innerHTML=html;
+  openOv("ov-mr-compra");
+}
+function saveMRCompra(){
+  const prodSel=document.getElementById("mrc-prod");
+  const productId=prodSel?.value||"";
+  if(!productId){toast("⚠️ Selecciona o crea un producto primero","warn");return;}
+  const producto=prodSel.selectedOptions[0]?.textContent||"";
+  const cantidad=parseFloat(document.getElementById("mrc-cant")?.value)||0;
+  const costoUnitario=parseFloat(document.getElementById("mrc-costo")?.value)||0;
+  if(cantidad<=0){toast("⚠️ Revisa la cantidad","warn");return;}
+  const compra={id:"mrc"+uid(),productId,producto,cantidad,costoUnitario,proveedor:(document.getElementById("mrc-prov")?.value||"").trim(),fecha:document.getElementById("mrc-fecha")?.value||new Date().toISOString().slice(0,10)};
+  mrPurchases.push(compra);
+  Store.one("mr_purchases",compra);
+  // actualiza el costo de referencia del producto con el último costo de compra
+  const p=mrProducts.find(x=>x.id===productId);
+  if(p){ p.costoUnitario=costoUnitario; Store.one("mr_products",p); }
+  closeOv("ov-mr-compra");
+  renderMRStock();
+  toast("📦 Compra registrada — stock actualizado");
+}
+
+/* ── CLIENTES (auto-agregados desde ventas) ── */
+function renderMRClientes(){
+  const q=(document.getElementById("mr-cli-q")?.value||"").toLowerCase();
+  const rows=mrClients.map(c=>{
+    const ventas=mrSales.filter(v=>v.cliente.toLowerCase()===c.name.toLowerCase());
+    return {...c, totalComprado:ventas.reduce((s,v)=>s+(v.total||0),0), nCompras:ventas.length, ultima:ventas.map(v=>v.fecha).sort().pop()};
+  }).filter(c=>!q||c.name.toLowerCase().includes(q)).sort((a,b)=>b.totalComprado-a.totalComprado);
+
+  document.getElementById("mr-cli-tbl").innerHTML = rows.length
+    ? `<table style="width:100%"><tbody>${rows.map(c=>`<tr style="border-bottom:1px solid var(--bg)">
+        <td style="padding:9px 6px"><p style="font-weight:700;font-size:12.5px">${esc(c.name)}</p><p style="font-size:10.5px;color:var(--t2)">${esc(c.phone||"Sin teléfono")}</p></td>
+        <td style="padding:9px 6px;text-align:right"><p style="font-weight:800;font-size:13px;color:var(--amd)">${fM(c.totalComprado)}</p><p style="font-size:9.5px;color:var(--t3)">${c.nCompras} compra${c.nCompras!==1?"s":""}${c.ultima?" · "+fD(c.ultima):""}</p></td>
+      </tr>`).join("")}</tbody></table>`
+    : `<div class="empty"><div class="ei">👥</div><div class="et">Sin clientes todavía</div></div>`;
+}
+
+/* ── ANÁLISIS ── */
+function renderMRAnalisis(){
+  const totalVendido=mrSales.reduce((s,v)=>s+(v.total||0),0);
+  const totalCostoProd=mrSales.reduce((s,v)=>{const p=mrProducts.find(x=>x.id===v.productId);return s+(v.cantidad||0)*(p?.costoUnitario||0);},0);
+  const totalDelivery=mrSales.reduce((s,v)=>s+(v.costoDelivery||0),0);
+  const ganancia=totalVendido-totalCostoProd-totalDelivery;
+  const unidades=mrSales.reduce((s,v)=>s+(v.cantidad||0),0);
+
+  document.getElementById("mr-an-kpis").innerHTML=`
+    <div class="kpi"><div class="kv">${fM(totalVendido)}</div><div class="kl">Total vendido</div></div>
+    <div class="kpi"><div class="kv" style="color:var(--gr)">${fM(ganancia)}</div><div class="kl">Ganancia estimada</div></div>
+    <div class="kpi"><div class="kv">${unidades}</div><div class="kl">Unidades vendidas</div></div>
+    <div class="kpi"><div class="kv" style="color:${totalDelivery>0?"var(--am)":"var(--t)"}">${fM(totalDelivery)}</div><div class="kl">Gastado en delivery</div></div>`;
+
+  // ventas por mes (últimos 6 meses)
+  const meses=[]; const now=new Date();
+  for(let i=5;i>=0;i--){ const d=new Date(now.getFullYear(),now.getMonth()-i,1); meses.push(d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")); }
+  const porMes=meses.map(m=>mrSales.filter(v=>(v.fecha||"").startsWith(m)).reduce((s,v)=>s+(v.total||0),0));
+  mkCh("ch-mr-ventas",{type:"bar",data:{labels:meses.map(m=>MS[parseInt(m.split("-")[1])-1]),datasets:[{data:porMes,backgroundColor:"#F5A623",borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{callback:v=>"S/"+v}}}}});
+
+  // margen por producto
+  const margenHtml=mrProducts.map(p=>{
+    const ventasP=mrSales.filter(v=>v.productId===p.id);
+    const vendidoP=ventasP.reduce((s,v)=>s+(v.total||0),0);
+    const costoP=ventasP.reduce((s,v)=>s+(v.cantidad||0)*(p.costoUnitario||0),0);
+    const gananciaP=vendidoP-costoP;
+    if(!ventasP.length)return "";
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--bg)">
+      <span style="font-size:12px;font-weight:600">${esc(p.name)}</span>
+      <span style="font-size:12.5px;font-weight:800;color:var(--gr)">${fM(gananciaP)}</span>
+    </div>`;
+  }).join("");
+  document.getElementById("mr-an-margen").innerHTML=margenHtml||`<p style="font-size:12px;color:var(--t3)">Sin ventas todavía</p>`;
+
+  // top clientes
+  const byClient={};
+  mrSales.forEach(v=>{byClient[v.cliente]=(byClient[v.cliente]||0)+(v.total||0);});
+  const top=Object.entries(byClient).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  document.getElementById("mr-an-top-cli").innerHTML = top.length
+    ? top.map(([name,total],i)=>`<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--bg)">
+        <span style="font-weight:800;color:var(--t3);font-size:12px;width:16px">${i+1}</span>
+        <span style="flex:1;font-size:12.5px;font-weight:600">${esc(name)}</span>
+        <span style="font-weight:800;color:var(--amd);font-size:12.5px">${fM(total)}</span>
+      </div>`).join("")
+    : `<p style="font-size:12px;color:var(--t3)">Sin ventas todavía</p>`;
+}
+
+/* ── NOTA DE VENTA (desde un registro real) ── */
+function genMRNotaVenta(saleId){
+  const v=mrSales.find(x=>x.id===saleId);
+  if(!v){toast("No se encontró la venta","warn");return;}
+  const saldo=Math.max(0,(v.total||0)-(v.pagado||0));
+  const today=new Date(v.fecha+"T12:00:00").toLocaleDateString("es-PE",{day:"2-digit",month:"2-digit",year:"numeric"});
+  const docNum="CK"+new Date(v.fecha).getFullYear().toString().slice(-2)+v.id.slice(-8).toUpperCase();
+
+  const html=`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Nota de Venta — ${esc(v.cliente)}</title>
+  <style>
+    *{box-sizing:border-box}
+    body{font-family:Arial,sans-serif;background:#f2f2f2;margin:0;padding:20px}
+    .doc{width:800px;max-width:100%;margin:auto;border:1px solid #000;padding:20px;background:#fff}
+    h2{text-align:center;margin:0 0 16px}
+    table{width:100%;border-collapse:collapse;margin-top:20px}
+    th,td{border:1px solid #000;padding:8px;font-size:13px}
+    th{background:#f2f2f2}
+    td.c{text-align:center} td.r{text-align:right}
+    .tot-row td{font-weight:700;font-size:14px}
+    .notas{margin-top:24px;font-size:12px;line-height:1.6}
+    .sv{position:fixed;top:16px;right:16px;background:#1d1d1f;color:#fff;border:none;padding:10px 20px;border-radius:8px;font-family:Arial,sans-serif;font-weight:700;font-size:13px;cursor:pointer}
+    @media print{.sv{display:none}body{background:#fff;padding:0}.doc{border:none}}
+  </style></head><body>
+  <button class="sv" onclick="window.print()">⬇ Guardar / Imprimir</button>
+  <div class="doc">
+    <h2>CHISPEKAS IMPORT</h2>
+    <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px">
+      <div>
+        <p><strong>FECHA:</strong> ${today}</p>
+        <p><strong>VENDEDOR:</strong> Junior Fernández Caicedo · 923 912 992</p>
+        <p><strong>CLIENTE:</strong> ${esc(v.cliente.toUpperCase())}${v.dni?` DNI: ${esc(v.dni)}`:""}${v.telefono?` · ${esc(v.telefono)}`:""}</p>
+        ${v.direccion?`<p><strong>ENTREGA:</strong> ${esc(v.direccion)}</p>`:""}
+      </div>
+      <div style="text-align:right">
+        <p><strong>NOTA DE VENTA N°:</strong> ${docNum}</p>
+        <p><strong>ESTADO:</strong> ${saldo>0?"SALDO PENDIENTE":"PAGADO"}</p>
+      </div>
+    </div>
+
+    <table>
+      <tr><th>CÓDIGO</th><th>DESCRIPCIÓN</th><th>CAJA</th><th>CANT</th><th>PRECIO</th><th>TOTAL</th></tr>
+      <tr>
+        <td class="c">${esc(v.codigo||"—")}</td>
+        <td><strong>${esc(v.producto)}</strong>${v.descripcion?`<br><span style="font-size:11px;color:#444">${esc(v.descripcion).replace(/\n/g,"<br>")}</span>`:""}</td>
+        <td class="c">${v.cantidad}</td>
+        <td class="c">${v.cantidad}</td>
+        <td class="r">${fM(v.precioUnitario)}</td>
+        <td class="r">${fM(v.total)}</td>
+      </tr>
+      ${v.costoDelivery>0?`<tr><td colspan="5" class="r">Delivery</td><td class="r">${fM(v.costoDelivery)}</td></tr>`:""}
+      <tr class="tot-row"><td colspan="5" class="r">TOTAL</td><td class="r">${fM(v.total+(v.costoDelivery||0))}</td></tr>
+      <tr><td colspan="5" class="r">Pagado</td><td class="r">${fM(v.pagado||0)}</td></tr>
+      ${saldo>0?`<tr class="tot-row"><td colspan="5" class="r">SALDO PENDIENTE</td><td class="r">${fM(saldo)}</td></tr>`:""}
+    </table>
+
+    <div class="notas">
+      <p><strong>NOTA:</strong> POR FAVOR REVISAR BIEN SU MERCADERÍA EN ALMACÉN, YA QUE TODA MERCADERÍA QUE SALE YA NO TENDRÁ CAMBIO Y/O DEVOLUCIÓN</p>
+      <p><strong>AVISO:</strong> POR SEGURIDAD REALICE PAGOS ÚNICAMENTE A LAS CUENTAS BANCARIAS DE LA EMPRESA</p>
+      <p><strong>WHATSAPP / RECLAMACIONES:</strong> 923 912 992</p>
+    </div>
+  </div>
+  </body></html>`;
+  const w=window.open("","_blank");
+  if(!w){toast("⚠️ Permite ventanas emergentes para ver el PDF","warn");return;}
+  w.document.open();w.document.write(html);w.document.close();
+}
+
+
 /* ════════════════ § NAVEGACIÓN Y UI ════════════════ */
 
-const TITLES={dashboard:"Inicio",reservas:"Reservaciones",catalogo:"Catálogo",financiero:"Finanzas",clientes:"Clientes"};
+const TITLES={dashboard:"Inicio",reservas:"Reservaciones",catalogo:"Catálogo",financiero:"Finanzas",clientes:"Clientes",racks:"Mini Racks"};
 function go(t){
   tab=t;
   document.querySelectorAll("[id^='v-']").forEach(el=>el.style.display="none");
@@ -3460,6 +3977,7 @@ function go(t){
   if(t==="catalogo"){renderCat();renderInv();}
   if(t==="financiero"){renderFin();renderAnalisis();renderRep();}
   if(t==="clientes")renderCli();
+  if(t==="racks")renderMR();
 }
 
 /* CATÁLOGO — sub-tabs (Productos / Disponibilidad) */
@@ -3524,6 +4042,10 @@ async function init(){
   initAuth();       // Auth check runs in background
   const invDate=document.getElementById("inv-date");
   if(invDate&&!invDate.value)invDate.value=new Date().toISOString().slice(0,10);
+  if(!localStorage.getItem("ck_reviews_synced_v1")){
+    reservations.filter(r=>r.rating>=4&&(r.review||"").trim()).forEach(syncPublicReview);
+    localStorage.setItem("ck_reviews_synced_v1","1");
+  }
 }
 window.addEventListener("load",init);
 
