@@ -698,6 +698,7 @@ body.dark #dlbl,body.dark #dlbl2{color:var(--t2)}
       <div id="mr-sub-ventas">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
           <p style="font-size:12px;color:var(--t2)" id="mr-ventas-cnt"></p>
+          <button class="btn btng sm" onclick="openMRCotizacion()">📄 Cotización</button>
           <button class="btn btnd sm" onclick="openMRVenta()">＋ Nueva venta</button>
         </div>
         <div class="card cp"><div class="tw" id="mr-ventas-tbl"></div></div>
@@ -792,6 +793,10 @@ body.dark #dlbl,body.dark #dlbl2{color:var(--t2)}
 
 <div class="ov" id="ov-mr-venta"><div class="sheet"><div class="shh"></div><div class="shd"><span class="sht">🛠️ Nueva venta — Mini Racks</span><button class="xb" onclick="closeOv('ov-mr-venta')">×</button></div>
   <div class="shb" id="mrv-body"></div>
+</div></div>
+
+<div class="ov" id="ov-mr-cotizacion"><div class="sheet"><div class="shh"></div><div class="shd"><span class="sht">📄 Nueva cotización — Mini Racks</span><button class="xb" onclick="closeOv('ov-mr-cotizacion')">×</button></div>
+  <div class="shb" id="mrq-body"></div>
 </div></div>
 
 <div class="ov" id="ov-mr-compra"><div class="sheet"><div class="shh"></div><div class="shd"><span class="sht">📦 Registrar compra de stock</span><button class="xb" onclick="closeOv('ov-mr-compra')">×</button></div>
@@ -3624,6 +3629,7 @@ function renderMRVentas(){
           </td>
           <td style="padding:9px 6px;text-align:right;white-space:nowrap">
             ${v.telefono?`<a href="https://wa.me/${waPhone(v.telefono)}" target="_blank" class="ib" style="text-decoration:none;background:#e7fbe9" title="WhatsApp">💬</a>`:""}
+            <button class="ib" onclick="openMRVenta('${v.id}')" title="Editar">✏️</button>
             <button class="ib" onclick="genMRNotaVenta('${v.id}')" title="Nota de venta">🧾</button>
             <button class="ib" onclick="delMRVenta('${v.id}')" title="Eliminar" style="background:#fff5f5">🗑</button>
           </td>
@@ -3631,40 +3637,41 @@ function renderMRVentas(){
     : `<div class="empty"><div class="ei">🛠️</div><div class="et">Sin ventas todavía</div></div>`;
 }
 
-function openMRVenta(){
-  const prodOpts=mrProducts.map(p=>{const st=mrStock(p.id);const warn=st<=0?"⚠️ AGOTADO — ":st<=2?"⚠️ ":"";return `<option value="${p.id}" data-precio="${p.precioVenta||0}">${warn}${esc(p.name)} (stock: ${st})</option>`;}).join("");
+function openMRVenta(id){
+  const v=id?mrSales.find(x=>x.id===id):null;
+  const prodOpts=mrProducts.map(p=>{const st=mrStock(p.id)+(v&&v.productId===p.id?v.cantidad:0);const warn=st<=0?"⚠️ AGOTADO — ":st<=2?"⚠️ ":"";return `<option value="${p.id}" data-precio="${p.precioVenta||0}" ${v&&v.productId===p.id?"selected":""}>${warn}${esc(p.name)} (stock: ${st})</option>`;}).join("");
   const cliOpts=`<option value="">— Nuevo cliente —</option>`+mrClients.map(c=>`<option value="${esc(c.name)}">${esc(c.name)}</option>`).join("");
   const html=`
     <div style="display:flex;flex-direction:column;gap:11px">
-      <div class="fld"><label class="flbl">Cliente existente</label><select class="inp" id="mrv-cli-sel" onchange="document.getElementById('mrv-cli').value=this.value">${cliOpts}</select></div>
-      <div class="fld"><label class="flbl">Nombre del cliente *</label><input class="inp" id="mrv-cli" placeholder="Nombre completo"></div>
+      ${!v?`<div class="fld"><label class="flbl">Cliente existente</label><select class="inp" id="mrv-cli-sel" onchange="document.getElementById('mrv-cli').value=this.value">${cliOpts}</select></div>`:""}
+      <div class="fld"><label class="flbl">Nombre del cliente *</label><input class="inp" id="mrv-cli" value="${v?esc(v.cliente):""}" placeholder="Nombre completo"></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
-        <div class="fld"><label class="flbl">Teléfono</label><input class="inp" id="mrv-tel" placeholder="999 999 999"></div>
-        <div class="fld"><label class="flbl">DNI</label><input class="inp" id="mrv-dni" placeholder="12345678"></div>
+        <div class="fld"><label class="flbl">Teléfono</label><input class="inp" id="mrv-tel" value="${v?esc(v.telefono||""):""}" placeholder="999 999 999"></div>
+        <div class="fld"><label class="flbl">DNI / RUC</label><input class="inp" id="mrv-dniruc" value="${v?esc(v.dniRuc||""):""}" placeholder="12345678"></div>
       </div>
       <div class="fld"><label class="flbl">Producto *</label><select class="inp" id="mrv-prod" onchange="const o=this.selectedOptions[0];document.getElementById('mrv-precio').value=o?o.dataset.precio:0">${prodOpts||"<option value=''>— Crea un producto primero en Stock —</option>"}</select></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
-        <div class="fld"><label class="flbl">Cantidad *</label><input class="inp" id="mrv-cant" type="number" min="1" value="1" oninput="mrvCalc()"></div>
-        <div class="fld"><label class="flbl">Precio unitario (S/) *</label><input class="inp" id="mrv-precio" type="number" min="0" value="0" oninput="mrvCalc()"></div>
+        <div class="fld"><label class="flbl">Cantidad *</label><input class="inp" id="mrv-cant" type="number" min="1" value="${v?v.cantidad:1}" oninput="mrvCalc()"></div>
+        <div class="fld"><label class="flbl">Precio unitario (S/) *</label><input class="inp" id="mrv-precio" type="number" min="0" value="${v?v.precioUnitario:0}" oninput="mrvCalc()"></div>
       </div>
-      <div class="fld"><label class="flbl">Dirección de entrega</label><input class="inp" id="mrv-dir" placeholder="Distrito, referencia..."></div>
+      <div class="fld"><label class="flbl">Dirección de entrega</label><input class="inp" id="mrv-dir" value="${v?esc(v.direccion||""):""}" placeholder="Distrito, referencia..."></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
-        <div class="fld"><label class="flbl">Costo de delivery (S/)</label><input class="inp" id="mrv-delivery" type="number" min="0" value="0"></div>
-        <div class="fld"><label class="flbl">Fecha</label><input class="inp" id="mrv-fecha" type="date" value="${new Date().toISOString().slice(0,10)}"></div>
+        <div class="fld"><label class="flbl">Costo de delivery (S/)</label><input class="inp" id="mrv-delivery" type="number" min="0" value="${v?v.costoDelivery||0:0}"></div>
+        <div class="fld"><label class="flbl">Fecha</label><input class="inp" id="mrv-fecha" type="date" value="${v?v.fecha:new Date().toISOString().slice(0,10)}"></div>
       </div>
-      <div class="fld"><label class="flbl">Pagado (S/)</label><input class="inp" id="mrv-pagado" type="number" min="0" value="0"></div>
+      <div class="fld"><label class="flbl">Pagado (S/)</label><input class="inp" id="mrv-pagado" type="number" min="0" value="${v?v.pagado||0:0}"></div>
       <div style="background:var(--aml);border-radius:10px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center">
         <span style="font-size:11.5px;font-weight:600;color:var(--amd)">TOTAL</span>
         <span style="font-size:18px;font-weight:800" id="mrv-total-preview">S/ 0</span>
       </div>
     </div>
     <div style="display:flex;gap:8px;margin-top:16px">
-      <button class="btn btnd" style="flex:1;justify-content:center" onclick="saveMRVenta()">✓ Guardar venta</button>
+      <button class="btn btnd" style="flex:1;justify-content:center" onclick="saveMRVenta('${id||""}')">✓ ${v?"Guardar cambios":"Guardar venta"}</button>
       <button class="btn btng" onclick="closeOv('ov-mr-venta')">Cancelar</button>
     </div>`;
   document.getElementById("mrv-body").innerHTML=html;
   openOv("ov-mr-venta");
-  setTimeout(()=>{const s=document.getElementById("mrv-prod");if(s&&s.selectedOptions[0])document.getElementById("mrv-precio").value=s.selectedOptions[0].dataset.precio||0;mrvCalc();},0);
+  setTimeout(()=>{const s=document.getElementById("mrv-prod");if(s&&!v&&s.selectedOptions[0])document.getElementById("mrv-precio").value=s.selectedOptions[0].dataset.precio||0;mrvCalc();},0);
 }
 function mrvCalc(){
   const cant=parseFloat(document.getElementById("mrv-cant")?.value)||0;
@@ -3672,7 +3679,7 @@ function mrvCalc(){
   const el=document.getElementById("mrv-total-preview");
   if(el)el.textContent=fM(cant*precio);
 }
-function saveMRVenta(){
+function saveMRVenta(id){
   const cliente=(document.getElementById("mrv-cli")?.value||"").trim();
   const prodSel=document.getElementById("mrv-prod");
   const productId=prodSel?.value||"";
@@ -3685,20 +3692,23 @@ function saveMRVenta(){
   if(!cliente){toast("⚠️ Falta el nombre del cliente","warn");return;}
   if(!productId){toast("⚠️ Selecciona un producto","warn");return;}
   if(cantidad<=0||precio<=0){toast("⚠️ Revisa cantidad y precio","warn");return;}
-  const stockDisp=mrStock(productId);
-  if(cantidad>stockDisp){ if(!confirm(`Solo tienes ${stockDisp} en stock. ¿Registrar la venta de todos modos?`))return; }
+
+  const existing=id?mrSales.find(x=>x.id===id):null;
+  const stockDisp=mrStock(productId)+(existing&&existing.productId===productId?existing.cantidad:0);
+  if(cantidad>stockDisp){ if(!confirm(`Solo tienes ${stockDisp} en stock. ¿Guardar de todos modos?`))return; }
 
   const total=cantidad*precio;
   const venta={
-    id:"mrv"+uid(), cliente, telefono:(document.getElementById("mrv-tel")?.value||"").trim(),
-    dni:(document.getElementById("mrv-dni")?.value||"").trim(),
+    id: existing?existing.id:"mrv"+uid(), cliente, telefono:(document.getElementById("mrv-tel")?.value||"").trim(),
+    dniRuc:(document.getElementById("mrv-dniruc")?.value||"").trim(),
     productId, producto, codigo, descripcion, cantidad, precioUnitario:precio, total,
     direccion:(document.getElementById("mrv-dir")?.value||"").trim(),
     costoDelivery:parseFloat(document.getElementById("mrv-delivery")?.value)||0,
     pagado:parseFloat(document.getElementById("mrv-pagado")?.value)||0,
     fecha:document.getElementById("mrv-fecha")?.value||new Date().toISOString().slice(0,10),
   };
-  mrSales.push(venta);
+  if(existing){ mrSales=mrSales.map(x=>x.id===existing.id?venta:x); }
+  else { mrSales.push(venta); }
   Store.one("mr_sales",venta);
 
   // upsert cliente
@@ -3713,7 +3723,7 @@ function saveMRVenta(){
 
   closeOv("ov-mr-venta");
   renderMRVentas();
-  toast("✅ Venta registrada");
+  toast(existing?"✅ Venta actualizada":"✅ Venta registrada");
 }
 function delMRVenta(id){
   if(!confirm("¿Eliminar esta venta? Esto también libera el stock."))return;
@@ -3895,70 +3905,237 @@ function renderMRAnalisis(){
 }
 
 /* ── NOTA DE VENTA (desde un registro real) ── */
+function mrLogo(){
+  return `<svg width="34" height="34" viewBox="0 0 34 34" style="flex-shrink:0">
+    <rect x="4" y="3" width="26" height="28" rx="3" fill="none" stroke="#F5A623" stroke-width="2.4"/>
+    <line x1="4" y1="12" x2="30" y2="12" stroke="#F5A623" stroke-width="2.4"/>
+    <line x1="4" y1="21" x2="30" y2="21" stroke="#F5A623" stroke-width="2.4"/>
+  </svg>`;
+}
+function mrDocCSS(){
+  return `
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'DM Sans',Arial,sans-serif;background:#EFEFF2;padding:26px 14px 70px;color:#1F2937}
+    .doc{max-width:720px;margin:auto;background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.06),0 10px 30px rgba(0,0,0,.06);overflow:hidden}
+    .hdr{display:flex;justify-content:space-between;align-items:flex-start;padding:30px 32px 20px;flex-wrap:wrap;gap:16px}
+    .brand{display:flex;align-items:center;gap:11px}
+    .brand h1{font-size:19px;font-weight:800;letter-spacing:-.01em}
+    .brand p{font-size:11px;color:#8A8F98;margin-top:2px}
+    .doc-meta{text-align:right}
+    .doc-type{display:inline-block;font-size:10.5px;font-weight:800;letter-spacing:.08em;color:#F5A623;background:#FFF7EA;padding:4px 11px;border-radius:20px;margin-bottom:6px}
+    .doc-meta .num{font-size:13px;font-weight:700;color:#1F2937}
+    .doc-meta .fec{font-size:11.5px;color:#8A8F98;margin-top:2px}
+    .accent{height:3px;background:linear-gradient(90deg,#F5A623,#FBCB7A)}
+    .bizline{padding:12px 32px;font-size:11px;color:#8A8F98;border-bottom:1px solid #F0F0F2;display:flex;gap:16px;flex-wrap:wrap}
+    .body{padding:26px 32px 8px}
+    .row2{display:flex;gap:24px;flex-wrap:wrap;margin-bottom:22px}
+    .blk{flex:1;min-width:200px}
+    .blk .lbl{font-size:10px;font-weight:700;letter-spacing:.07em;color:#B0B4BB;text-transform:uppercase;margin-bottom:5px}
+    .blk .v1{font-size:13.5px;font-weight:700}
+    .blk .v2{font-size:12px;color:#5B6069;margin-top:2px}
+    .status{display:inline-block;font-size:10.5px;font-weight:800;padding:4px 12px;border-radius:20px;margin-top:6px}
+    .status.pend{background:#FEEEEA;color:#C0442A}
+    .status.ok{background:#E9F9EE;color:#1D8A44}
+    table{width:100%;border-collapse:collapse;margin-bottom:6px}
+    thead th{text-align:left;font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#B0B4BB;padding:0 4px 9px;border-bottom:1.5px solid #ECECEE}
+    tbody td{padding:12px 4px;font-size:13px;border-bottom:1px solid #F3F3F5;vertical-align:top}
+    tbody td.desc small{display:block;font-size:11px;color:#8A8F98;margin-top:3px;font-weight:400;line-height:1.5}
+    td.c{text-align:center} td.r{text-align:right;white-space:nowrap}
+    .sumwrap{display:flex;justify-content:flex-end;padding:14px 32px 30px}
+    .sum{width:260px}
+    .sum .ln{display:flex;justify-content:space-between;font-size:12.5px;padding:5px 0;color:#5B6069}
+    .sum .tot{display:flex;justify-content:space-between;font-size:17px;font-weight:800;padding:10px 0 0;margin-top:6px;border-top:2px solid #1F2937}
+    .sum .saldo{display:flex;justify-content:space-between;font-size:13px;font-weight:800;color:#C0442A;margin-top:8px;background:#FEEEEA;padding:8px 12px;border-radius:8px}
+    .sum .pagadocompleto{font-size:12.5px;font-weight:800;color:#1D8A44;background:#E9F9EE;padding:8px 12px;border-radius:8px;text-align:center;margin-top:8px}
+    .ftr{padding:16px 32px 22px;border-top:1px solid #F0F0F2;font-size:10.5px;color:#B0B4BB;text-align:center}
+    .actions{position:fixed;top:16px;right:16px;display:flex;gap:8px;z-index:10}
+    .actions button{border:none;border-radius:8px;padding:10px 18px;font-family:'DM Sans',sans-serif;font-weight:700;font-size:12.5px;cursor:pointer}
+    .actions .pr{background:#1F2937;color:#fff}
+    .actions .cl{background:#fff;color:#1F2937;border:1.5px solid #E0E0E4!important}
+    @media print{.actions{display:none}body{background:#fff;padding:0}.doc{box-shadow:none;border-radius:0;max-width:100%}}
+  `;
+}
 function genMRNotaVenta(saleId){
   const v=mrSales.find(x=>x.id===saleId);
   if(!v){toast("No se encontró la venta","warn");return;}
   const saldo=Math.max(0,(v.total||0)-(v.pagado||0));
-  const today=new Date(v.fecha+"T12:00:00").toLocaleDateString("es-PE",{day:"2-digit",month:"2-digit",year:"numeric"});
-  const docNum="CK"+new Date(v.fecha).getFullYear().toString().slice(-2)+v.id.slice(-8).toUpperCase();
+  const today=new Date(v.fecha+"T12:00:00").toLocaleDateString("es-PE",{day:"2-digit",month:"long",year:"numeric"});
+  const docNum="NV-"+new Date(v.fecha).getFullYear().toString().slice(-2)+v.id.slice(-6).toUpperCase();
 
-  const html=`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Nota de Venta — ${esc(v.cliente)}</title>
-  <style>
-    *{box-sizing:border-box}
-    body{font-family:Arial,sans-serif;background:#f2f2f2;margin:0;padding:20px}
-    .doc{width:800px;max-width:100%;margin:auto;border:1px solid #000;padding:20px;background:#fff}
-    h2{text-align:center;margin:0 0 16px}
-    table{width:100%;border-collapse:collapse;margin-top:20px}
-    th,td{border:1px solid #000;padding:8px;font-size:13px}
-    th{background:#f2f2f2}
-    td.c{text-align:center} td.r{text-align:right}
-    .tot-row td{font-weight:700;font-size:14px}
-    .notas{margin-top:24px;font-size:12px;line-height:1.6}
-    .sv{position:fixed;top:16px;right:16px;background:#1d1d1f;color:#fff;border:none;padding:10px 20px;border-radius:8px;font-family:Arial,sans-serif;font-weight:700;font-size:13px;cursor:pointer}
-    @media print{.sv{display:none}body{background:#fff;padding:0}.doc{border:none}}
-  </style></head><body>
-  <button class="sv" onclick="window.print()">⬇ Guardar / Imprimir</button>
+  const html=`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Nota de Venta ${docNum}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>${mrDocCSS()}</style></head><body>
+  <div class="actions">
+    <button class="pr" onclick="window.print()">⬇ Descargar / Imprimir</button>
+    <button class="cl" onclick="window.close()">✕ Cerrar</button>
+  </div>
   <div class="doc">
-    <h2>CHISPEKAS IMPORT</h2>
-    <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px">
-      <div>
-        <p><strong>FECHA:</strong> ${today}</p>
-        <p><strong>VENDEDOR:</strong> Junior Fernández Caicedo · 923 912 992</p>
-        <p><strong>CLIENTE:</strong> ${esc(v.cliente.toUpperCase())}${v.dni?` DNI: ${esc(v.dni)}`:""}${v.telefono?` · ${esc(v.telefono)}`:""}</p>
-        ${v.direccion?`<p><strong>ENTREGA:</strong> ${esc(v.direccion)}</p>`:""}
-      </div>
-      <div style="text-align:right">
-        <p><strong>NOTA DE VENTA N°:</strong> ${docNum}</p>
-        <p><strong>ESTADO:</strong> ${saldo>0?"SALDO PENDIENTE":"PAGADO"}</p>
+    <div class="hdr">
+      <div class="brand">${mrLogo()}<div><h1>CHISPEKAS IMPORT</h1><p>Racks industriales y mobiliario de almacenaje</p></div></div>
+      <div class="doc-meta">
+        <span class="doc-type">Nota de venta</span>
+        <p class="num">N° ${docNum}</p>
+        <p class="fec">${today}</p>
       </div>
     </div>
-
-    <table>
-      <tr><th>CÓDIGO</th><th>DESCRIPCIÓN</th><th>CAJA</th><th>CANT</th><th>PRECIO</th><th>TOTAL</th></tr>
-      <tr>
-        <td class="c">${esc(v.codigo||"—")}</td>
-        <td><strong>${esc(v.producto)}</strong>${v.descripcion?`<br><span style="font-size:11px;color:#444">${esc(v.descripcion).replace(/\n/g,"<br>")}</span>`:""}</td>
-        <td class="c">${v.cantidad}</td>
-        <td class="c">${v.cantidad}</td>
-        <td class="r">${fM(v.precioUnitario)}</td>
-        <td class="r">${fM(v.total)}</td>
-      </tr>
-      ${v.costoDelivery>0?`<tr><td colspan="5" class="r">Delivery</td><td class="r">${fM(v.costoDelivery)}</td></tr>`:""}
-      <tr class="tot-row"><td colspan="5" class="r">TOTAL</td><td class="r">${fM(v.total+(v.costoDelivery||0))}</td></tr>
-      <tr><td colspan="5" class="r">Pagado</td><td class="r">${fM(v.pagado||0)}</td></tr>
-      ${saldo>0?`<tr class="tot-row"><td colspan="5" class="r">SALDO PENDIENTE</td><td class="r">${fM(saldo)}</td></tr>`:""}
-    </table>
-
-    <div class="notas">
-      <p><strong>NOTA:</strong> POR FAVOR REVISAR BIEN SU MERCADERÍA EN ALMACÉN, YA QUE TODA MERCADERÍA QUE SALE YA NO TENDRÁ CAMBIO Y/O DEVOLUCIÓN</p>
-      <p><strong>AVISO:</strong> POR SEGURIDAD REALICE PAGOS ÚNICAMENTE A LAS CUENTAS BANCARIAS DE LA EMPRESA</p>
-      <p><strong>WHATSAPP / RECLAMACIONES:</strong> 923 912 992</p>
+    <div class="accent"></div>
+    <div class="bizline">
+      <span>📍 San Juan de Lurigancho, Lima</span>
+      <span>💬 923 912 992</span>
+      <span>✉️ jg.fernandez15@gmail.com</span>
     </div>
+    <div class="body">
+      <div class="row2">
+        <div class="blk">
+          <div class="lbl">Cliente</div>
+          <div class="v1">${esc(v.cliente.toUpperCase())}</div>
+          <div class="v2">${[v.dniRuc?`DNI/RUC: ${esc(v.dniRuc)}`:"",v.telefono?esc(v.telefono):""].filter(Boolean).join(" · ")}</div>
+          ${v.direccion?`<div class="v2">📦 Entrega: ${esc(v.direccion)}</div>`:""}
+        </div>
+        <div class="blk" style="flex:0 0 auto;text-align:right">
+          <div class="lbl">Vendedor</div>
+          <div class="v1">Junior Fernández Caicedo</div>
+          <div class="v2">923 912 992</div>
+          <span class="status ${saldo>0?"pend":"ok"}">${saldo>0?"SALDO PENDIENTE":"PAGADO"}</span>
+        </div>
+      </div>
+
+      <table>
+        <thead><tr><th style="width:70px">Código</th><th>Descripción</th><th class="c" style="width:50px">Cant.</th><th class="r" style="width:90px">P. Unit.</th><th class="r" style="width:100px">Total</th></tr></thead>
+        <tbody>
+          <tr>
+            <td style="font-weight:600;color:#5B6069">${esc(v.codigo||"—")}</td>
+            <td class="desc"><strong>${esc(v.producto)}</strong>${v.descripcion?`<small>${esc(v.descripcion).replace(/\n/g,"<br>")}</small>`:""}</td>
+            <td class="c">${v.cantidad}</td>
+            <td class="r">${fM(v.precioUnitario)}</td>
+            <td class="r" style="font-weight:700">${fM(v.total)}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="sumwrap">
+      <div class="sum">
+        <div class="ln"><span>Subtotal</span><span>${fM(v.total)}</span></div>
+        ${v.costoDelivery>0?`<div class="ln"><span>Delivery</span><span>${fM(v.costoDelivery)}</span></div>`:""}
+        <div class="tot"><span>Total</span><span>${fM(v.total+(v.costoDelivery||0))}</span></div>
+        <div class="ln" style="margin-top:8px"><span>Pagado</span><span>${fM(v.pagado||0)}</span></div>
+        ${saldo>0?`<div class="saldo"><span>Saldo pendiente</span><span>${fM(saldo)}</span></div>`:`<div class="pagadocompleto">✓ Pagado por completo</div>`}
+      </div>
+    </div>
+    <div class="ftr">CHISPEKAS IMPORT · San Juan de Lurigancho, Lima · 923 912 992 · jg.fernandez15@gmail.com</div>
   </div>
   </body></html>`;
   const w=window.open("","_blank");
   if(!w){toast("⚠️ Permite ventanas emergentes para ver el PDF","warn");return;}
   w.document.open();w.document.write(html);w.document.close();
+}
+
+/* ── COTIZACIÓN (no toca ventas ni stock — es solo una propuesta) ── */
+function openMRCotizacion(){
+  const prodOpts=mrProducts.map(p=>`<option value="${p.id}" data-precio="${p.precioVenta||0}">${esc(p.name)}</option>`).join("");
+  const html=`
+    <div style="display:flex;flex-direction:column;gap:11px">
+      <div class="fld"><label class="flbl">Nombre del cliente *</label><input class="inp" id="mrq-cli" placeholder="Nombre completo"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
+        <div class="fld"><label class="flbl">Teléfono</label><input class="inp" id="mrq-tel" placeholder="999 999 999"></div>
+        <div class="fld"><label class="flbl">DNI / RUC</label><input class="inp" id="mrq-dniruc" placeholder="12345678"></div>
+      </div>
+      <div class="fld"><label class="flbl">Producto *</label><select class="inp" id="mrq-prod" onchange="const o=this.selectedOptions[0];document.getElementById('mrq-precio').value=o?o.dataset.precio:0">${prodOpts||"<option value=''>— Crea un producto primero en Stock —</option>"}</select></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
+        <div class="fld"><label class="flbl">Cantidad *</label><input class="inp" id="mrq-cant" type="number" min="1" value="1"></div>
+        <div class="fld"><label class="flbl">Precio unitario (S/) *</label><input class="inp" id="mrq-precio" type="number" min="0" value="0"></div>
+      </div>
+      <div class="fld"><label class="flbl">Válida por (días)</label><input class="inp" id="mrq-validez" type="number" min="1" value="7"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="btn btnd" style="flex:1;justify-content:center" onclick="genMRCotizacion()">📄 Generar cotización</button>
+      <button class="btn btng" onclick="closeOv('ov-mr-cotizacion')">Cancelar</button>
+    </div>`;
+  document.getElementById("mrq-body").innerHTML=html;
+  openOv("ov-mr-cotizacion");
+  setTimeout(()=>{const s=document.getElementById("mrq-prod");if(s&&s.selectedOptions[0])document.getElementById("mrq-precio").value=s.selectedOptions[0].dataset.precio||0;},0);
+}
+function genMRCotizacion(){
+  const cliente=(document.getElementById("mrq-cli")?.value||"").trim();
+  const prodSel=document.getElementById("mrq-prod");
+  const productId=prodSel?.value||"";
+  if(!cliente){toast("⚠️ Falta el nombre del cliente","warn");return;}
+  if(!productId){toast("⚠️ Selecciona un producto","warn");return;}
+  const producto=prodSel.selectedOptions[0]?.textContent||"";
+  const prodObj=mrProducts.find(x=>x.id===productId);
+  const cantidad=parseFloat(document.getElementById("mrq-cant")?.value)||0;
+  const precio=parseFloat(document.getElementById("mrq-precio")?.value)||0;
+  if(cantidad<=0||precio<=0){toast("⚠️ Revisa cantidad y precio","warn");return;}
+  const validezDias=parseInt(document.getElementById("mrq-validez")?.value)||7;
+  const telefono=(document.getElementById("mrq-tel")?.value||"").trim();
+  const dniRuc=(document.getElementById("mrq-dniruc")?.value||"").trim();
+  const total=cantidad*precio;
+
+  const today=new Date();
+  const validoHasta=new Date(today.getTime()+validezDias*86400000);
+  const fmtFecha=d=>d.toLocaleDateString("es-PE",{day:"2-digit",month:"long",year:"numeric"});
+  const docNum="COT-"+today.getFullYear().toString().slice(-2)+uid().toUpperCase();
+
+  const html=`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Cotización ${docNum}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>${mrDocCSS()}</style></head><body>
+  <div class="actions">
+    <button class="pr" onclick="window.print()">⬇ Descargar / Imprimir</button>
+    <button class="cl" onclick="window.close()">✕ Cerrar</button>
+  </div>
+  <div class="doc">
+    <div class="hdr">
+      <div class="brand">${mrLogo()}<div><h1>CHISPEKAS IMPORT</h1><p>Racks industriales y mobiliario de almacenaje</p></div></div>
+      <div class="doc-meta">
+        <span class="doc-type" style="background:#EAF1FF;color:#1D5FE0">Cotización</span>
+        <p class="num">N° ${docNum}</p>
+        <p class="fec">${fmtFecha(today)}</p>
+      </div>
+    </div>
+    <div class="accent"></div>
+    <div class="bizline">
+      <span>📍 San Juan de Lurigancho, Lima</span>
+      <span>💬 923 912 992</span>
+      <span>✉️ jg.fernandez15@gmail.com</span>
+    </div>
+    <div class="body">
+      <div class="row2">
+        <div class="blk">
+          <div class="lbl">Cotizado para</div>
+          <div class="v1">${esc(cliente.toUpperCase())}</div>
+          <div class="v2">${[dniRuc?`DNI/RUC: ${esc(dniRuc)}`:"",telefono].filter(Boolean).join(" · ")}</div>
+        </div>
+        <div class="blk" style="flex:0 0 auto;text-align:right">
+          <div class="lbl">Válida hasta</div>
+          <div class="v1">${fmtFecha(validoHasta)}</div>
+        </div>
+      </div>
+
+      <table>
+        <thead><tr><th style="width:70px">Código</th><th>Descripción</th><th class="c" style="width:50px">Cant.</th><th class="r" style="width:90px">P. Unit.</th><th class="r" style="width:100px">Total</th></tr></thead>
+        <tbody>
+          <tr>
+            <td style="font-weight:600;color:#5B6069">${esc(prodObj?.codigo||"—")}</td>
+            <td class="desc"><strong>${esc(producto)}</strong>${prodObj?.descripcion?`<small>${esc(prodObj.descripcion).replace(/\n/g,"<br>")}</small>`:""}</td>
+            <td class="c">${cantidad}</td>
+            <td class="r">${fM(precio)}</td>
+            <td class="r" style="font-weight:700">${fM(total)}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="sumwrap">
+      <div class="sum">
+        <div class="tot"><span>Total</span><span>${fM(total)}</span></div>
+      </div>
+    </div>
+    <div class="ftr">CHISPEKAS IMPORT · San Juan de Lurigancho, Lima · 923 912 992 · jg.fernandez15@gmail.com</div>
+  </div>
+  </body></html>`;
+  const w=window.open("","_blank");
+  if(!w){toast("⚠️ Permite ventanas emergentes para ver el PDF","warn");return;}
+  w.document.open();w.document.write(html);w.document.close();
+  closeOv("ov-mr-cotizacion");
 }
 
 
