@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>JF Hub — Panel</title>
+<title>JF Business Hub — Panel</title>
 <meta name="theme-color" content="#f5a623">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -283,7 +283,11 @@ body.dark .flbl{color:var(--t2)}
 body.dark .btng{background:var(--s2);color:var(--t);border-color:var(--bd)}
 body.dark .btng:hover{background:var(--bd)}
 body.dark .ib{background:var(--s2);border-color:var(--bd);color:var(--t)}
+body.dark .btnd{background:var(--am);color:#1d1d1f}
+body.dark .btnd:hover{background:var(--amd)}
 body.dark .ib:hover{background:var(--bd)}
+body.dark .btnd{background:var(--am);color:#1d1d1f}
+body.dark .btnd:hover{background:var(--amd);color:#fff}
 
 /* Navigation */
 body.dark .bnav{background:rgba(28,28,30,.96);border-color:var(--bd)}
@@ -430,8 +434,7 @@ body.dark #dlbl,body.dark #dlbl2{color:var(--t2)}
 <!-- SIDEBAR -->
 <aside class="sidebar" id="sidebar">
   <div class="sbl">
-    <div class="sbm">⚡</div>
-    <div class="sbn">JF Hub</div>
+    <div class="sbn">JF Business Hub</div>
     <div class="sbs">Todos tus negocios</div>
   </div>
   <div class="ng">
@@ -498,8 +501,8 @@ body.dark #dlbl,body.dark #dlbl2{color:var(--t2)}
     <div id="v-dashboard" style="display:none">
       <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:18px">
         <div>
-          <h1 style="font-size:28px;margin-bottom:3px" id="dash-g">Buenos días ⚡</h1>
-          <p style="color:var(--t2);font-size:13px">Resumen de <strong>JF Hub</strong> — todos tus negocios</p>
+          <h1 style="font-size:28px;margin-bottom:3px" id="dash-g">Buenos días</h1>
+          <p style="color:var(--t2);font-size:13px">Resumen de <strong>JF Business Hub</strong> — todos tus negocios</p>
         </div>
         <span style="font-size:11.5px;color:var(--t3);font-weight:600;text-transform:capitalize" id="jfh-fecha"></span>
       </div>
@@ -726,30 +729,6 @@ body.dark #dlbl,body.dark #dlbl2{color:var(--t2)}
         <div class="ch"><div><div class="ct">⚠️ Clientes en riesgo</div><div class="cs">Sin volver hace 4+ meses</div></div></div>
         <div id="cli-riesgo"></div>
       </div>
-      <div class="g2" style="margin-bottom:13px">
-        <div class="card cp">
-          <div class="ch"><div class="ct">🤝 Red de referidos</div></div>
-          <div id="cli-refs" style="margin-bottom:10px;min-height:40px"></div>
-          <div style="border-top:1px solid var(--bd);padding-top:10px">
-            <p class="lbl" style="margin-bottom:6px">Registrar referido</p>
-            <select class="inp" id="ref-from" style="font-size:13px;margin-bottom:6px"><option value="">¿Quién recomendó?</option></select>
-            <div style="display:flex;gap:6px">
-              <select class="inp" id="ref-to" style="font-size:13px;flex:1"><option value="">¿A quién refirió?</option></select>
-              <button class="btn btna sm" onclick="addRef()">＋</button>
-            </div>
-          </div>
-        </div>
-        <div class="card cp">
-          <div class="ch"><div class="ct">📣 Fuente por cliente</div></div>
-          <select class="inp" id="mkt-cli" style="font-size:13px;margin-bottom:6px"></select>
-          <div style="display:flex;gap:6px">
-            <select class="inp" id="mkt-src" style="font-size:13px;flex:1">
-              <option>Publicidad Facebook</option><option>Publicidad Instagram</option><option>Marketplace Facebook</option><option>Recomendado</option><option>WhatsApp</option><option>Google</option><option>TikTok</option><option>Otro</option>
-            </select>
-            <button class="btn btna sm" onclick="assignSrc()">Guardar</button>
-          </div>
-        </div>
-      </div>
       <div class="card cp">
         <div class="ch"><div class="ct">Directorio</div><input class="inp" placeholder="Buscar..." id="cli-q" oninput="renderCli()" style="width:165px;font-size:13px"></div>
         <div class="tw" id="cli-tbl"></div>
@@ -955,6 +934,8 @@ const CC=["#f5a623","#34c759","#0071e3","#8e44f0","#ff3b30","#ff9500","#5ac8fa"]
 const fD=d=>d?new Date(d+"T12:00:00").toLocaleDateString("es-PE",{day:"numeric",month:"short",year:"numeric"}):"—";
 const fM=n=>"S/ "+Number(n).toLocaleString("es-PE");
 const esc=s=>String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+/** Fecha de HOY en la zona horaria local (no UTC) — evita el bug de que new Date().toISOString() se adelanta un día en la tarde/noche en Lima */
+function todayLocal(){ return new Date().toLocaleDateString("en-CA"); }
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 
 const COMBOS=[
@@ -1705,7 +1686,7 @@ function tmplResRow(r) {
             <p style="font-weight:600;font-size:13px">${esc(r.client)}</p>
             <p style="font-size:10px;color:var(--t3)">
               ${esc(r.phone || "")}
-              ${hasConflict ? ` <span style="color:#b45309;cursor:help" title="Stock agotado: ${conflictTitle}">⚠️</span>` : ""}
+              ${hasConflict ? ` <span onclick="toast('⚠️ Conflicto de stock: ${esc(conflictTitle).replace(/'/g,"&#39;")}','warn')" style="color:#b45309;cursor:pointer">⚠️</span>` : ""}
             </p>
           </div>
         </div>
@@ -1799,15 +1780,15 @@ function renderAll(){
 }
 
 /* DASHBOARD */
-/** JF Hub — resumen unificado de CHISPEKAS + Racks, "todo el negocio en un minuto" */
+/** JF Business Hub — resumen unificado de CHISPEKAS + Racks, "todo el negocio en un minuto" */
 function renderJFHub(){
   const fechaEl=document.getElementById("jfh-fecha");
   if(fechaEl)fechaEl.textContent=new Date().toLocaleDateString("es-PE",{weekday:"long",day:"numeric",month:"long"});
 
-  const today_j=new Date().toISOString().slice(0,10);
+  const today_j=todayLocal();
   const chispekasHoy=reservations.filter(r=>r.date===today_j&&r.status==="confirmado").reduce((s,r)=>s+(r.total||0),0);
   const racksHoy=mrSales.filter(v=>v.fecha===today_j).reduce((s,v)=>s+(v.total||0),0);
-  const chispekasPend=reservations.reduce((s,r)=>s+Math.max(0,(r.total||0)-(r.adelanto||0)),0);
+  const chispekasPend=reservations.filter(r=>r.date>=today_j&&r.status!=="cancelado").reduce((s,r)=>s+Math.max(0,(r.total||0)-(r.adelanto||0)),0);
   const racksPend=mrSales.reduce((s,v)=>s+Math.max(0,(v.total||0)-(v.pagado||0)),0);
   const eventosHoy=reservations.filter(r=>r.date===today_j&&r.status!=="cancelado").length;
   const racksVentasHoy=mrSales.filter(v=>v.fecha===today_j).length;
@@ -1873,7 +1854,7 @@ function renderJFHub(){
 function renderDash(){
   renderJFHub();
   const hr=new Date().getHours();
-  const g=hr<12?"Buenos días ⚡":hr<19?"Buenas tardes ⚡":"Buenas noches ⚡";
+  const g=hr<12?"Buenos días":hr<19?"Buenas tardes":"Buenas noches";
   const el=document.getElementById("dash-g");if(el)el.textContent=g;
 }
 
@@ -1898,13 +1879,13 @@ function renderChispekasResumen(){
   const clrs=["#8e44f0","#f5a623","#34c759","#ff3b30"];
   mkCh("ch-status",{type:"doughnut",data:{labels:SFLOW.map(s=>SM[s].l),datasets:[{data:cnt,backgroundColor:clrs,borderWidth:2,borderColor:"#fff"}]},options:{responsive:true,maintainAspectRatio:false,cutout:"68%",plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>" "+c.label+": "+c.raw}}}}});
   document.getElementById("d-st-leg").innerHTML=SFLOW.map((s,i)=>`<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px"><div style="width:8px;height:8px;border-radius:50%;background:${clrs[i]};flex-shrink:0"></div><span style="font-size:11.5px;color:var(--t2);flex:1">${SM[s].l}</span><span style="font-weight:600;font-size:11.5px">${cnt[i]}</span></div>`).join("");
-  const today_s=new Date().toISOString().slice(0,10);const ups=[...reservations].filter(r=>r.date>=today_s&&r.status!=="cancelado").sort((a,b)=>a.date.localeCompare(b.date)).slice(0,5);
+  const today_s=todayLocal();const ups=[...reservations].filter(r=>r.date>=today_s&&r.status!=="cancelado").sort((a,b)=>a.date.localeCompare(b.date)).slice(0,5);
   document.getElementById("d-evs").innerHTML = ups.length
     ? ups.map(tmplEventoCard).join("")
     : `<div class="empty"><div class="ei">📅</div><div class="et">Sin eventos registrados</div><p style="font-size:12px">Crea tu primera reserva con el botón + Nueva</p></div>`;
 
   /* Hoy y mañana — logística de entrega/recojo, separado de "próximos" que puede abarcar semanas */
-  const tomorrow_s=new Date(Date.now()+86400000).toISOString().slice(0,10);
+  const tomorrow_s=(()=>{const d=new Date();d.setDate(d.getDate()+1);return d.toLocaleDateString("en-CA");})();
   const hoyEvs=reservations.filter(r=>r.date===today_s&&r.status!=="cancelado").sort((a,b)=>(a.horaInicio||"").localeCompare(b.horaInicio||""));
   const mananaEvs=reservations.filter(r=>r.date===tomorrow_s&&r.status!=="cancelado").sort((a,b)=>(a.horaInicio||"").localeCompare(b.horaInicio||""));
   const hoyCard=document.getElementById("d-hoy-card");
@@ -2114,8 +2095,8 @@ function renderCli(){
   const riesgo=cls.filter(c=>{
     if(!c.last||c.events<1)return false;
     const meses=(hoy_-new Date(c.last+"T12:00:00"))/(1000*60*60*24*30.4);
-    return meses>=4;
-  }).sort((a,b)=>a.last.localeCompare(b.last));
+    return meses>=4&&meses<=18; // ventana útil de reactivación — más de 18 meses ya no es "en riesgo", probablemente se perdió
+  }).sort((a,b)=>b.last.localeCompare(a.last)); // más reciente primero — el más recuperable
   const riesgoCard=document.getElementById("cli-riesgo-card");
   if(riesgo.length){
     riesgoCard.style.display="block";
@@ -2132,52 +2113,8 @@ function renderCli(){
   const f1=cls.filter(c=>c.events===1).length,f2=cls.filter(c=>c.events===2).length,f3=cls.filter(c=>c.events>=3).length;
   mkCh("ch-cli",{type:"bar",data:{labels:["1 evento","2 eventos","3+"],datasets:[{data:[f1,f2,f3],backgroundColor:["rgba(245,166,35,.15)","rgba(52,199,89,.15)","rgba(0,113,227,.15)"],borderColor:["#f5a623","#34c759","#0071e3"],borderWidth:2,borderRadius:8,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{grid:{color:"rgba(0,0,0,.04)"},ticks:{stepSize:1}}}}});
   const fl=cls.filter(c=>c.name.toLowerCase().includes(q.toLowerCase()));
-  document.getElementById("cli-tbl").innerHTML=`<table><thead><tr><th>Cliente</th><th class="hm">Teléfono</th><th class="hm">Distritos</th><th>Eventos</th><th>Total</th><th class="hm">Fuente</th><th></th></tr></thead><tbody>${fl.map(c=>`<tr class="hv"><td><div style="display:flex;align-items:center;gap:7px"><div style="width:26px;height:26px;border-radius:7px;background:var(--aml);display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--amd);font-size:11px;flex-shrink:0">${esc(c.name[0])}</div><span style="font-weight:600;font-size:13px">${esc(c.name)}</span></div></td><td class="hm" style="font-size:12px;color:var(--t2)">${esc(c.phone)}</td><td class="hm" style="font-size:11px;color:var(--t2)">${[...c.distritos].slice(0,2).join(", ")||"—"}</td><td><span style="font-weight:700;color:var(--bl)">${c.events}</span></td><td style="font-weight:700;color:var(--gr);font-size:13px">${fM(c.spent)}</td><td class="hm"><span class="badge" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe">${esc(c.source)}</span></td><td><button onclick="openCliEdit(${JSON.stringify(c.name)})" style="background:var(--aml);color:var(--amd);border:none;border-radius:8px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer">✏️ Editar</button></td></tr>`).join("")||`<tr><td colspan="6"><div class="empty"><div class="ei">🔍</div><div class="et">Sin resultados</div></div></td></tr>`}</tbody></table>`;
-  // Referidos section
-  const refsEl=document.getElementById("cli-refs");
-  if(refsEl)refsEl.innerHTML=referrals.length
-    ?referrals.map(r=>`<div style="display:flex;align-items:center;gap:7px;padding:7px 10px;background:var(--s2);border-radius:9px;margin-bottom:5px;border:1px solid var(--bd)"><span style="font-size:14px">🤝</span><div style="flex:1;min-width:0"><p style="font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.from)} → ${esc(r.to)}</p><p style="font-size:10px;color:var(--t3)">${r.date||""}</p></div><button class="ib" onclick="delRef('${r.id}')" style="width:24px;height:24px;font-size:11px;background:#fff5f5">🗑</button></div>`).join("")
-    :`<p style="font-size:12px;color:var(--t3);text-align:center;padding:10px 0">Sin referidos registrados</p>`;
-
-  // Update fuente selects
-  const cls2=[...new Set(reservations.map(r=>r.client))].sort();
-  const mktCli=document.getElementById("mkt-cli");
-  if(mktCli)mktCli.innerHTML=cls2.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join("");
-  const refFrom=document.getElementById("ref-from");
-  if(refFrom)refFrom.innerHTML=`<option value="">¿Quién recomendó?</option>`+cls2.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join("");
-  const refTo=document.getElementById("ref-to");
-  if(refTo)refTo.innerHTML=`<option value="">¿A quién refirió?</option>`+cls2.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join("");
-
+  document.getElementById("cli-tbl").innerHTML=`<table><thead><tr><th>Cliente</th><th class="hm">Teléfono</th><th class="hm">Distritos</th><th>Eventos</th><th>Total</th><th class="hm">Fuente</th><th></th></tr></thead><tbody>${fl.map(c=>`<tr class="hv"><td><div style="display:flex;align-items:center;gap:7px"><div style="width:26px;height:26px;border-radius:7px;background:var(--aml);display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--amd);font-size:11px;flex-shrink:0">${esc(c.name[0])}</div><span style="font-weight:600;font-size:13px">${esc(c.name)}</span></div></td><td class="hm" style="font-size:12px;color:var(--t2)">${esc(c.phone)}</td><td class="hm" style="font-size:11px;color:var(--t2)">${[...c.distritos].slice(0,2).join(", ")||"—"}</td><td><span style="font-weight:700;color:var(--bl)">${c.events}</span></td><td style="font-weight:700;color:var(--gr);font-size:13px">${fM(c.spent)}</td><td class="hm"><span class="badge" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe">${esc(c.source)}</span></td><td><button onclick="openCliEdit(${JSON.stringify(c.name).replace(/"/g,"&quot;")})" style="background:var(--aml);color:var(--amd);border:none;border-radius:8px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer">✏️ Editar</button></td></tr>`).join("")||`<tr><td colspan="6"><div class="empty"><div class="ei">🔍</div><div class="et">Sin resultados</div></div></td></tr>`}</tbody></table>`;
 }
-
-function assignSrc() {
-  const cli = document.getElementById("mkt-cli")?.value;
-  const src = document.getElementById("mkt-src")?.value;
-  if(!cli || !src) return;
-  reservations = reservations.map(r => r.client === cli ? { ...r, source: src } : r);
-  reservations.filter(r => r.client === cli).forEach(r => Store.one("reservations", r));
-  renderCli();
-  toast("Fuente asignada a " + cli);
-}
-function addRef() {
-  const from = document.getElementById("ref-from")?.value;
-  const to = document.getElementById("ref-to")?.value;
-  if(!from || !to) { alert("Selecciona ambos clientes"); return; }
-  if(from === to) { alert("No puede ser el mismo cliente"); return; }
-  const ref = { id: "rf" + uid(), from, to, date: new Date().toISOString().slice(0,10) };
-  referrals.push(ref);
-  Store.one("referrals", ref);
-  renderCli();
-  toast("Referido registrado 🤝");
-}
-function delRef(id) {
-  if(!confirm("¿Eliminar este referido?")) return;
-  referrals = referrals.filter(x => x.id !== id);
-  Store.del("referrals", id);
-  renderCli();
-  toast("Eliminado", "warn");
-}
-
 
 /* ════════════════ § ACCIONES (WA, GCal, estados) ════════════════ */
 
@@ -2912,10 +2849,10 @@ function saveSign() {
 
 /* ════════════════ § INVENTARIO ════════════════ */
 
-function renderInv(){const dt=document.getElementById("inv-date")?.value||new Date().toISOString().slice(0,10);const usageMap={};reservations.filter(r=>r.date===dt&&r.status!=="cancelado").forEach(r=>(r.products||[]).forEach(pid=>{usageMap[pid]=(usageMap[pid]||0)+1;}));
+function renderInv(){const dt=document.getElementById("inv-date")?.value||todayLocal();const usageMap={};reservations.filter(r=>r.date===dt&&r.status!=="cancelado").forEach(r=>(r.products||[]).forEach(pid=>{usageMap[pid]=(usageMap[pid]||0)+1;}));
   const avail=products.filter(p=>p.available&&(usageMap[p.id]||0)<(p.stock||1));
   const busy=products.filter(p=>p.available&&(usageMap[p.id]||0)>=(p.stock||1));
-  const partial=products.filter(p=>p.available&&(usageMap[p.id]||0)>0&&(usageMap[p.id]||0)<(p.stock||1));document.getElementById("inv-kpis").innerHTML=[{l:"Disponibles",v:avail.length,i:"✅",bg:"#f0fdf4",s:"Stock libre"},{l:"Stock parcial",v:partial.length,i:"💛",bg:"#fffbeb",s:"Quedan unidades"},{l:"Agotados",v:busy.length,i:"🔴",bg:"#fff5f5",s:"Sin stock ese día"},{l:"Eventos ese día",v:reservations.filter(r=>r.date===dt&&r.status!=="cancelado").length,i:"📅",bg:"#fff8ec",s:"Activos"},].map(k=>`<div class="kpi"><div class="ki" style="background:${k.bg}">${k.i}</div><div class="kv">${k.v}</div><div class="kl">${k.l}</div><div class="ks">${k.s}</div></div>`).join("");document.getElementById("inv-avail").innerHTML=avail.length?avail.map(p=>{const cm=CAT[p.category];const libre=(p.stock||1)-(usageMap[p.id]||0);const isPartial=(usageMap[p.id]||0)>0;return `<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 11px;background:${isPartial?"#fffbeb":"#f0fdf4"};border-radius:10px;margin-bottom:5px;border:1px solid ${isPartial?"#fde68a":"#bbf7d0"}"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:18px">${p.emoji}</span><div><p style="font-size:13px;font-weight:600">${esc(p.name)}</p><p style="font-size:10px;color:var(--t2)">${cm.l}</p></div></div><div style="text-align:right"><p style="font-weight:700;color:${isPartial?"#b45309":"#15803d"};font-size:12.5px">${fM(p.price)}</p><p style="font-size:10px;color:${isPartial?"#b45309":"#15803d"};font-weight:600">${libre} de ${p.stock||1} libre${libre!==1?"s":""}</p></div></div>`;}).join(""):`<div class="empty" style="padding:20px"><div class="ei">📭</div><div class="et">Todo ocupado ese día</div></div>`;const busyEl=document.getElementById("inv-busy");if(busyEl){busyEl.innerHTML=busy.length?busy.map(p=>{const res=reservations.find(r=>r.date===dt&&r.products?.includes(p.id)&&r.status!=="cancelado");const sm2=res?SM[res.status]||SM.cotizacion:SM.cotizacion;const clients2=reservations.filter(r=>r.date===dt&&r.status!=="cancelado"&&(r.products||[]).includes(p.id)).map(r=>r.client);return `<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 11px;background:#fff5f5;border-radius:10px;margin-bottom:5px;border:1px solid #fecaca"><div style="display:flex;align-items:center;gap:8px;min-width:0"><span style="font-size:18px">${p.emoji}</span><div style="min-width:0"><p style="font-size:13px;font-weight:600">${esc(p.name)}</p><p style="font-size:10px;color:#dc2626;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${clients2.join(", ")}</p></div></div><div style="text-align:right;flex-shrink:0;margin-left:6px"><p style="font-weight:700;color:#dc2626;font-size:12px">${usageMap[p.id]||0}/${p.stock||1}</p><p style="font-size:9.5px;color:#dc2626">agotado</p></div></div>`;}).join(""):`<div class="empty" style="padding:20px"><div class="ei">✅</div><div class="et">Todo disponible</div></div>`;const today3=new Date().toISOString().slice(0,10);const upcoming=reservations.filter(r=>r.date>=today3&&r.status!=="cancelado").sort((a,b)=>a.date.localeCompare(b.date)).slice(0,6);busyEl.innerHTML+=`<div style="margin-top:12px"><p class="lbl" style="margin-bottom:7px">Próximos eventos</p>${upcoming.map(r=>{const sm2=SM[r.status]||SM.cotizacion;return `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--bg)"><div><p style="font-size:12px;font-weight:600">${fD(r.date)}</p><p style="font-size:10.5px;color:var(--t2)">${esc(r.client)} · ${esc(r.event)}</p></div><span class="badge" style="background:${sm2.bg};color:${sm2.c};border:1px solid ${sm2.br}">${sm2.l}</span></div>`;}).join("")}</div>`;}const cutoff=new Date();cutoff.setDate(cutoff.getDate()-30);const cutStr=cutoff.toISOString().slice(0,10);const usage={};reservations.filter(r=>r.date>=cutStr).forEach(r=>(r.products||[]).forEach(pid=>{usage[pid]=(usage[pid]||0)+1;}));const sorted=Object.entries(usage).sort((a,b)=>b[1]-a[1]);const mx2=sorted[0]?.[1]||1;document.getElementById("inv-usage").innerHTML=sorted.length?sorted.map(([pid,cnt])=>{const p=products.find(x=>x.id===pid);if(!p)return"";return `<div style="margin-bottom:9px"><div style="display:flex;justify-content:space-between;margin-bottom:3px"><span style="font-size:12.5px">${p.emoji} ${esc(p.name)}</span><span style="font-weight:700;color:var(--amd);font-size:12px">${cnt} uso${cnt!==1?"s":""}</span></div><div class="pb"><div class="pf" style="width:${cnt/mx2*100}%;background:var(--am)"></div></div></div>`;}).join(""):`<div class="empty" style="padding:20px"><div class="ei">📦</div><div class="et">Sin datos aún</div></div>`;}
+  const partial=products.filter(p=>p.available&&(usageMap[p.id]||0)>0&&(usageMap[p.id]||0)<(p.stock||1));document.getElementById("inv-kpis").innerHTML=[{l:"Disponibles",v:avail.length,i:"✅",bg:"#f0fdf4",s:"Stock libre"},{l:"Stock parcial",v:partial.length,i:"💛",bg:"#fffbeb",s:"Quedan unidades"},{l:"Agotados",v:busy.length,i:"🔴",bg:"#fff5f5",s:"Sin stock ese día"},{l:"Eventos ese día",v:reservations.filter(r=>r.date===dt&&r.status!=="cancelado").length,i:"📅",bg:"#fff8ec",s:"Activos"},].map(k=>`<div class="kpi"><div class="ki" style="background:${k.bg}">${k.i}</div><div class="kv">${k.v}</div><div class="kl">${k.l}</div><div class="ks">${k.s}</div></div>`).join("");document.getElementById("inv-avail").innerHTML=avail.length?avail.map(p=>{const cm=CAT[p.category];const libre=(p.stock||1)-(usageMap[p.id]||0);const isPartial=(usageMap[p.id]||0)>0;return `<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 11px;background:${isPartial?"#fffbeb":"#f0fdf4"};border-radius:10px;margin-bottom:5px;border:1px solid ${isPartial?"#fde68a":"#bbf7d0"}"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:18px">${p.emoji}</span><div><p style="font-size:13px;font-weight:600">${esc(p.name)}</p><p style="font-size:10px;color:var(--t2)">${cm.l}</p></div></div><div style="text-align:right"><p style="font-weight:700;color:${isPartial?"#b45309":"#15803d"};font-size:12.5px">${fM(p.price)}</p><p style="font-size:10px;color:${isPartial?"#b45309":"#15803d"};font-weight:600">${libre} de ${p.stock||1} libre${libre!==1?"s":""}</p></div></div>`;}).join(""):`<div class="empty" style="padding:20px"><div class="ei">📭</div><div class="et">Todo ocupado ese día</div></div>`;const busyEl=document.getElementById("inv-busy");if(busyEl){busyEl.innerHTML=busy.length?busy.map(p=>{const res=reservations.find(r=>r.date===dt&&r.products?.includes(p.id)&&r.status!=="cancelado");const sm2=res?SM[res.status]||SM.cotizacion:SM.cotizacion;const clients2=reservations.filter(r=>r.date===dt&&r.status!=="cancelado"&&(r.products||[]).includes(p.id)).map(r=>r.client);return `<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 11px;background:#fff5f5;border-radius:10px;margin-bottom:5px;border:1px solid #fecaca"><div style="display:flex;align-items:center;gap:8px;min-width:0"><span style="font-size:18px">${p.emoji}</span><div style="min-width:0"><p style="font-size:13px;font-weight:600">${esc(p.name)}</p><p style="font-size:10px;color:#dc2626;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${clients2.join(", ")}</p></div></div><div style="text-align:right;flex-shrink:0;margin-left:6px"><p style="font-weight:700;color:#dc2626;font-size:12px">${usageMap[p.id]||0}/${p.stock||1}</p><p style="font-size:9.5px;color:#dc2626">agotado</p></div></div>`;}).join(""):`<div class="empty" style="padding:20px"><div class="ei">✅</div><div class="et">Todo disponible</div></div>`;const today3=todayLocal();const upcoming=reservations.filter(r=>r.date>=today3&&r.status!=="cancelado").sort((a,b)=>a.date.localeCompare(b.date)).slice(0,6);busyEl.innerHTML+=`<div style="margin-top:12px"><p class="lbl" style="margin-bottom:7px">Próximos eventos</p>${upcoming.map(r=>{const sm2=SM[r.status]||SM.cotizacion;return `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--bg)"><div><p style="font-size:12px;font-weight:600">${fD(r.date)}</p><p style="font-size:10.5px;color:var(--t2)">${esc(r.client)} · ${esc(r.event)}</p></div><span class="badge" style="background:${sm2.bg};color:${sm2.c};border:1px solid ${sm2.br}">${sm2.l}</span></div>`;}).join("")}</div>`;}const cutoff=new Date();cutoff.setDate(cutoff.getDate()-30);const cutStr=cutoff.toISOString().slice(0,10);const usage={};reservations.filter(r=>r.date>=cutStr).forEach(r=>(r.products||[]).forEach(pid=>{usage[pid]=(usage[pid]||0)+1;}));const sorted=Object.entries(usage).sort((a,b)=>b[1]-a[1]);const mx2=sorted[0]?.[1]||1;document.getElementById("inv-usage").innerHTML=sorted.length?sorted.map(([pid,cnt])=>{const p=products.find(x=>x.id===pid);if(!p)return"";return `<div style="margin-bottom:9px"><div style="display:flex;justify-content:space-between;margin-bottom:3px"><span style="font-size:12.5px">${p.emoji} ${esc(p.name)}</span><span style="font-weight:700;color:var(--amd);font-size:12px">${cnt} uso${cnt!==1?"s":""}</span></div><div class="pb"><div class="pf" style="width:${cnt/mx2*100}%;background:var(--am)"></div></div></div>`;}).join(""):`<div class="empty" style="padding:20px"><div class="ei">📦</div><div class="et">Sin datos aún</div></div>`;}
 
 /* ══ COMPARATIVO AÑO vs AÑO ══ */
 function renderFinExtra(){const sel=document.getElementById("fin-yr");if(!sel)return;const yr=parseInt(sel.value);const prevYr=yr-1;const getCurr=y=>reservations.filter(r=>r.status==="confirmado"&&r.date?.startsWith(String(y)));const curr=getCurr(yr),prev=getCurr(prevYr);const currMon=MS.map((_,i)=>curr.filter(r=>parseInt(r.date.slice(5,7))-1===i).reduce((s,r)=>s+r.total,0));const prevMon=MS.map((_,i)=>prev.filter(r=>parseInt(r.date.slice(5,7))-1===i).reduce((s,r)=>s+r.total,0));const el=document.getElementById("fin-compare");if(!el)return;const currTotal=curr.reduce((s,r)=>s+r.total,0);const prevTotal=prev.reduce((s,r)=>s+r.total,0);const varPct=prevTotal?Math.round((currTotal-prevTotal)/prevTotal*100):null;el.innerHTML=`<div class="card cp" style="margin-bottom:13px"><div class="ch"><div><div class="ct">Comparativo ${yr} vs ${prevYr}</div><div class="cs">${varPct!==null?(varPct>=0?"▲ +"+varPct+"% vs año anterior":"▼ "+varPct+"% vs año anterior"):"Sin datos del año anterior"}</div></div></div><div style="position:relative;height:170px"><canvas id="ch-fin-compare"></canvas></div><div style="margin-top:12px;border-top:1px solid var(--bd);padding-top:11px"><p class="lbl" style="margin-bottom:7px">Variación mes a mes — ${yr}</p><div style="display:flex;flex-wrap:wrap;gap:5px">${MS.map((m,i)=>{const v=currMon[i];const pv=prevMon[i];const diff=v-pv;const pct=pv?Math.round(diff/pv*100):null;const up=pct!==null?pct>=0:null;return `<div style="background:${up===null?"var(--s2)":up?"#f0fdf4":"#fff5f5"};border:1px solid ${up===null?"var(--bd)":up?"#bbf7d0":"#fecaca"};border-radius:9px;padding:7px 9px;min-width:60px;text-align:center"><p style="font-size:9.5px;font-weight:600;color:var(--t3)">${m}</p><p style="font-size:11px;font-weight:700;color:var(--t)">${fM(v)}</p><p style="font-size:9px;font-weight:600;color:${up===null?"var(--t3)":up?"#15803d":"#dc2626"}">${pct!==null?(up?"▲ +"+pct+"%":"▼ "+pct+"%"):"—"}</p></div>`;}).join("")}</div></div></div>`;mkCh("ch-fin-compare",{type:"bar",data:{labels:MS,datasets:[{label:String(yr),data:currMon,backgroundColor:"rgba(245,166,35,.2)",borderColor:"#f5a623",borderWidth:2,borderRadius:6,borderSkipped:false},{label:String(prevYr),data:prevMon,backgroundColor:"rgba(142,68,240,.12)",borderColor:"#8e44f0",borderWidth:2,borderRadius:6,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom",labels:{usePointStyle:true,pointStyle:"circle",padding:12,font:{size:10}}}},scales:{x:{grid:{display:false},ticks:{font:{size:10}}},y:{grid:{color:"rgba(0,0,0,.04)"},ticks:{callback:v=>v>=1000?"S/"+v/1000+"k":"S/"+v,font:{size:10}}}}}});}
@@ -3809,7 +3746,7 @@ function openMRVenta(id){
       <div class="fld"><label class="flbl">Dirección de entrega</label><input class="inp" id="mrv-dir" value="${v?esc(v.direccion||""):""}" placeholder="Distrito, referencia..."></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
         <div class="fld"><label class="flbl">Costo de delivery (S/)</label><input class="inp" id="mrv-delivery" type="number" min="0" value="${v?v.costoDelivery||0:0}"></div>
-        <div class="fld"><label class="flbl">Fecha</label><input class="inp" id="mrv-fecha" type="date" value="${v?v.fecha:new Date().toISOString().slice(0,10)}"></div>
+        <div class="fld"><label class="flbl">Fecha</label><input class="inp" id="mrv-fecha" type="date" value="${v?v.fecha:todayLocal()}"></div>
       </div>
       <div class="fld">
         <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;cursor:pointer;background:var(--s2);border:1px solid var(--bd);border-radius:10px;padding:10px 12px">
@@ -3889,7 +3826,7 @@ function saveMRVenta(id){
     direccion:(document.getElementById("mrv-dir")?.value||"").trim(),
     costoDelivery:parseFloat(document.getElementById("mrv-delivery")?.value)||0,
     pagado:parseFloat(document.getElementById("mrv-pagado")?.value)||0,
-    fecha:document.getElementById("mrv-fecha")?.value||new Date().toISOString().slice(0,10),
+    fecha:document.getElementById("mrv-fecha")?.value||todayLocal(),
   };
   if(existing){ mrSales=mrSales.map(x=>x.id===existing.id?venta:x); }
   else { mrSales.push(venta); }
@@ -4009,7 +3946,7 @@ function openMRCompra(){
         <div class="fld"><label class="flbl">Costo unitario (S/) *</label><input class="inp" id="mrc-costo" type="number" min="0" value="0"></div>
       </div>
       <div class="fld"><label class="flbl">Proveedor</label><input class="inp" id="mrc-prov" placeholder="Nombre del proveedor"></div>
-      <div class="fld"><label class="flbl">Fecha</label><input class="inp" id="mrc-fecha" type="date" value="${new Date().toISOString().slice(0,10)}"></div>
+      <div class="fld"><label class="flbl">Fecha</label><input class="inp" id="mrc-fecha" type="date" value="${todayLocal()}"></div>
     </div>
     <div style="display:flex;gap:8px;margin-top:16px">
       <button class="btn btnd" style="flex:1;justify-content:center" onclick="saveMRCompra()">✓ Registrar compra</button>
@@ -4026,7 +3963,7 @@ function saveMRCompra(){
   const cantidad=parseFloat(document.getElementById("mrc-cant")?.value)||0;
   const costoUnitario=parseFloat(document.getElementById("mrc-costo")?.value)||0;
   if(cantidad<=0){toast("⚠️ Revisa la cantidad","warn");return;}
-  const compra={id:"mrc"+uid(),productId,producto,cantidad,costoUnitario,proveedor:(document.getElementById("mrc-prov")?.value||"").trim(),fecha:document.getElementById("mrc-fecha")?.value||new Date().toISOString().slice(0,10)};
+  const compra={id:"mrc"+uid(),productId,producto,cantidad,costoUnitario,proveedor:(document.getElementById("mrc-prov")?.value||"").trim(),fecha:document.getElementById("mrc-fecha")?.value||todayLocal()};
   mrPurchases.push(compra);
   Store.one("mr_purchases",compra);
   // actualiza el costo de referencia del producto con el último costo de compra
@@ -4510,7 +4447,7 @@ async function init(){
   go("dashboard");  // Show app immediately
   initAuth();       // Auth check runs in background
   const invDate=document.getElementById("inv-date");
-  if(invDate&&!invDate.value)invDate.value=new Date().toISOString().slice(0,10);
+  if(invDate&&!invDate.value)invDate.value=todayLocal();
   if(!localStorage.getItem("ck_reviews_synced_v1")){
     reservations.filter(r=>r.rating>=4&&(r.review||"").trim()).forEach(syncPublicReview);
     localStorage.setItem("ck_reviews_synced_v1","1");
