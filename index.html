@@ -165,6 +165,10 @@ h1{font-family:'DM Serif Display',Georgia,serif;font-weight:400;letter-spacing:-
 .jfh-biz .lbl{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
 .jfh-biz .sub{font-size:11px;color:#6e6e73;margin-top:2px}
 .jfh-biz .pill{display:inline-flex;align-items:center;gap:4px;font-size:9.5px;font-weight:700;border-radius:999px;padding:3px 8px;margin-top:9px}
+.jfh-stat-row{display:flex;gap:10px;margin-top:9px}
+.jfh-stat{flex:1;min-width:0}
+.jfh-stat .k{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#948d7e}
+.jfh-stat .v{font-family:'SF Mono','Roboto Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums;font-size:15.5px;font-weight:800;color:#1d1d1f;letter-spacing:-.01em}
 .kpi:hover{transform:translateY(-2px);box-shadow:var(--sh2)}
 .ki{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;margin-bottom:10px}
 .kv{font-family:'SF Mono','Roboto Mono',ui-monospace,'DM Serif Display',monospace,serif;font-variant-numeric:tabular-nums;font-weight:700;font-size:22px;color:var(--t);line-height:1;margin-bottom:3px;letter-spacing:-.01em}
@@ -519,6 +523,11 @@ body.dark #dlbl,body.dark #dlbl2{color:var(--t2)}
           </div>
         </div>
         <div style="position:relative;height:180px"><canvas id="ch-jfh-trend"></canvas></div>
+      </div>
+
+      <div class="card cp" style="margin-bottom:16px">
+        <div class="ch"><div><div class="ct">📊 Análisis financiero</div><div class="cs">Para tomar decisiones, no solo para mirar</div></div></div>
+        <div class="kg" id="jfh-ratios" style="grid-template-columns:1fr 1fr"></div>
       </div>
 
       <div class="card cp" style="margin-bottom:16px">
@@ -1786,13 +1795,33 @@ function renderJFHub(){
   if(fechaEl)fechaEl.textContent=new Date().toLocaleDateString("es-PE",{weekday:"long",day:"numeric",month:"long"});
 
   const today_j=todayLocal();
+  /* Semana actual, lunes a domingo — se reinicia solo cada lunes */
+  const now_w=new Date();
+  const dow=now_w.getDay(); // 0=domingo..6=sábado
+  const diffToMonday=(dow===0?-6:1-dow);
+  const monday=new Date(now_w);monday.setDate(now_w.getDate()+diffToMonday);
+  const sunday=new Date(monday);sunday.setDate(monday.getDate()+6);
+  const weekStart=monday.toLocaleDateString("en-CA"), weekEnd=sunday.toLocaleDateString("en-CA");
+  const enSemana=f=>f>=weekStart&&f<=weekEnd;
+
   const chispekasHoy=reservations.filter(r=>r.date===today_j&&r.status==="confirmado").reduce((s,r)=>s+(r.total||0),0);
-  const racksHoy=mrSales.filter(v=>v.fecha===today_j).reduce((s,v)=>s+(v.total||0),0);
+  const chispekasSemana=reservations.filter(r=>enSemana(r.date)&&r.status==="confirmado").reduce((s,r)=>s+(r.total||0),0);
   const chispekasPend=reservations.filter(r=>r.date>=today_j&&r.status!=="cancelado").reduce((s,r)=>s+Math.max(0,(r.total||0)-(r.adelanto||0)),0);
   const racksPend=mrSales.reduce((s,v)=>s+Math.max(0,(v.total||0)-(v.pagado||0)),0);
-  const eventosHoy=reservations.filter(r=>r.date===today_j&&r.status!=="cancelado").length;
-  const racksVentasHoy=mrSales.filter(v=>v.fecha===today_j).length;
+  const eventosSemana=reservations.filter(r=>enSemana(r.date)&&r.status!=="cancelado").length;
   const stockBajo=mrProducts.filter(p=>{const s=mrStock(p.id);return s<=mrLowThreshold;}).length;
+
+  /* Utilidad de Racks = ventas − costo de producto − delivery, misma fórmula que "Resumen del mes" en Racks/Análisis */
+  const utilidad=ventas=>{
+    const costo=ventas.reduce((s,v)=>{const p=mrProducts.find(x=>x.id===v.productId);return s+(v.cantidad||0)*(p?.costoUnitario||0);},0);
+    const delivery=ventas.reduce((s,v)=>s+(v.costoDelivery||0),0);
+    const vendido=ventas.reduce((s,v)=>s+(v.total||0),0);
+    return vendido-costo-delivery;
+  };
+  const racksVentasHoyArr=mrSales.filter(v=>v.fecha===today_j);
+  const racksVentasSemanaArr=mrSales.filter(v=>enSemana(v.fecha));
+  const racksUtilHoy=utilidad(racksVentasHoyArr);
+  const racksUtilSemana=utilidad(racksVentasSemanaArr);
 
   /* Tarjetas de negocio — cada una es un launcher completo, no una fila de stats */
   document.getElementById("jfh-biz-cards").innerHTML=`
@@ -1800,16 +1829,22 @@ function renderJFHub(){
       <span class="arrow">→</span>
       <span style="font-size:24px">🎪</span>
       <p class="lbl" style="color:var(--amd)">Chispekas</p>
-      <p class="num">${fM(chispekasHoy)}</p>
-      <p class="sub">${eventosHoy} evento${eventosHoy!==1?"s":""} hoy</p>
+      <div class="jfh-stat-row">
+        <div class="jfh-stat"><p class="k">Hoy</p><p class="v">${fM(chispekasHoy)}</p></div>
+        <div class="jfh-stat"><p class="k">Semana</p><p class="v">${fM(chispekasSemana)}</p></div>
+      </div>
+      <p class="sub">${eventosSemana} evento${eventosSemana!==1?"s":""} esta semana</p>
       ${chispekasPend>0?`<span class="pill" style="background:#fff0e0;color:#b5540a">💰 ${fM(chispekasPend)} por cobrar</span>`:""}
     </div>
     <div class="jfh-biz" style="background:linear-gradient(160deg,#eff6ff,#fff);border-color:#dbe9fd" onclick="go('racks')">
       <span class="arrow">→</span>
       <span style="font-size:24px">🛠️</span>
-      <p class="lbl" style="color:var(--bl)">Mini Racks</p>
-      <p class="num">${fM(racksHoy)}</p>
-      <p class="sub">${racksVentasHoy} venta${racksVentasHoy!==1?"s":""} hoy</p>
+      <p class="lbl" style="color:var(--bl)">Mini Racks · utilidad</p>
+      <div class="jfh-stat-row">
+        <div class="jfh-stat"><p class="k">Hoy</p><p class="v">${fM(racksUtilHoy)}</p></div>
+        <div class="jfh-stat"><p class="k">Semana</p><p class="v">${fM(racksUtilSemana)}</p></div>
+      </div>
+      <p class="sub">${racksVentasSemanaArr.length} venta${racksVentasSemanaArr.length!==1?"s":""} esta semana</p>
       ${stockBajo>0?`<span class="pill" style="background:#fff3d6;color:#9a6b00">⚠️ ${stockBajo} con stock bajo</span>`:racksPend>0?`<span class="pill" style="background:#fff0e0;color:#b5540a">💰 ${fM(racksPend)} por cobrar</span>`:""}
     </div>`;
 
@@ -1849,6 +1884,45 @@ function renderJFHub(){
     {label:"Chispekas",data:chispekasSerie,backgroundColor:"#f5a623",borderRadius:5},
     {label:"Racks",data:racksSerie,backgroundColor:"#0071e3",borderRadius:5}
   ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>" "+c.dataset.label+": "+fM(c.raw)}}},scales:{x:{grid:{display:false},ticks:{font:{size:10}}},y:{grid:{color:"rgba(0,0,0,.04)"},ticks:{callback:v=>v>=1000?"S/"+v/1000+"k":"S/"+v,font:{size:10}}}}}});
+
+  /* Ratios financieros — solo con datos que realmente se registran, nada inventado */
+  const mesActual=meses6[5], mesAnterior=meses6[4];
+  const totalMesActual=chispekasSerie[5]+racksSerie[5];
+  const totalMesAnterior=chispekasSerie[4]+racksSerie[4];
+  const crecimiento=totalMesAnterior>0?((totalMesActual-totalMesAnterior)/totalMesAnterior*100):null;
+
+  const racksVentasMesActual=mrSales.filter(v=>(v.fecha||"").startsWith(mesActual));
+  const racksUtilMesActual=utilidad(racksVentasMesActual);
+  const racksMargen=racksSerie[5]>0?(racksUtilMesActual/racksSerie[5]*100):null;
+
+  const chispekasFacturadoMes=reservations.filter(r=>r.status==="confirmado"&&(r.date||"").startsWith(mesActual)).reduce((s,r)=>s+(r.total||0),0);
+  const chispekasCobradoMes=reservations.filter(r=>r.status==="confirmado"&&(r.date||"").startsWith(mesActual)).reduce((s,r)=>s+(r.adelanto||0),0);
+  const racksFacturadoMes=racksSerie[5];
+  const racksCobradoMes=racksVentasMesActual.reduce((s,v)=>s+(v.pagado||0),0);
+  const facturadoTotal=chispekasFacturadoMes+racksFacturadoMes;
+  const cobradoTotal=chispekasCobradoMes+racksCobradoMes;
+  const tasaCobro=facturadoTotal>0?(cobradoTotal/facturadoTotal*100):null;
+
+  const pctChispekas=totalMesActual>0?(chispekasSerie[5]/totalMesActual*100):50;
+  const pctRacks=100-pctChispekas;
+
+  document.getElementById("jfh-ratios").innerHTML=`
+    <div class="kpi">
+      <div class="kv" style="color:${crecimiento===null?"var(--t)":crecimiento>=0?"var(--gr)":"var(--rd)"}">${crecimiento===null?"—":(crecimiento>=0?"+":"")+crecimiento.toFixed(0)+"%"}</div>
+      <div class="kl">Crecimiento vs. mes anterior</div>
+    </div>
+    <div class="kpi">
+      <div class="kv" style="color:${racksMargen===null?"var(--t)":"var(--gr)"}">${racksMargen===null?"—":racksMargen.toFixed(0)+"%"}</div>
+      <div class="kl">Margen de ganancia — Racks</div>
+    </div>
+    <div class="kpi">
+      <div class="kv" style="color:${tasaCobro===null?"var(--t)":tasaCobro>=80?"var(--gr)":"var(--am)"}">${tasaCobro===null?"—":tasaCobro.toFixed(0)+"%"}</div>
+      <div class="kl">Tasa de cobro este mes</div>
+    </div>
+    <div class="kpi">
+      <div class="kv" style="font-size:15px">🎪 ${pctChispekas.toFixed(0)}% · 🛠️ ${pctRacks.toFixed(0)}%</div>
+      <div class="kl">Distribución de ingresos</div>
+    </div>`;
 }
 
 function renderDash(){
