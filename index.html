@@ -1906,6 +1906,40 @@ function renderJFHub(){
   const pctChispekas=totalMesActual>0?(chispekasSerie[5]/totalMesActual*100):50;
   const pctRacks=100-pctChispekas;
 
+  /* Meta del mes (Chispekas) vs. real */
+  const metaObjetivo=parseInt(localStorage.getItem("ck_meta")||"0");
+  const metaPct=metaObjetivo>0?(chispekasFacturadoMes/metaObjetivo*100):null;
+
+  /* Comparativo año vs año — mismo mes, combinado */
+  const now_c=new Date(); const mesNum_c=String(now_c.getMonth()+1).padStart(2,"0");
+  const mesAñoPasado=(now_c.getFullYear()-1)+"-"+mesNum_c;
+  const chispekasAñoPasado=reservations.filter(r=>r.status==="confirmado"&&(r.date||"").startsWith(mesAñoPasado)).reduce((s,r)=>s+(r.total||0),0);
+  const racksAñoPasado=mrSales.filter(v=>(v.fecha||"").startsWith(mesAñoPasado)).reduce((s,v)=>s+(v.total||0),0);
+  const totalAñoPasado=chispekasAñoPasado+racksAñoPasado;
+  const crecimientoAnual=totalAñoPasado>0?((totalMesActual-totalAñoPasado)/totalAñoPasado*100):null;
+
+  /* Ticket promedio por negocio — histórico completo, más estable que un solo mes */
+  const chispekasConf=reservations.filter(r=>r.status==="confirmado");
+  const ticketChispekas=chispekasConf.length?chispekasConf.reduce((s,r)=>s+(r.total||0),0)/chispekasConf.length:null;
+  const ticketRacks=mrSales.length?mrSales.reduce((s,v)=>s+(v.total||0),0)/mrSales.length:null;
+
+  /* Concentración de clientes — top 3 combinando ambos negocios */
+  const porCliente={};
+  chispekasConf.forEach(r=>{const k=(r.client||"").trim().toLowerCase();if(k)porCliente[k]=(porCliente[k]||0)+(r.total||0);});
+  mrSales.forEach(v=>{const k=(v.cliente||"").trim().toLowerCase();if(k)porCliente[k]=(porCliente[k]||0)+(v.total||0);});
+  const clientesOrdenados=Object.values(porCliente).sort((a,b)=>b-a);
+  const totalClientes=clientesOrdenados.reduce((s,v)=>s+v,0);
+  const top3=clientesOrdenados.slice(0,3).reduce((s,v)=>s+v,0);
+  const concentracion=totalClientes>0?(top3/totalClientes*100):null;
+
+  /* Delivery como % de ventas — Racks, este mes */
+  const deliveryMesActual=racksVentasMesActual.reduce((s,v)=>s+(v.costoDelivery||0),0);
+  const deliveryPct=racksFacturadoMes>0?(deliveryMesActual/racksFacturadoMes*100):null;
+
+  /* Rotación de stock — productos con stock pero sin ventas en 60 días */
+  const cutoff60=(()=>{const d=new Date();d.setDate(d.getDate()-60);return d.toLocaleDateString("en-CA");})();
+  const sinMovimiento=mrProducts.filter(p=>mrStock(p.id)>0&&!mrSales.some(v=>v.productId===p.id&&(v.fecha||"")>=cutoff60)).length;
+
   document.getElementById("jfh-ratios").innerHTML=`
     <div class="kpi">
       <div class="kv" style="color:${crecimiento===null?"var(--t)":crecimiento>=0?"var(--gr)":"var(--rd)"}">${crecimiento===null?"—":(crecimiento>=0?"+":"")+crecimiento.toFixed(0)+"%"}</div>
@@ -1922,6 +1956,30 @@ function renderJFHub(){
     <div class="kpi">
       <div class="kv" style="font-size:15px">🎪 ${pctChispekas.toFixed(0)}% · 🛠️ ${pctRacks.toFixed(0)}%</div>
       <div class="kl">Distribución de ingresos</div>
+    </div>
+    <div class="kpi">
+      <div class="kv" style="color:${metaPct===null?"var(--t)":metaPct>=100?"var(--gr)":"var(--t)"}">${metaPct===null?"Sin meta":metaPct.toFixed(0)+"%"}</div>
+      <div class="kl">Meta del mes (Chispekas)</div>
+    </div>
+    <div class="kpi">
+      <div class="kv" style="color:${crecimientoAnual===null?"var(--t)":crecimientoAnual>=0?"var(--gr)":"var(--rd)"}">${crecimientoAnual===null?"—":(crecimientoAnual>=0?"+":"")+crecimientoAnual.toFixed(0)+"%"}</div>
+      <div class="kl">Vs. mismo mes año pasado</div>
+    </div>
+    <div class="kpi">
+      <div class="kv" style="font-size:14px">🎪 ${ticketChispekas===null?"—":fM(ticketChispekas)} · 🛠️ ${ticketRacks===null?"—":fM(ticketRacks)}</div>
+      <div class="kl">Ticket promedio</div>
+    </div>
+    <div class="kpi">
+      <div class="kv" style="color:${concentracion===null?"var(--t)":concentracion>=60?"var(--rd)":"var(--t)"}">${concentracion===null?"—":concentracion.toFixed(0)+"%"}</div>
+      <div class="kl">Concentración — top 3 clientes</div>
+    </div>
+    <div class="kpi">
+      <div class="kv" style="color:${deliveryPct===null?"var(--t)":deliveryPct>=10?"var(--am)":"var(--t)"}">${deliveryPct===null?"—":deliveryPct.toFixed(0)+"%"}</div>
+      <div class="kl">Delivery — % de ventas Racks</div>
+    </div>
+    <div class="kpi">
+      <div class="kv" style="color:${sinMovimiento>0?"var(--am)":"var(--gr)"}">${sinMovimiento}</div>
+      <div class="kl">Sin ventas en 60 días (Racks)</div>
     </div>`;
 }
 
