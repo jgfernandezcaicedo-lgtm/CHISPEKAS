@@ -516,7 +516,7 @@ body.dark #dlbl,body.dark #dlbl2{color:var(--t2)}
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px" id="jfh-biz-cards"></div>
 
       <div class="card cp" style="margin-bottom:16px">
-        <div class="ch"><div><div class="ct">Tendencia — últimos 6 meses</div><div class="cs">Chispekas vs. Mini Racks</div></div>
+        <div class="ch"><div><div class="ct">Utilidad — últimos 6 meses</div><div class="cs">Chispekas (ingreso confirmado) vs. Racks (utilidad real, después de costo)</div></div>
           <div style="display:flex;gap:10px">
             <span style="display:flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;color:var(--amd)"><span style="width:8px;height:8px;border-radius:2px;background:var(--am);display:inline-block"></span>Chispekas</span>
             <span style="display:flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;color:var(--bl)"><span style="width:8px;height:8px;border-radius:2px;background:var(--bl);display:inline-block"></span>Racks</span>
@@ -834,6 +834,10 @@ body.dark #dlbl,body.dark #dlbl2{color:var(--t2)}
 <div class="ov" id="ov-res" style="align-items:stretch;justify-content:stretch"><div class="sheet" style="max-width:100%;max-height:100%;height:100%;border-radius:0;display:flex;flex-direction:column"><div class="shh" style="display:none"></div><div class="shd"><span class="sht" id="sr-t">Nueva reserva</span><button class="xb" onclick="closeOv('ov-res')">×</button></div><div class="shb" style="flex:1;overflow-y:auto" id="sr-b"></div></div></div>
 <div class="ov" id="ov-prod"><div class="sheet"><div class="shh"></div><div class="shd"><span class="sht" id="sp-t">Producto</span><button class="xb" onclick="closeOv('ov-prod')">×</button></div><div class="shb" id="sp-b"></div></div></div>
 <div class="ov" id="ov-rev" ><div class="sheet"><div class="shh"></div><div class="shd"><span class="sht" id="srev-t">Reseña</span><button class="xb" onclick="closeOv('ov-rev')">×</button></div><div class="shb" id="srev-b"></div></div></div>
+<div class="ov" id="ov-explain"><div class="sheet"><div class="shh"></div><div class="shd"><span class="sht" id="explain-title">Detalle</span><button class="xb" onclick="closeOv('ov-explain')">×</button></div>
+  <div class="shb" id="explain-body"></div>
+</div></div>
+
 <div class="ov" id="ov-cli-edit"><div class="sheet"><div class="shh"></div><div class="shd"><span class="sht" id="cli-edit-title">✏️ Editar cliente</span><button class="xb" onclick="closeCliEdit()">×</button></div>
   <div class="shb">
     <div style="display:flex;flex-direction:column;gap:11px">
@@ -1790,6 +1794,16 @@ function renderAll(){
 
 /* DASHBOARD */
 /** JF Business Hub — resumen unificado de CHISPEKAS + Racks, "todo el negocio en un minuto" */
+/** Explicación tocable de cada ratio financiero — sin re-serializar datos en el onclick (evita bugs de comillas) */
+let jfhExplain={};
+function showExplainKey(key){
+  const e=jfhExplain[key];
+  if(!e)return;
+  document.getElementById("explain-title").textContent=e.title;
+  document.getElementById("explain-body").innerHTML=e.html;
+  openOv("ov-explain");
+}
+
 function renderJFHub(){
   const fechaEl=document.getElementById("jfh-fecha");
   if(fechaEl)fechaEl.textContent=new Date().toLocaleDateString("es-PE",{weekday:"long",day:"numeric",month:"long"});
@@ -1875,29 +1889,37 @@ function renderJFHub(){
       </div>`).join("")
     : `<div class="empty"><div class="ei">📭</div><div class="et">Sin actividad todavía</div></div>`;
 
-  /* Tendencia 6 meses — Chispekas (confirmadas) vs Racks (ventas), mismo eje de tiempo */
+  /* Tendencia 6 meses — comparamos UTILIDAD, no ingresos crudos: Chispekas no trackea costo (su ingreso ≈ su utilidad),
+     así que comparar el ingreso bruto de Racks contra el de Chispekas sería injusto (Racks sí tiene costo de producto que descontar) */
   const meses6=[]; const now6=new Date();
   for(let i=5;i>=0;i--){ const d=new Date(now6.getFullYear(),now6.getMonth()-i,1); meses6.push(d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")); }
   const chispekasSerie=meses6.map(m=>reservations.filter(r=>r.status==="confirmado"&&(r.date||"").startsWith(m)).reduce((s,r)=>s+(r.total||0),0));
-  const racksSerie=meses6.map(m=>mrSales.filter(v=>(v.fecha||"").startsWith(m)).reduce((s,v)=>s+(v.total||0),0));
+  const racksSerie=meses6.map(m=>{
+    const ventasDelMes=mrSales.filter(v=>(v.fecha||"").startsWith(m));
+    return utilidad(ventasDelMes);
+  });
   mkCh("ch-jfh-trend",{type:"bar",data:{labels:meses6.map(m=>MS[parseInt(m.split("-")[1])-1]),datasets:[
-    {label:"Chispekas",data:chispekasSerie,backgroundColor:"#f5a623",borderRadius:5},
-    {label:"Racks",data:racksSerie,backgroundColor:"#0071e3",borderRadius:5}
+    {label:"Chispekas (ingreso ≈ utilidad)",data:chispekasSerie,backgroundColor:"#f5a623",borderRadius:5},
+    {label:"Racks (utilidad real)",data:racksSerie,backgroundColor:"#0071e3",borderRadius:5}
   ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>" "+c.dataset.label+": "+fM(c.raw)}}},scales:{x:{grid:{display:false},ticks:{font:{size:10}}},y:{grid:{color:"rgba(0,0,0,.04)"},ticks:{callback:v=>v>=1000?"S/"+v/1000+"k":"S/"+v,font:{size:10}}}}}});
 
-  /* Ratios financieros — solo con datos que realmente se registran, nada inventado */
+
+  /* Ratios financieros — solo con datos que realmente se registran, nada inventado.
+     OJO: racksSerie (arriba) ahora es UTILIDAD para el gráfico — aquí necesitamos el INGRESO bruto de Racks
+     por separado para que "margen", "facturado" y "distribución" sigan siendo correctos. */
+  const racksIngresoSerie=meses6.map(m=>mrSales.filter(v=>(v.fecha||"").startsWith(m)).reduce((s,v)=>s+(v.total||0),0));
   const mesActual=meses6[5], mesAnterior=meses6[4];
-  const totalMesActual=chispekasSerie[5]+racksSerie[5];
-  const totalMesAnterior=chispekasSerie[4]+racksSerie[4];
+  const totalMesActual=chispekasSerie[5]+racksIngresoSerie[5];
+  const totalMesAnterior=chispekasSerie[4]+racksIngresoSerie[4];
   const crecimiento=totalMesAnterior>0?((totalMesActual-totalMesAnterior)/totalMesAnterior*100):null;
 
   const racksVentasMesActual=mrSales.filter(v=>(v.fecha||"").startsWith(mesActual));
   const racksUtilMesActual=utilidad(racksVentasMesActual);
-  const racksMargen=racksSerie[5]>0?(racksUtilMesActual/racksSerie[5]*100):null;
+  const racksMargen=racksIngresoSerie[5]>0?(racksUtilMesActual/racksIngresoSerie[5]*100):null;
 
   const chispekasFacturadoMes=reservations.filter(r=>r.status==="confirmado"&&(r.date||"").startsWith(mesActual)).reduce((s,r)=>s+(r.total||0),0);
   const chispekasCobradoMes=reservations.filter(r=>r.status==="confirmado"&&(r.date||"").startsWith(mesActual)).reduce((s,r)=>s+(r.adelanto||0),0);
-  const racksFacturadoMes=racksSerie[5];
+  const racksFacturadoMes=racksIngresoSerie[5];
   const racksCobradoMes=racksVentasMesActual.reduce((s,v)=>s+(v.pagado||0),0);
   const facturadoTotal=chispekasFacturadoMes+racksFacturadoMes;
   const cobradoTotal=chispekasCobradoMes+racksCobradoMes;
@@ -1940,44 +1962,118 @@ function renderJFHub(){
   const cutoff60=(()=>{const d=new Date();d.setDate(d.getDate()-60);return d.toLocaleDateString("en-CA");})();
   const sinMovimiento=mrProducts.filter(p=>mrStock(p.id)>0&&!mrSales.some(v=>v.productId===p.id&&(v.fecha||"")>=cutoff60)).length;
 
+  /* Top clientes con nombre, para la explicación de concentración */
+  const clientesConNombre={};
+  chispekasConf.forEach(r=>{const k=(r.client||"").trim();if(k)clientesConNombre[k]=(clientesConNombre[k]||0)+(r.total||0);});
+  mrSales.forEach(v=>{const k=(v.cliente||"").trim();if(k)clientesConNombre[k]=(clientesConNombre[k]||0)+(v.total||0);});
+  const top3conNombre=Object.entries(clientesConNombre).sort((a,b)=>b[1]-a[1]).slice(0,3);
+  const productosParados=mrProducts.filter(p=>mrStock(p.id)>0&&!mrSales.some(v=>v.productId===p.id&&(v.fecha||"")>=cutoff60));
+
+  jfhExplain={
+    crecimiento:{title:"Crecimiento vs. mes anterior",html:`
+      <p style="margin-bottom:10px">Compara el ingreso total (Chispekas + Racks) de este mes contra el mes pasado.</p>
+      <div style="background:var(--s2);border-radius:10px;padding:12px;font-size:13px;line-height:1.9">
+        <b>${MF[now_c.getMonth()]}</b>: ${fM(totalMesActual)} (🎪 ${fM(chispekasSerie[5])} + 🛠️ ${fM(racksIngresoSerie[5])})<br>
+        <b>${MF[(now_c.getMonth()+11)%12]}</b>: ${fM(totalMesAnterior)} (🎪 ${fM(chispekasSerie[4])} + 🛠️ ${fM(racksIngresoSerie[4])})
+      </div>`},
+    margen:{title:"Margen de ganancia — Racks",html:`
+      <p style="margin-bottom:10px">De cada sol que vendes en Racks este mes, cuánto es ganancia real después de costo de producto y delivery.</p>
+      <div style="background:var(--s2);border-radius:10px;padding:12px;font-size:13px;line-height:1.9">
+        Vendido este mes: ${fM(racksIngresoSerie[5])}<br>
+        Utilidad este mes: ${fM(racksUtilMesActual)}<br>
+        <b>Margen: ${racksMargen===null?"—":racksMargen.toFixed(1)+"%"}</b>
+      </div>`},
+    cobro:{title:"Tasa de cobro este mes",html:`
+      <p style="margin-bottom:10px">Qué % de lo facturado este mes ya lo cobraste (adelantos + pagos), ambos negocios.</p>
+      <div style="background:var(--s2);border-radius:10px;padding:12px;font-size:13px;line-height:1.9">
+        🎪 Facturado: ${fM(chispekasFacturadoMes)} · Cobrado: ${fM(chispekasCobradoMes)}<br>
+        🛠️ Facturado: ${fM(racksFacturadoMes)} · Cobrado: ${fM(racksCobradoMes)}<br>
+        <b>Total: ${fM(cobradoTotal)} de ${fM(facturadoTotal)}</b>
+      </div>`},
+    distribucion:{title:"Distribución de ingresos",html:`
+      <p style="margin-bottom:10px">De dónde viene el dinero que entró este mes.</p>
+      <div style="background:var(--s2);border-radius:10px;padding:12px;font-size:13px;line-height:1.9">
+        🎪 Chispekas: ${fM(chispekasSerie[5])} (${pctChispekas.toFixed(0)}%)<br>
+        🛠️ Mini Racks: ${fM(racksIngresoSerie[5])} (${pctRacks.toFixed(0)}%)
+      </div>`},
+    meta:{title:"Meta del mes (Chispekas)",html: metaObjetivo>0?`
+      <p style="margin-bottom:10px">Tu meta configurada en Finanzas de Chispekas, comparada contra lo confirmado este mes.</p>
+      <div style="background:var(--s2);border-radius:10px;padding:12px;font-size:13px;line-height:1.9">
+        Meta: ${fM(metaObjetivo)}<br>
+        Confirmado: ${fM(chispekasFacturadoMes)}<br>
+        <b>Avance: ${metaPct.toFixed(0)}%</b>
+      </div>`:`<p>No tienes una meta configurada todavía. Ve a Chispekas → Finanzas → 🎯 Meta para ponerte una.</p>`},
+    anual:{title:"Vs. mismo mes año pasado",html:`
+      <p style="margin-bottom:10px">Compara ${MF[now_c.getMonth()]} de este año contra ${MF[now_c.getMonth()]} del año pasado — así no confundes crecimiento real con temporada alta.</p>
+      <div style="background:var(--s2);border-radius:10px;padding:12px;font-size:13px;line-height:1.9">
+        Este año: ${fM(totalMesActual)}<br>
+        Año pasado: ${fM(totalAñoPasado)}<br>
+        <b>${crecimientoAnual===null?"Sin datos del año pasado para comparar":(crecimientoAnual>=0?"+":"")+crecimientoAnual.toFixed(1)+"%"}</b>
+      </div>`},
+    ticket:{title:"Ticket promedio",html:`
+      <p style="margin-bottom:10px">Valor promedio de una reserva/venta, con todo tu historial (no solo este mes).</p>
+      <div style="background:var(--s2);border-radius:10px;padding:12px;font-size:13px;line-height:1.9">
+        🎪 Chispekas: ${ticketChispekas===null?"—":fM(ticketChispekas)} (${chispekasConf.length} reserva${chispekasConf.length!==1?"s":""} confirmada${chispekasConf.length!==1?"s":""})<br>
+        🛠️ Racks: ${ticketRacks===null?"—":fM(ticketRacks)} (${mrSales.length} venta${mrSales.length!==1?"s":""})
+      </div>`},
+    concentracion:{title:"Concentración — top 3 clientes",html:`
+      <p style="margin-bottom:10px">Qué tanto dependes de pocos clientes — si es muy alto, perder a uno pega fuerte.</p>
+      <div style="background:var(--s2);border-radius:10px;padding:12px;font-size:13px;line-height:1.9">
+        ${top3conNombre.map((c,i)=>`${i+1}. ${esc(c[0])} — ${fM(c[1])}`).join("<br>")}
+        <br><b>Estos 3 = ${concentracion===null?"—":concentracion.toFixed(0)+"%"} de todo lo facturado</b>
+      </div>`},
+    delivery:{title:"Delivery — % de ventas Racks",html:`
+      <p style="margin-bottom:10px">Cuánto de lo que vendes en Racks este mes se va en costo de entrega.</p>
+      <div style="background:var(--s2);border-radius:10px;padding:12px;font-size:13px;line-height:1.9">
+        Vendido: ${fM(racksFacturadoMes)}<br>
+        Gastado en delivery: ${fM(deliveryMesActual)}<br>
+        <b>${deliveryPct===null?"—":deliveryPct.toFixed(1)+"%"}</b>
+      </div>`},
+    rotacion:{title:"Sin ventas en 60 días (Racks)",html: productosParados.length?`
+      <p style="margin-bottom:10px">Productos con stock disponible que no se han vendido en los últimos 60 días — plata quieta.</p>
+      <div style="background:var(--s2);border-radius:10px;padding:12px;font-size:13px;line-height:1.9">
+        ${productosParados.map(p=>`${esc(p.name)} — ${mrStock(p.id)} en stock (${fM(mrStock(p.id)*(p.costoUnitario||0))})`).join("<br>")}
+      </div>`:`<p>Todos tus productos con stock tuvieron al menos una venta en los últimos 60 días. 👍</p>`},
+  };
+
   document.getElementById("jfh-ratios").innerHTML=`
-    <div class="kpi">
+    <div class="kpi" style="cursor:pointer" onclick="showExplainKey('crecimiento')">
       <div class="kv" style="color:${crecimiento===null?"var(--t)":crecimiento>=0?"var(--gr)":"var(--rd)"}">${crecimiento===null?"—":(crecimiento>=0?"+":"")+crecimiento.toFixed(0)+"%"}</div>
       <div class="kl">Crecimiento vs. mes anterior</div>
     </div>
-    <div class="kpi">
+    <div class="kpi" style="cursor:pointer" onclick="showExplainKey('margen')">
       <div class="kv" style="color:${racksMargen===null?"var(--t)":"var(--gr)"}">${racksMargen===null?"—":racksMargen.toFixed(0)+"%"}</div>
       <div class="kl">Margen de ganancia — Racks</div>
     </div>
-    <div class="kpi">
+    <div class="kpi" style="cursor:pointer" onclick="showExplainKey('cobro')">
       <div class="kv" style="color:${tasaCobro===null?"var(--t)":tasaCobro>=80?"var(--gr)":"var(--am)"}">${tasaCobro===null?"—":tasaCobro.toFixed(0)+"%"}</div>
       <div class="kl">Tasa de cobro este mes</div>
     </div>
-    <div class="kpi">
+    <div class="kpi" style="cursor:pointer" onclick="showExplainKey('distribucion')">
       <div class="kv" style="font-size:15px">🎪 ${pctChispekas.toFixed(0)}% · 🛠️ ${pctRacks.toFixed(0)}%</div>
       <div class="kl">Distribución de ingresos</div>
     </div>
-    <div class="kpi">
+    <div class="kpi" style="cursor:pointer" onclick="showExplainKey('meta')">
       <div class="kv" style="color:${metaPct===null?"var(--t)":metaPct>=100?"var(--gr)":"var(--t)"}">${metaPct===null?"Sin meta":metaPct.toFixed(0)+"%"}</div>
       <div class="kl">Meta del mes (Chispekas)</div>
     </div>
-    <div class="kpi">
+    <div class="kpi" style="cursor:pointer" onclick="showExplainKey('anual')">
       <div class="kv" style="color:${crecimientoAnual===null?"var(--t)":crecimientoAnual>=0?"var(--gr)":"var(--rd)"}">${crecimientoAnual===null?"—":(crecimientoAnual>=0?"+":"")+crecimientoAnual.toFixed(0)+"%"}</div>
       <div class="kl">Vs. mismo mes año pasado</div>
     </div>
-    <div class="kpi">
+    <div class="kpi" style="cursor:pointer" onclick="showExplainKey('ticket')">
       <div class="kv" style="font-size:14px">🎪 ${ticketChispekas===null?"—":fM(ticketChispekas)} · 🛠️ ${ticketRacks===null?"—":fM(ticketRacks)}</div>
       <div class="kl">Ticket promedio</div>
     </div>
-    <div class="kpi">
+    <div class="kpi" style="cursor:pointer" onclick="showExplainKey('concentracion')">
       <div class="kv" style="color:${concentracion===null?"var(--t)":concentracion>=60?"var(--rd)":"var(--t)"}">${concentracion===null?"—":concentracion.toFixed(0)+"%"}</div>
       <div class="kl">Concentración — top 3 clientes</div>
     </div>
-    <div class="kpi">
+    <div class="kpi" style="cursor:pointer" onclick="showExplainKey('delivery')">
       <div class="kv" style="color:${deliveryPct===null?"var(--t)":deliveryPct>=10?"var(--am)":"var(--t)"}">${deliveryPct===null?"—":deliveryPct.toFixed(0)+"%"}</div>
       <div class="kl">Delivery — % de ventas Racks</div>
     </div>
-    <div class="kpi">
+    <div class="kpi" style="cursor:pointer" onclick="showExplainKey('rotacion')">
       <div class="kv" style="color:${sinMovimiento>0?"var(--am)":"var(--gr)"}">${sinMovimiento}</div>
       <div class="kl">Sin ventas en 60 días (Racks)</div>
     </div>`;
@@ -2678,6 +2774,12 @@ function buildResF(r){
             </div>
           </div>
         </div>
+        ${!r?`<div class="fld">
+          <label class="flbl">📋 Empezar desde una plantilla (opcional)</label>
+          <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px">
+            ${EVENT_TEMPLATES.map((t,i)=>`<button type="button" onclick="applyTemplate(${i})" style="flex-shrink:0;white-space:nowrap;background:var(--s2);border:1px solid var(--bd);border-radius:999px;padding:7px 13px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer">${t.name}</button>`).join("")}
+          </div>
+        </div>`:""}
         <div class="fld"><label class="flbl">Tipo de evento *</label><input class="inp" id="f-ev" value="${esc(r?.event||"")}" placeholder="Cumpleaños, boda..."></div>
         <div class="fld"><label class="flbl">Fecha *</label><input class="inp" id="f-dt" type="date" value="${r?.date||""}" oninput="updateTemporadaBadge();showDateConflict(this.value,'${eRid||""}')" ><div id="temp-badge" style="margin-top:5px"></div><div id="date-conflict"></div></div>
         <div class="fld"><label class="flbl">⏰ Hora inicio</label><input class="inp" id="f-hinicio" value="${esc(r?.horaInicio||"")}" placeholder="Ej. 15, 1530, 15:30" onblur="fmtHoraAuto(this)" onkeydown="if(event.key==='Enter')fmtHoraAuto(this)"></div>
@@ -2941,15 +3043,32 @@ function showDateConflict(date,excludeId){
 
 /* ══ PLANTILLAS EVENTOS ══ */
 const EVENT_TEMPLATES=[
-  {name:"🎂 Cumpleaños niños",event:"Cumpleaños",products:["p1","p8"],notes:"Decoración temática",price:1200},
-  {name:"🎉 Cumpleaños adultos",event:"Cumpleaños adultos",products:["p5","p6","p7"],notes:"Evento adulto",price:1500},
-  {name:"💒 Boda",event:"Boda",products:["p5","p6","p7"],notes:"Ceremonia + recepción",price:3500},
-  {name:"🎓 Graduación",event:"Graduación",products:["p5","p6","p9"],notes:"",price:2000},
-  {name:"🏢 Corporativo",event:"Corporativo",products:["p5","p6"],notes:"Evento empresarial",price:2500},
-  {name:"🌊 Aqua Party",event:"Aqua Party",products:["p2","p8"],notes:"Fiesta acuática",price:1800},
-  {name:"🏰 Circuito",event:"Circuito Inflable",products:["p1","p4"],notes:"Circuito completo",price:2200},
+  {name:"🎂 Cumpleaños niños",event:"Cumpleaños",cats:["inflable"],max:2,notes:"Decoración temática",price:1200},
+  {name:"🎉 Cumpleaños adultos",event:"Cumpleaños adultos",cats:["mobiliario"],max:3,notes:"Evento adulto",price:1500},
+  {name:"💒 Boda",event:"Boda",cats:["mobiliario","snack"],max:3,notes:"Ceremonia + recepción",price:3500},
+  {name:"🎓 Graduación",event:"Graduación",cats:["mobiliario"],max:2,notes:"",price:2000},
+  {name:"🏢 Corporativo",event:"Corporativo",cats:["mobiliario"],max:2,notes:"Evento empresarial",price:2500},
+  {name:"🌊 Aqua Party",event:"Aqua Party",cats:["inflable"],max:2,notes:"Fiesta acuática — revisa si tienes un inflable de agua específico",price:1800},
+  {name:"🏰 Circuito",event:"Circuito Inflable",cats:["inflable"],max:3,notes:"Circuito completo",price:2200},
 ];
-function applyTemplate(idx){const t=EVENT_TEMPLATES[idx];if(!t)return;const evEl=document.getElementById("f-ev");if(evEl)evEl.value=t.event;const notesEl=document.getElementById("f-notes");if(notesEl)notesEl.value=t.notes;const baseEl=document.getElementById("f-base");if(baseEl){baseEl.value=t.price;calcTotal();}selP=[...t.products.filter(pid=>products.find(p=>p.id===pid&&p.available))];const pp=document.getElementById("ppick");if(pp)pp.innerHTML=products.filter(p=>p.available).map(p=>renderPPI(p)).join("");const s2=products.filter(p=>selP.includes(p.id));const si=document.getElementById("sum-items");if(si)si.innerHTML=buildSum(s2);toast("📋 Plantilla: "+t.name);}
+function applyTemplate(idx){
+  const t=EVENT_TEMPLATES[idx];if(!t)return;
+  const evEl=document.getElementById("f-ev");if(evEl)evEl.value=t.event;
+  const notesEl=document.getElementById("f-notes");if(notesEl)notesEl.value=t.notes;
+  const baseEl=document.getElementById("f-base");if(baseEl){baseEl.value=t.price;calcTotal();}
+  /* Busca productos reales y disponibles en las categorías de la plantilla — nunca IDs fijos */
+  let picked=[];
+  t.cats.forEach(cat=>{
+    const disp=products.filter(p=>p.available&&p.category===cat&&!picked.includes(p.id));
+    picked=picked.concat(disp.slice(0,t.max).map(p=>p.id));
+  });
+  selP=picked.slice(0,t.max);
+  const pp=document.getElementById("ppick");if(pp)pp.innerHTML=products.filter(p=>p.available).map(p=>renderPPI(p)).join("");
+  const s2=products.filter(p=>selP.includes(p.id));
+  const si=document.getElementById("sum-items");if(si)si.innerHTML=buildSum(s2);
+  if(!selP.length){toast("📋 "+t.name+" — sin productos disponibles en esas categorías, revisa tu Catálogo","warn");}
+  else{toast("📋 Plantilla: "+t.name+" ("+selP.length+" producto"+(selP.length!==1?"s":"")+")");}
+}
 
 /* ══ WA RECORDATORIO 24h/48h ══ */
 function sendWAReminder(rid,hoursAhead){const r=reservations.find(x=>x.id===rid);if(!r)return;const tel=(r.phone||"").replace(/\D/g,"");if(!tel){toast("Sin teléfono","err");return;}const rp=products.filter(p=>r.products?.includes(p.id));const prodList=rp.length?rp.map(p=>"  • "+p.name).join("\n"):"  • Servicio personalizado";const label=hoursAhead===24?"mañana":"en 2 días";const msg=`¡Hola ${r.client}! 👋 Te saluda *CHISPEKAS* ⚡\n\nTe recordamos que tu evento es *${label}* 🎉\n\n📅 *Fecha:* ${fD(r.date)}\n${r.horaInicio?"⏰ *Hora:* "+r.horaInicio+(r.horaFin?" - "+r.horaFin:"")+"\n":""}🎉 *Evento:* ${r.event}\n${r.notes?"📍 *Lugar:* "+r.notes+"\n":""}\n🎪 *Servicios:*\n${prodList}\n\n${r.adelanto>0&&r.payStatus!=="pagado"?"💳 *Saldo pendiente:* "+fM(Math.max(0,r.total-r.adelanto))+" (se cancela al llegar)\n":""}⏰ Llegamos *1 hora antes*.\n\n¿Alguna consulta? 📸 @chispekas | 📱 923 912 992`;const prefix=tel.startsWith("51")?"":"51";window.open("https://wa.me/"+prefix+tel+"?text="+encodeURIComponent(msg),"_blank");toast("💬 Recordatorio "+hoursAhead+"h → WhatsApp");}
