@@ -3949,8 +3949,9 @@ function renderMRVentas(){
   if(mrVentaFilter==="pendiente") rows=rows.filter(v=>((v.total||0)-(v.pagado||0))>0);
 
   const totalPorCobrar = mrSales.reduce((s,v)=>s+Math.max(0,(v.total||0)-(v.pagado||0)),0);
+  const unidadesEnLista = rows.reduce((s,v)=>s+(v.cantidad||0),0);
   const cnt=document.getElementById("mr-ventas-cnt");
-  if(cnt)cnt.innerHTML = rows.length+" venta"+(rows.length!==1?"s":"")
+  if(cnt)cnt.innerHTML = rows.length+" venta"+(rows.length!==1?"s":"")+" · "+unidadesEnLista+" unidad"+(unidadesEnLista!==1?"es":"")
     + (totalPorCobrar>0 ? ` · <span style="color:var(--rd);font-weight:700">${fM(totalPorCobrar)} por cobrar</span>` : "");
 
   document.getElementById("mr-ventas-tbl").innerHTML = rows.length
