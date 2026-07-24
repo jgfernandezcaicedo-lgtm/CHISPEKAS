@@ -180,10 +180,10 @@ h1{font-family:'DM Serif Display',Georgia,serif;font-weight:400;letter-spacing:-
 
 /* TABLE */
 .tw{overflow-x:auto;-webkit-overflow-scrolling:touch}
-table{width:100%;border-collapse:collapse;font-size:13px}
+table{width:100%;border-collapse:collapse;font-size:14.5px}
 thead tr{border-bottom:1px solid var(--bd);background:var(--s2)}
-th{padding:9px 13px;text-align:left;font-size:10px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap}
-td{padding:11px 13px;border-bottom:1px solid var(--bg);vertical-align:middle}
+th{padding:10px 13px;text-align:left;font-size:10.5px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap}
+td{padding:13px 13px;border-bottom:1px solid var(--bg);vertical-align:middle}
 tr:last-child td{border-bottom:none}
 tr.hv:hover td{background:var(--s2)}
 
@@ -1627,51 +1627,51 @@ function tmplEventoCard(r) {
 
   const prodPills = rp.map(p => {
     const nombre = p.name.length > 13 ? p.name.slice(0, 12) + "…" : p.name;
-    return `<span style="display:inline-flex;align-items:center;gap:2px;background:var(--s2);border:1px solid var(--bd);border-radius:5px;padding:1px 5px;font-size:10px;font-weight:500;white-space:nowrap">${p.emoji} ${nombre}</span>`;
+    return `<span style="display:inline-flex;align-items:center;gap:2px;background:var(--s2);border:1px solid var(--bd);border-radius:5px;padding:2px 6px;font-size:11.5px;font-weight:500;white-space:nowrap">${p.emoji} ${nombre}</span>`;
   }).join("");
 
   return `
-    <div style="padding:10px 0;border-bottom:1px solid var(--bg)">
+    <div style="padding:12px 0;border-bottom:1px solid var(--bg)">
 
       <!-- LÍNEA 1: nombre + total + resta -->
-      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px">
-        <p style="font-weight:700;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0">${esc(r.client)}</p>
-        <div style="display:flex;align-items:baseline;gap:5px;flex-shrink:0;margin-left:8px">
-          <span style="font-weight:700;color:var(--gr);font-size:13px">${fM(r.total)}</span>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">
+        <p style="font-weight:700;font-size:15.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0">${esc(r.client)}</p>
+        <div style="display:flex;align-items:baseline;gap:6px;flex-shrink:0;margin-left:8px">
+          <span style="font-weight:700;color:var(--gr);font-size:15px">${fM(r.total)}</span>
           ${resta > 0
-            ? `<span style="font-size:10px;font-weight:600;color:var(--rd)">resta ${fM(resta)}</span>`
-            : `<span style="font-size:10px;font-weight:600;color:var(--gr)">✅ pagado</span>`}
+            ? `<span style="font-size:11.5px;font-weight:600;color:var(--rd)">resta ${fM(resta)}</span>`
+            : `<span style="font-size:11.5px;font-weight:600;color:var(--gr)">✅ pagado</span>`}
         </div>
       </div>
 
       <!-- LÍNEA 2: evento · fecha · hora · distrito -->
-      <p style="font-size:11px;color:var(--t2);margin-bottom:5px">
+      <p style="font-size:13px;color:var(--t2);margin-bottom:6px">
         ${esc(r.event)} · ${fD(r.date)}${r.horaInicio ? " · ⏰ " + esc(r.horaInicio) : ""}${r.distrito ? " · 📍 " + esc(r.distrito) : ""}
       </p>
 
       <!-- LÍNEA 3: productos -->
-      ${rp.length ? `<div style="display:flex;gap:3px;flex-wrap:wrap;margin-bottom:7px">${prodPills}</div>` : `<div style="margin-bottom:7px"></div>`}
+      ${rp.length ? `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px">${prodPills}</div>` : `<div style="margin-bottom:8px"></div>`}
 
       <!-- LÍNEA 4: botones de acción -->
-      <div style="display:flex;gap:4px;flex-wrap:wrap">
+      <div style="display:flex;gap:5px;flex-wrap:wrap">
         <button onclick="openEstadoRapido('${r.id}')"
-          style="display:inline-flex;align-items:center;gap:2px;background:${sm.bg};border:1.5px solid ${sm.br};border-radius:6px;padding:3px 8px;font-family:inherit;font-size:10.5px;font-weight:700;cursor:pointer;color:${sm.c}">
+          style="display:inline-flex;align-items:center;gap:3px;background:${sm.bg};border:1.5px solid ${sm.br};border-radius:7px;padding:5px 10px;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;color:${sm.c}">
           ${sm.i} ${sm.l}
         </button>
         <button onclick="openPagoRapido('${r.id}')"
-          style="display:inline-flex;align-items:center;gap:2px;background:${pm2.bg};border:1.5px solid ${pm2.br};border-radius:6px;padding:3px 8px;font-family:inherit;font-size:10.5px;font-weight:700;cursor:pointer;color:${pm2.c}">
+          style="display:inline-flex;align-items:center;gap:3px;background:${pm2.bg};border:1.5px solid ${pm2.br};border-radius:7px;padding:5px 10px;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;color:${pm2.c}">
           ${pm2.i} ${pm2.l}
         </button>
         <a href="https://wa.me/${waPhone(r.phone)}" target="_blank"
-          style="display:inline-flex;align-items:center;gap:2px;background:#e7fbe9;border:1.5px solid #a7f3d0;border-radius:6px;padding:3px 8px;font-family:inherit;font-size:10.5px;font-weight:700;cursor:pointer;color:#128C7E;text-decoration:none">
+          style="display:inline-flex;align-items:center;gap:3px;background:#e7fbe9;border:1.5px solid #a7f3d0;border-radius:7px;padding:5px 10px;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;color:#128C7E;text-decoration:none">
           💬 Abrir chat
         </a>
         <button onclick="addToGCal('${r.id}')"
-          style="display:inline-flex;align-items:center;gap:2px;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:6px;padding:3px 8px;font-family:inherit;font-size:10.5px;font-weight:700;cursor:pointer;color:#1d4ed8">
+          style="display:inline-flex;align-items:center;gap:3px;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:7px;padding:5px 10px;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;color:#1d4ed8">
           🗓️ Agendar
         </button>
         <button onclick="openView('${r.id}')"
-          style="display:inline-flex;align-items:center;gap:2px;background:var(--s2);border:1px solid var(--bd);border-radius:6px;padding:3px 8px;font-family:inherit;font-size:10.5px;font-weight:600;cursor:pointer;color:var(--t2)">
+          style="display:inline-flex;align-items:center;gap:3px;background:var(--s2);border:1px solid var(--bd);border-radius:7px;padding:5px 10px;font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer;color:var(--t2)">
           👁 Ver
         </button>
       </div>
@@ -1691,13 +1691,13 @@ function tmplResRow(r) {
   return `
     <tr class="hv" style="${hasConflict ? "background:rgba(255,251,235,.4)" : ""}">
       <td>
-        <div style="display:flex;align-items:center;gap:7px">
-          <div style="width:28px;height:28px;border-radius:8px;background:var(--aml);display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--amd);font-size:11px;flex-shrink:0">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="width:34px;height:34px;border-radius:9px;background:var(--aml);display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--amd);font-size:13.5px;flex-shrink:0">
             ${esc(r.client[0])}
           </div>
           <div>
-            <p style="font-weight:600;font-size:13px">${esc(r.client)}</p>
-            <p style="font-size:10px;color:var(--t3)">
+            <p style="font-weight:700;font-size:15.5px">${esc(r.client)}</p>
+            <p style="font-size:12.5px;color:var(--t3)">
               ${esc(r.phone || "")}
               ${hasConflict ? ` <span onclick="toast('⚠️ Conflicto de stock: ${esc(conflictTitle).replace(/'/g,"&#39;")}','warn')" style="color:#b45309;cursor:pointer">⚠️</span>` : ""}
             </p>
@@ -1706,28 +1706,28 @@ function tmplResRow(r) {
       </td>
       <td>
         <div>
-          <p style="font-weight:700;font-size:13px;color:var(--t)">${fD(r.date)}</p>
-          <p style="font-size:9.5px;font-weight:700;color:${pm2.c};margin-top:1px">${pm2.i} ${pm2.l}</p>
-          ${r.horaInicio ? `<p style="font-size:10px;color:var(--t3)">${esc(r.horaInicio)}${r.horaFin ? " → " + esc(r.horaFin) : ""}</p>` : ""}
+          <p style="font-weight:700;font-size:15px;color:var(--t)">${fD(r.date)}</p>
+          <p style="font-size:11.5px;font-weight:700;color:${pm2.c};margin-top:2px">${pm2.i} ${pm2.l}</p>
+          ${r.horaInicio ? `<p style="font-size:12px;color:var(--t3)">${esc(r.horaInicio)}${r.horaFin ? " → " + esc(r.horaFin) : ""}</p>` : ""}
         </div>
       </td>
-      <td class="hm" style="font-size:12px;color:var(--t2)">${esc(r.event)}</td>
-      <td class="hm" style="font-weight:700;color:var(--gr);font-size:13px">${fM(r.total)}</td>
+      <td class="hm" style="font-size:14px;color:var(--t2)">${esc(r.event)}</td>
+      <td class="hm" style="font-weight:700;color:var(--gr);font-size:15px">${fM(r.total)}</td>
       <td>
-        <div style="display:flex;gap:4px;align-items:center;flex-wrap:nowrap">
+        <div style="display:flex;gap:5px;align-items:center;flex-wrap:nowrap">
           <!-- Estado reserva -->
           <button onclick="openEstadoRapido('${r.id}')" title="Estado"
-            style="display:inline-flex;align-items:center;gap:3px;background:${sm.bg};border:1.5px solid ${sm.br};border-radius:7px;padding:4px 8px;font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;color:${sm.c};white-space:nowrap">
+            style="display:inline-flex;align-items:center;gap:3px;background:${sm.bg};border:1.5px solid ${sm.br};border-radius:8px;padding:6px 10px;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;color:${sm.c};white-space:nowrap">
             ${sm.i} ${sm.l}
           </button>
           <!-- Ver -->
           <button onclick="openView('${r.id}')" title="Ver detalle"
-            style="display:inline-flex;align-items:center;gap:3px;background:var(--s2);border:1px solid var(--bd);border-radius:7px;padding:4px 8px;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;color:var(--t2);white-space:nowrap">
+            style="display:inline-flex;align-items:center;gap:3px;background:var(--s2);border:1px solid var(--bd);border-radius:8px;padding:6px 10px;font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer;color:var(--t2);white-space:nowrap">
             👁 Ver
           </button>
           <!-- Más opciones -->
           <button onclick="openResMenu('${r.id}')" title="Más acciones"
-            style="display:inline-flex;align-items:center;background:var(--s2);border:1px solid var(--bd);border-radius:7px;padding:4px 8px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;color:var(--t2)">
+            style="display:inline-flex;align-items:center;background:var(--s2);border:1px solid var(--bd);border-radius:8px;padding:6px 10px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;color:var(--t2)">
             ⋯
           </button>
         </div>
@@ -1828,9 +1828,8 @@ function renderJFHub(){
   /* Utilidad de Racks = ventas − costo de producto − delivery, misma fórmula que "Resumen del mes" en Racks/Análisis */
   const utilidad=ventas=>{
     const costo=ventas.reduce((s,v)=>{const p=mrProducts.find(x=>x.id===v.productId);return s+(v.cantidad||0)*(p?.costoUnitario||0);},0);
-    const delivery=ventas.reduce((s,v)=>s+(v.costoDelivery||0),0);
     const vendido=ventas.reduce((s,v)=>s+(v.total||0),0);
-    return vendido-costo-delivery;
+    return vendido-costo; // el delivery lo paga el cliente aparte — no le resta a tu margen del producto
   };
   const racksVentasHoyArr=mrSales.filter(v=>v.fecha===today_j);
   const racksVentasSemanaArr=mrSales.filter(v=>enSemana(v.fecha));
@@ -1954,9 +1953,8 @@ function renderJFHub(){
   const top3=clientesOrdenados.slice(0,3).reduce((s,v)=>s+v,0);
   const concentracion=totalClientes>0?(top3/totalClientes*100):null;
 
-  /* Delivery como % de ventas — Racks, este mes */
+  /* Delivery cobrado a clientes — informativo, NO es un costo tuyo (el cliente lo paga aparte) */
   const deliveryMesActual=racksVentasMesActual.reduce((s,v)=>s+(v.costoDelivery||0),0);
-  const deliveryPct=racksFacturadoMes>0?(deliveryMesActual/racksFacturadoMes*100):null;
 
   /* Rotación de stock — productos con stock pero sin ventas en 60 días */
   const cutoff60=(()=>{const d=new Date();d.setDate(d.getDate()-60);return d.toLocaleDateString("en-CA");})();
@@ -2022,12 +2020,10 @@ function renderJFHub(){
         ${top3conNombre.map((c,i)=>`${i+1}. ${esc(c[0])} — ${fM(c[1])}`).join("<br>")}
         <br><b>Estos 3 = ${concentracion===null?"—":concentracion.toFixed(0)+"%"} de todo lo facturado</b>
       </div>`},
-    delivery:{title:"Delivery — % de ventas Racks",html:`
-      <p style="margin-bottom:10px">Cuánto de lo que vendes en Racks este mes se va en costo de entrega.</p>
+    delivery:{title:"Delivery cobrado a clientes",html:`
+      <p style="margin-bottom:10px">El delivery lo paga el cliente aparte, encima del precio del producto — no es un gasto tuyo ni afecta tu margen. Esto es solo informativo, por si necesitas cuadrar cuentas con un servicio de entrega.</p>
       <div style="background:var(--s2);border-radius:10px;padding:12px;font-size:13px;line-height:1.9">
-        Vendido: ${fM(racksFacturadoMes)}<br>
-        Gastado en delivery: ${fM(deliveryMesActual)}<br>
-        <b>${deliveryPct===null?"—":deliveryPct.toFixed(1)+"%"}</b>
+        Delivery cobrado este mes: <b>${fM(deliveryMesActual)}</b>
       </div>`},
     rotacion:{title:"Sin ventas en 60 días (Racks)",html: productosParados.length?`
       <p style="margin-bottom:10px">Productos con stock disponible que no se han vendido en los últimos 60 días — plata quieta.</p>
@@ -2070,8 +2066,8 @@ function renderJFHub(){
       <div class="kl">Concentración — top 3 clientes</div>
     </div>
     <div class="kpi" style="cursor:pointer" onclick="showExplainKey('delivery')">
-      <div class="kv" style="color:${deliveryPct===null?"var(--t)":deliveryPct>=10?"var(--am)":"var(--t)"}">${deliveryPct===null?"—":deliveryPct.toFixed(0)+"%"}</div>
-      <div class="kl">Delivery — % de ventas Racks</div>
+      <div class="kv" style="font-size:16px">${fM(deliveryMesActual)}</div>
+      <div class="kl">Delivery cobrado (informativo)</div>
     </div>
     <div class="kpi" style="cursor:pointer" onclick="showExplainKey('rotacion')">
       <div class="kv" style="color:${sinMovimiento>0?"var(--am)":"var(--gr)"}">${sinMovimiento}</div>
@@ -2774,13 +2770,13 @@ function buildResF(r){
             </div>
           </div>
         </div>
-        ${!r?`<div class="fld">
-          <label class="flbl">📋 Empezar desde una plantilla (opcional)</label>
-          <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px">
-            ${EVENT_TEMPLATES.map((t,i)=>`<button type="button" onclick="applyTemplate(${i})" style="flex-shrink:0;white-space:nowrap;background:var(--s2);border:1px solid var(--bd);border-radius:999px;padding:7px 13px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer">${t.name}</button>`).join("")}
+        <div class="fld">
+          <label class="flbl">Tipo de evento *</label>
+          <input class="inp" id="f-ev" value="${esc(r?.event||"")}" placeholder="Cumpleaños, boda..." style="margin-bottom:6px">
+          <div style="display:flex;gap:5px;overflow-x:auto;padding-bottom:2px">
+            ${EVENTOS_COMUNES.map(ev=>`<button type="button" onclick="document.getElementById('f-ev').value='${ev.replace(/'/g,"\\'")}'" style="flex-shrink:0;white-space:nowrap;background:var(--s2);border:1px solid var(--bd);border-radius:999px;padding:6px 12px;font-family:inherit;font-size:11.5px;font-weight:600;cursor:pointer;color:var(--t2)">${ev}</button>`).join("")}
           </div>
-        </div>`:""}
-        <div class="fld"><label class="flbl">Tipo de evento *</label><input class="inp" id="f-ev" value="${esc(r?.event||"")}" placeholder="Cumpleaños, boda..."></div>
+        </div>
         <div class="fld"><label class="flbl">Fecha *</label><input class="inp" id="f-dt" type="date" value="${r?.date||""}" oninput="updateTemporadaBadge();showDateConflict(this.value,'${eRid||""}')" ><div id="temp-badge" style="margin-top:5px"></div><div id="date-conflict"></div></div>
         <div class="fld"><label class="flbl">⏰ Hora inicio</label><input class="inp" id="f-hinicio" value="${esc(r?.horaInicio||"")}" placeholder="Ej. 15, 1530, 15:30" onblur="fmtHoraAuto(this)" onkeydown="if(event.key==='Enter')fmtHoraAuto(this)"></div>
         <div class="fld"><label class="flbl">⏰ Hora fin</label><input class="inp" id="f-hfin" value="${esc(r?.horaFin||"")}" placeholder="Ej. 19, 1900, 19:30" onblur="fmtHora(this)" onkeydown="if(event.key==='Enter')fmtHora(this)"></div>
@@ -2797,7 +2793,7 @@ function buildResF(r){
     <div>
       <p class="lbl" style="margin-bottom:7px">Productos del evento</p>
       <div style="display:flex;gap:5px;overflow-x:auto;padding-bottom:3px;margin-bottom:7px">
-        ${["todos","inflable","mobiliario","snack"].map(c=>`<button class="btn ${pCF===c?"btna":"btng"} sm" style="flex-shrink:0" onclick="setPCF('${c}')" id="pcf-${c}">${c==="todos"?"Todos":CAT[c].i+" "+CAT[c].l}</button>`).join("")}
+        ${["todos",...Object.keys(CAT)].map(c=>`<button class="btn ${pCF===c?"btna":"btng"} sm" style="flex-shrink:0" onclick="setPCF('${c}')" id="pcf-${c}">${c==="todos"?"Todos":CAT[c].i+" "+CAT[c].l}</button>`).join("")}
       </div>
       <div style="max-height:145px;overflow-y:auto;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;gap:4px" id="ppick">${products.filter(p=>p.available).map(p=>renderPPI(p)).join("")}</div>
     </div>
@@ -2827,7 +2823,7 @@ function buildSum(sel2){return sel2.length===0?`<div style="text-align:center;pa
 function renderPPI(p){if(pCF!=="todos"&&p.category!==pCF)return"";const s=selP.includes(p.id);return `<div onclick="tglP('${p.id}')" style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:${s?"var(--aml)":"var(--s2)"};border-radius:10px;border:1.5px solid ${s?"var(--am)":"transparent"};cursor:pointer;transition:all .15s"><div style="display:flex;align-items:center;gap:8px;min-width:0">${p.photo?`<img src="${p.photo}" style="width:30px;height:30px;border-radius:7px;object-fit:cover;flex-shrink:0">`:`<span style="font-size:19px;flex-shrink:0">${p.emoji}</span>`}<div style="min-width:0"><p style="font-weight:500;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.name)}</p><p style="font-size:10px;color:var(--t3)">${esc(p.description||"")}</p></div></div><div style="display:flex;align-items:center;gap:6px;flex-shrink:0;margin-left:7px"><span style="font-weight:700;color:var(--amd);font-size:12.5px">${fM(p.price)}</span><div style="width:19px;height:19px;border-radius:5px;background:${s?"var(--am)":"var(--bd)"};display:flex;align-items:center;justify-content:center;color:${s?"white":"var(--t3)"};font-size:11px;font-weight:700">${s?"✓":"+"}</div></div></div>`;}
 function setPCF(c) {
   pCF = c;
-  ["todos","inflable","mobiliario","snack"].forEach(x => {
+  ["todos",...Object.keys(CAT)].forEach(x => {
     const b = document.getElementById("pcf-" + x);
     if(b) b.className = x === c ? "btn btna sm" : "btn btng sm";
   });
@@ -3041,34 +3037,8 @@ function showDateConflict(date,excludeId){
   el.innerHTML=`<div style="background:#fff5f5;border:1.5px solid #fecaca;border-radius:9px;padding:9px 12px;margin-top:6px"><p style="font-size:11.5px;font-weight:700;color:#dc2626;margin-bottom:5px">⚠️ Sin stock para ${agotados.length} producto${agotados.length>1?"s":""}:</p>${detail}</div>`;
 }
 
-/* ══ PLANTILLAS EVENTOS ══ */
-const EVENT_TEMPLATES=[
-  {name:"🎂 Cumpleaños niños",event:"Cumpleaños",cats:["inflable"],max:2,notes:"Decoración temática",price:1200},
-  {name:"🎉 Cumpleaños adultos",event:"Cumpleaños adultos",cats:["mobiliario"],max:3,notes:"Evento adulto",price:1500},
-  {name:"💒 Boda",event:"Boda",cats:["mobiliario","snack"],max:3,notes:"Ceremonia + recepción",price:3500},
-  {name:"🎓 Graduación",event:"Graduación",cats:["mobiliario"],max:2,notes:"",price:2000},
-  {name:"🏢 Corporativo",event:"Corporativo",cats:["mobiliario"],max:2,notes:"Evento empresarial",price:2500},
-  {name:"🌊 Aqua Party",event:"Aqua Party",cats:["inflable"],max:2,notes:"Fiesta acuática — revisa si tienes un inflable de agua específico",price:1800},
-  {name:"🏰 Circuito",event:"Circuito Inflable",cats:["inflable"],max:3,notes:"Circuito completo",price:2200},
-];
-function applyTemplate(idx){
-  const t=EVENT_TEMPLATES[idx];if(!t)return;
-  const evEl=document.getElementById("f-ev");if(evEl)evEl.value=t.event;
-  const notesEl=document.getElementById("f-notes");if(notesEl)notesEl.value=t.notes;
-  const baseEl=document.getElementById("f-base");if(baseEl){baseEl.value=t.price;calcTotal();}
-  /* Busca productos reales y disponibles en las categorías de la plantilla — nunca IDs fijos */
-  let picked=[];
-  t.cats.forEach(cat=>{
-    const disp=products.filter(p=>p.available&&p.category===cat&&!picked.includes(p.id));
-    picked=picked.concat(disp.slice(0,t.max).map(p=>p.id));
-  });
-  selP=picked.slice(0,t.max);
-  const pp=document.getElementById("ppick");if(pp)pp.innerHTML=products.filter(p=>p.available).map(p=>renderPPI(p)).join("");
-  const s2=products.filter(p=>selP.includes(p.id));
-  const si=document.getElementById("sum-items");if(si)si.innerHTML=buildSum(s2);
-  if(!selP.length){toast("📋 "+t.name+" — sin productos disponibles en esas categorías, revisa tu Catálogo","warn");}
-  else{toast("📋 Plantilla: "+t.name+" ("+selP.length+" producto"+(selP.length!==1?"s":"")+")");}
-}
+/* ══ EVENTOS COMUNES (solo llenan el campo "Tipo de evento" — no tocan precio ni productos) ══ */
+const EVENTOS_COMUNES=["Cumpleaños","Cumpleaños adultos","Boda","Graduación","Corporativo","Baby Shower","Bautizo","Aniversario"];
 
 /* ══ WA RECORDATORIO 24h/48h ══ */
 function sendWAReminder(rid,hoursAhead){const r=reservations.find(x=>x.id===rid);if(!r)return;const tel=(r.phone||"").replace(/\D/g,"");if(!tel){toast("Sin teléfono","err");return;}const rp=products.filter(p=>r.products?.includes(p.id));const prodList=rp.length?rp.map(p=>"  • "+p.name).join("\n"):"  • Servicio personalizado";const label=hoursAhead===24?"mañana":"en 2 días";const msg=`¡Hola ${r.client}! 👋 Te saluda *CHISPEKAS* ⚡\n\nTe recordamos que tu evento es *${label}* 🎉\n\n📅 *Fecha:* ${fD(r.date)}\n${r.horaInicio?"⏰ *Hora:* "+r.horaInicio+(r.horaFin?" - "+r.horaFin:"")+"\n":""}🎉 *Evento:* ${r.event}\n${r.notes?"📍 *Lugar:* "+r.notes+"\n":""}\n🎪 *Servicios:*\n${prodList}\n\n${r.adelanto>0&&r.payStatus!=="pagado"?"💳 *Saldo pendiente:* "+fM(Math.max(0,r.total-r.adelanto))+" (se cancela al llegar)\n":""}⏰ Llegamos *1 hora antes*.\n\n¿Alguna consulta? 📸 @chispekas | 📱 923 912 992`;const prefix=tel.startsWith("51")?"":"51";window.open("https://wa.me/"+prefix+tel+"?text="+encodeURIComponent(msg),"_blank");toast("💬 Recordatorio "+hoursAhead+"h → WhatsApp");}
@@ -4246,8 +4216,7 @@ function renderMRClientes(){
 function renderMRAnalisis(){
   const totalVendido=mrSales.reduce((s,v)=>s+(v.total||0),0);
   const totalCostoProd=mrSales.reduce((s,v)=>{const p=mrProducts.find(x=>x.id===v.productId);return s+(v.cantidad||0)*(p?.costoUnitario||0);},0);
-  const totalDelivery=mrSales.reduce((s,v)=>s+(v.costoDelivery||0),0);
-  const ganancia=totalVendido-totalCostoProd-totalDelivery;
+  const ganancia=totalVendido-totalCostoProd; // el delivery lo paga el cliente aparte, no reduce tu margen
   const unidades=mrSales.reduce((s,v)=>s+(v.cantidad||0),0);
   const totalPorCobrar=mrSales.reduce((s,v)=>s+Math.max(0,(v.total||0)-(v.pagado||0)),0);
 
@@ -4264,8 +4233,7 @@ function renderMRAnalisis(){
   const unidadesMes=ventasMes.reduce((s,v)=>s+(v.cantidad||0),0);
   const vendidoMes=ventasMes.reduce((s,v)=>s+(v.total||0),0);
   const costoMes=ventasMes.reduce((s,v)=>{const p=mrProducts.find(x=>x.id===v.productId);return s+(v.cantidad||0)*(p?.costoUnitario||0);},0);
-  const deliveryMes=ventasMes.reduce((s,v)=>s+(v.costoDelivery||0),0);
-  const utilidadMes=vendidoMes-costoMes-deliveryMes;
+  const utilidadMes=vendidoMes-costoMes; // el delivery lo paga el cliente aparte, no reduce tu margen
   const capitalStock=mrProducts.reduce((s,p)=>s+mrStock(p.id)*(p.costoUnitario||0),0);
 
   document.getElementById("mr-mes-actual").textContent = MF[now_.getMonth()]+" "+now_.getFullYear();
