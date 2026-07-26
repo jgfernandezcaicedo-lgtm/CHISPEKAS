@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>JF Business Hub — Panel</title>
+<title>JGK Fernández — Panel</title>
 <meta name="theme-color" content="#f5a623">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -438,7 +438,7 @@ body.dark #dlbl,body.dark #dlbl2{color:var(--t2)}
 <!-- SIDEBAR -->
 <aside class="sidebar" id="sidebar">
   <div class="sbl">
-    <div class="sbn">JF Business Hub</div>
+    <div class="sbn">JGK Fernández</div>
     <div class="sbs">Todos tus negocios</div>
   </div>
   <div class="ng">
@@ -453,8 +453,12 @@ body.dark #dlbl,body.dark #dlbl2{color:var(--t2)}
     <button class="nb" id="nb-clientes"    onclick="go('clientes')"   ><span class="ni">👥</span>Clientes</button>
   </div>
   <div class="ng" style="margin-top:6px">
-    <div class="ngl">🛠️ Mini Racks</div>
-    <button class="nb" id="nb-racks"       onclick="go('racks')"      ><span class="ni">🛠️</span>Racks</button>
+    <div class="ngl">🛠️ STAK</div>
+    <button class="nb" id="nb-stak-resumen"  onclick="goStak('analisis')"><span class="ni">📊</span>Resumen</button>
+    <button class="nb" id="nb-stak-ventas"   onclick="goStak('ventas')"  ><span class="ni">🛠️</span>Ventas</button>
+    <button class="nb" id="nb-stak-stock"    onclick="goStak('stock')"   ><span class="ni">📦</span>Stock</button>
+    <button class="nb" id="nb-stak-financiero" onclick="goStak('financiero')"><span class="ni">💵</span>Finanzas</button>
+    <button class="nb" id="nb-stak-clientes" onclick="goStak('clientes')"><span class="ni">👥</span>Clientes</button>
   </div>
   <div class="sbf">
     <div id="user-info-sb"></div>
@@ -479,7 +483,7 @@ body.dark #dlbl,body.dark #dlbl2{color:var(--t2)}
       <div class="sr hm"><div class="dot" id="dot2"></div><span id="dlbl2" style="font-size:11px">Conectando...</span></div>
       <button id="dm-btn" onclick="toggleDark()" style="width:32px;height:32px;border-radius:9px;background:var(--s2);border:1px solid var(--bd);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center" title="Modo oscuro">🌙</button>
       <div style="display:flex;gap:6px">
-        <button class="btn btnd sm" onclick="openNewRes()">＋ Nueva</button>
+        <button class="btn btnd sm" id="btn-new-top" onclick="openNewSmart()">＋ Nueva</button>
       </div>
     </div>
   </div>
@@ -506,7 +510,7 @@ body.dark #dlbl,body.dark #dlbl2{color:var(--t2)}
       <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:18px">
         <div>
           <h1 style="font-size:28px;margin-bottom:3px" id="dash-g">Buenos días</h1>
-          <p style="color:var(--t2);font-size:13px">Resumen de <strong>JF Business Hub</strong> — todos tus negocios</p>
+          <p style="color:var(--t2);font-size:13px">Resumen de <strong>JGK Fernández</strong> — todos tus negocios</p>
         </div>
         <span style="font-size:11.5px;color:var(--t3);font-weight:600;text-transform:capitalize" id="jfh-fecha"></span>
       </div>
@@ -528,24 +532,6 @@ body.dark #dlbl,body.dark #dlbl2{color:var(--t2)}
       <div class="card cp" style="margin-bottom:16px">
         <div class="ch"><div><div class="ct">📊 Análisis financiero</div><div class="cs">Para tomar decisiones, no solo para mirar</div></div></div>
         <div class="kg" id="jfh-ratios" style="grid-template-columns:1fr 1fr"></div>
-      </div>
-
-      <div class="card cp" style="margin-bottom:16px">
-        <div class="ch"><div class="ct">Accesos rápidos</div></div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
-          <button onclick="openNewRes()" style="display:flex;align-items:center;gap:10px;background:var(--aml);border:1px solid #fde9c2;border-radius:14px;padding:13px 14px;cursor:pointer;font-family:inherit;text-align:left">
-            <span style="font-size:19px">🎪</span><span><span style="display:block;font-size:12.5px;font-weight:700;color:var(--amd)">＋ Nueva reserva</span><span style="font-size:10px;color:var(--t3)">Chispekas</span></span>
-          </button>
-          <button onclick="openMRVenta()" style="display:flex;align-items:center;gap:10px;background:var(--bll);border:1px solid #dbe9fd;border-radius:14px;padding:13px 14px;cursor:pointer;font-family:inherit;text-align:left">
-            <span style="font-size:19px">🛠️</span><span><span style="display:block;font-size:12.5px;font-weight:700;color:var(--bl)">＋ Nueva venta</span><span style="font-size:10px;color:var(--t3)">Mini Racks</span></span>
-          </button>
-          <button onclick="go('reservas')" style="display:flex;align-items:center;gap:10px;background:var(--s2);border:1px solid var(--bd);border-radius:14px;padding:13px 14px;cursor:pointer;font-family:inherit;text-align:left">
-            <span style="font-size:19px">📅</span><span><span style="display:block;font-size:12.5px;font-weight:700;color:var(--t)">Ver reservas</span><span style="font-size:10px;color:var(--t3)">Chispekas</span></span>
-          </button>
-          <button onclick="openMRCotizacion()" style="display:flex;align-items:center;gap:10px;background:var(--s2);border:1px solid var(--bd);border-radius:14px;padding:13px 14px;cursor:pointer;font-family:inherit;text-align:left">
-            <span style="font-size:19px">📄</span><span><span style="display:block;font-size:12.5px;font-weight:700;color:var(--t)">Cotización</span><span style="font-size:10px;color:var(--t3)">Mini Racks</span></span>
-          </button>
-        </div>
       </div>
 
       <div class="card cp">
@@ -744,18 +730,19 @@ body.dark #dlbl,body.dark #dlbl2{color:var(--t2)}
       </div>
     </div>
 
-    <!-- MINI RACKS -->
+    <!-- STAK -->
     <div id="v-racks" style="display:none">
-      <div style="margin-bottom:14px"><h1 style="font-size:24px">🛠️ Mini Racks</h1><p style="color:var(--t2);font-size:12px;margin-top:2px">Ventas, stock y clientes — negocio aparte de Chispekas</p></div>
+      <div style="margin-bottom:14px"><h1 style="font-size:24px">🛠️ STAK</h1><p style="color:var(--t2);font-size:12px;margin-top:2px">Racks industriales y mobiliario de almacenaje — negocio aparte de Chispekas</p></div>
       <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap">
-        <button class="btn stab on" id="mr-stab-ventas" onclick="setMRSub('ventas')">Ventas</button>
+        <button class="btn stab on" id="mr-stab-analisis" onclick="setMRSub('analisis')">Resumen</button>
+        <button class="btn stab" id="mr-stab-ventas" onclick="setMRSub('ventas')">Ventas</button>
         <button class="btn stab" id="mr-stab-stock" onclick="setMRSub('stock')">Stock</button>
+        <button class="btn stab" id="mr-stab-financiero" onclick="setMRSub('financiero')">Finanzas</button>
         <button class="btn stab" id="mr-stab-clientes" onclick="setMRSub('clientes')">Clientes</button>
-        <button class="btn stab" id="mr-stab-analisis" onclick="setMRSub('analisis')">Análisis</button>
       </div>
 
       <!-- VENTAS -->
-      <div id="mr-sub-ventas">
+      <div id="mr-sub-ventas" style="display:none">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
           <p style="font-size:12px;color:var(--t2)" id="mr-ventas-cnt"></p>
           <button class="btn btng sm" onclick="exportMRVentasCSV()">⬇ CSV</button>
@@ -798,18 +785,23 @@ body.dark #dlbl,body.dark #dlbl2{color:var(--t2)}
         <div class="card cp"><div class="tw" id="mr-cli-tbl"></div></div>
       </div>
 
-      <!-- ANÁLISIS -->
-      <div id="mr-sub-analisis" style="display:none">
+      <!-- RESUMEN -->
+      <div id="mr-sub-analisis">
         <div class="card cp" style="margin-bottom:14px;border:1.5px solid var(--am)">
           <div class="ch"><div class="ct">📅 Resumen del mes — <span id="mr-mes-actual"></span></div></div>
           <div class="kg" id="mr-mes-kpis"></div>
         </div>
         <div class="kg" id="mr-an-kpis" style="margin-bottom:14px"></div>
+        <div class="card cp"><div class="ch"><div class="ct">🏆 Mejores clientes</div></div><div id="mr-an-top-cli"></div></div>
+      </div>
+
+      <!-- FINANZAS -->
+      <div id="mr-sub-financiero" style="display:none">
         <div class="g2" style="margin-bottom:13px">
           <div class="card cp"><div class="ch"><div class="ct">Ventas por mes</div></div><div style="position:relative;height:170px"><canvas id="ch-mr-ventas"></canvas></div></div>
           <div class="card cp"><div class="ch"><div class="ct">Margen por producto</div></div><div id="mr-an-margen"></div></div>
         </div>
-        <div class="card cp"><div class="ch"><div class="ct">🏆 Mejores clientes</div></div><div id="mr-an-top-cli"></div></div>
+        <div class="card cp"><div class="ch"><div><div class="ct">💳 Por cobrar</div><div class="cs">Ventas con saldo pendiente</div></div></div><div id="mr-fin-cobros"></div></div>
       </div>
     </div>
 
@@ -822,7 +814,7 @@ body.dark #dlbl,body.dark #dlbl2{color:var(--t2)}
   <div class="bni">
     <button class="bn" id="bn-dashboard"  onclick="go('dashboard')" ><span class="bnico">🏠</span><span class="bnlbl">Inicio</span></button>
     <button class="bn" id="bn-chispekas"  onclick="go('chispekas-resumen')"><span class="bnico">🎪</span><span class="bnlbl">Chispekas</span></button>
-    <button class="bn" id="bn-racks"      onclick="go('racks')"     ><span class="bnico">🛠️</span><span class="bnlbl">Racks</span></button>
+    <button class="bn" id="bn-racks"      onclick="goStak('analisis')"     ><span class="bnico">🛠️</span><span class="bnlbl">STAK</span></button>
   </div>
 </nav>
 
@@ -865,11 +857,11 @@ body.dark #dlbl,body.dark #dlbl2{color:var(--t2)}
   </div>
 </div></div>
 
-<div class="ov" id="ov-mr-venta"><div class="sheet"><div class="shh"></div><div class="shd"><span class="sht">🛠️ Nueva venta — Mini Racks</span><button class="xb" onclick="closeOv('ov-mr-venta')">×</button></div>
+<div class="ov" id="ov-mr-venta"><div class="sheet"><div class="shh"></div><div class="shd"><span class="sht">🛠️ Nueva venta — STAK</span><button class="xb" onclick="closeOv('ov-mr-venta')">×</button></div>
   <div class="shb" id="mrv-body"></div>
 </div></div>
 
-<div class="ov" id="ov-mr-cotizacion"><div class="sheet"><div class="shh"></div><div class="shd"><span class="sht">📄 Nueva cotización — Mini Racks</span><button class="xb" onclick="closeOv('ov-mr-cotizacion')">×</button></div>
+<div class="ov" id="ov-mr-cotizacion"><div class="sheet"><div class="shh"></div><div class="shd"><span class="sht">📄 Nueva cotización — STAK</span><button class="xb" onclick="closeOv('ov-mr-cotizacion')">×</button></div>
   <div class="shb" id="mrq-body"></div>
 </div></div>
 
@@ -877,7 +869,7 @@ body.dark #dlbl,body.dark #dlbl2{color:var(--t2)}
   <div class="shb" id="mrc-body"></div>
 </div></div>
 
-<div class="ov" id="ov-mr-prod"><div class="sheet"><div class="shh"></div><div class="shd"><span class="sht">✏️ Producto — Mini Racks</span><button class="xb" onclick="closeOv('ov-mr-prod')">×</button></div>
+<div class="ov" id="ov-mr-prod"><div class="sheet"><div class="shh"></div><div class="shd"><span class="sht">✏️ Producto — STAK</span><button class="xb" onclick="closeOv('ov-mr-prod')">×</button></div>
   <div class="shb" id="mrp-body"></div>
 </div></div>
 
@@ -1793,7 +1785,7 @@ function renderAll(){
 }
 
 /* DASHBOARD */
-/** JF Business Hub — resumen unificado de CHISPEKAS + Racks, "todo el negocio en un minuto" */
+/** JGK Fernández — resumen unificado de CHISPEKAS + STAK, "todo el negocio en un minuto" */
 /** Explicación tocable de cada ratio financiero — sin re-serializar datos en el onclick (evita bugs de comillas) */
 let jfhExplain={};
 function showExplainKey(key){
@@ -1849,10 +1841,10 @@ function renderJFHub(){
       <p class="sub">${eventosSemana} evento${eventosSemana!==1?"s":""} esta semana</p>
       ${chispekasPend>0?`<span class="pill" style="background:#fff0e0;color:#b5540a">💰 ${fM(chispekasPend)} por cobrar</span>`:""}
     </div>
-    <div class="jfh-biz" style="background:linear-gradient(160deg,#eff6ff,#fff);border-color:#dbe9fd" onclick="go('racks')">
+    <div class="jfh-biz" style="background:linear-gradient(160deg,#eff6ff,#fff);border-color:#dbe9fd" onclick="goStak('analisis')">
       <span class="arrow">→</span>
       <span style="font-size:24px">🛠️</span>
-      <p class="lbl" style="color:var(--bl)">Mini Racks · utilidad</p>
+      <p class="lbl" style="color:var(--bl)">STAK · utilidad</p>
       <div class="jfh-stat-row">
         <div class="jfh-stat"><p class="k">Hoy</p><p class="v">${fM(racksUtilHoy)}</p></div>
         <div class="jfh-stat"><p class="k">Semana</p><p class="v">${fM(racksUtilSemana)}</p></div>
@@ -1992,7 +1984,7 @@ function renderJFHub(){
       <p style="margin-bottom:10px">De dónde viene el dinero que entró este mes.</p>
       <div style="background:var(--s2);border-radius:10px;padding:12px;font-size:13px;line-height:1.9">
         🎪 Chispekas: ${fM(chispekasSerie[5])} (${pctChispekas.toFixed(0)}%)<br>
-        🛠️ Mini Racks: ${fM(racksIngresoSerie[5])} (${pctRacks.toFixed(0)}%)
+        🛠️ STAK: ${fM(racksIngresoSerie[5])} (${pctRacks.toFixed(0)}%)
       </div>`},
     meta:{title:"Meta del mes (Chispekas)",html: metaObjetivo>0?`
       <p style="margin-bottom:10px">Tu meta configurada en Finanzas de Chispekas, comparada contra lo confirmado este mes.</p>
@@ -3887,16 +3879,20 @@ function renderProyeccion(){
 /* ════════════════ § MINI RACKS (negocio aparte) ════════════════ */
 
 function setMRSub(s){
-  ["ventas","stock","clientes","analisis"].forEach(k=>{
+  stakSub=s;
+  ["ventas","stock","clientes","analisis","financiero"].forEach(k=>{
     document.getElementById("mr-sub-"+k).style.display=k===s?"block":"none";
     document.getElementById("mr-stab-"+k).classList.toggle("on",k===s);
   });
+  document.querySelectorAll(".nb").forEach(b=>b.classList.toggle("on", b.id==="nb-stak-"+s));
+  const tt=document.getElementById("top-title");if(tt)tt.textContent="STAK — "+(STAK_SUB_LABELS[s]||"Resumen");
   if(s==="stock")renderMRStock();
   if(s==="clientes")renderMRClientes();
   if(s==="analisis")renderMRAnalisis();
+  if(s==="financiero")renderMRFinanzas();
 }
 
-function renderMR(){ renderMRVentas(); }
+function renderMR(){ renderMRVentas(); renderMRAnalisis(); }
 
 /** Stock actual = todo lo comprado − todo lo vendido, para ese producto */
 function mrStock(pid){
@@ -4242,6 +4238,21 @@ function renderMRAnalisis(){
     <div class="kpi"><div class="kv" style="color:var(--gr)">${fM(utilidadMes)}</div><div class="kl">Utilidad del mes</div></div>
     <div class="kpi"><div class="kv">${fM(capitalStock)}</div><div class="kl">Capital en stock actual</div></div>`;
 
+  // top clientes
+  const byClient={};
+  mrSales.forEach(v=>{byClient[v.cliente]=(byClient[v.cliente]||0)+(v.total||0);});
+  const top=Object.entries(byClient).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  document.getElementById("mr-an-top-cli").innerHTML = top.length
+    ? top.map(([name,total],i)=>`<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--bg)">
+        <span style="font-weight:800;color:var(--t3);font-size:12px;width:16px">${i+1}</span>
+        <span style="flex:1;font-size:12.5px;font-weight:600">${esc(name)}</span>
+        <span style="font-weight:800;color:var(--amd);font-size:12.5px">${fM(total)}</span>
+      </div>`).join("")
+    : `<p style="font-size:12px;color:var(--t3)">Sin ventas todavía</p>`;
+}
+
+/** Pestaña Finanzas — ventas por mes, margen por producto, y detalle de cobros pendientes */
+function renderMRFinanzas(){
   // ventas por mes (últimos 6 meses)
   const meses=[]; const now=new Date();
   for(let i=5;i>=0;i--){ const d=new Date(now.getFullYear(),now.getMonth()-i,1); meses.push(d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")); }
@@ -4262,17 +4273,25 @@ function renderMRAnalisis(){
   }).join("");
   document.getElementById("mr-an-margen").innerHTML=margenHtml||`<p style="font-size:12px;color:var(--t3)">Sin ventas todavía</p>`;
 
-  // top clientes
-  const byClient={};
-  mrSales.forEach(v=>{byClient[v.cliente]=(byClient[v.cliente]||0)+(v.total||0);});
-  const top=Object.entries(byClient).sort((a,b)=>b[1]-a[1]).slice(0,5);
-  document.getElementById("mr-an-top-cli").innerHTML = top.length
-    ? top.map(([name,total],i)=>`<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--bg)">
-        <span style="font-weight:800;color:var(--t3);font-size:12px;width:16px">${i+1}</span>
-        <span style="flex:1;font-size:12.5px;font-weight:600">${esc(name)}</span>
-        <span style="font-weight:800;color:var(--amd);font-size:12.5px">${fM(total)}</span>
-      </div>`).join("")
-    : `<p style="font-size:12px;color:var(--t3)">Sin ventas todavía</p>`;
+  // cobros pendientes — detalle venta por venta, igual que en Finanzas de Chispekas
+  const cobros=mrSales.filter(v=>Math.max(0,(v.total||0)-(v.pagado||0))>0).sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
+  const totalPend=cobros.reduce((s,v)=>s+Math.max(0,(v.total||0)-(v.pagado||0)),0);
+  const el_cob=document.getElementById("mr-fin-cobros");
+  if(el_cob){
+    el_cob.innerHTML = cobros.length
+      ? `<div style="background:#fff5f5;border-radius:10px;padding:9px 12px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center"><span style="font-size:12px;font-weight:700;color:var(--rd)">Total pendiente de cobrar</span><span style="font-size:18px;font-weight:900;color:var(--rd)">${fM(totalPend)}</span></div>`
+        + cobros.map(v=>{
+            const saldo=Math.max(0,(v.total||0)-(v.pagado||0));
+            return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--bg)">
+              <div><p style="font-weight:600;font-size:12.5px">${esc(v.cliente)}</p><p style="font-size:10.5px;color:var(--t2)">${fD(v.fecha)} · ${esc(v.producto)}</p></div>
+              <div style="text-align:right;flex-shrink:0;margin-left:8px">
+                <p style="font-weight:700;color:var(--rd);font-size:13px">${fM(saldo)}</p>
+                ${v.telefono?`<a href="https://wa.me/${waPhone(v.telefono)}" target="_blank" style="font-size:9.5px;color:#128C7E;text-decoration:none;font-weight:700">💬 Cobrar</a>`:""}
+              </div>
+            </div>`;
+          }).join("")
+      : `<div class="empty" style="padding:16px"><div class="ei">✅</div><div class="et">Sin cobros pendientes</div></div>`;
+  }
 }
 
 /* ── NOTA DE VENTA (desde un registro real) ── */
@@ -4342,7 +4361,7 @@ function genMRNotaVenta(saleId){
   </div>
   <div class="doc">
     <div class="hdr">
-      <div class="brand">${mrLogo()}<div><h1>CHISPEKAS IMPORT</h1><p>Racks industriales y mobiliario de almacenaje</p></div></div>
+      <div class="brand">${mrLogo()}<div><h1>STAK</h1><p>Racks industriales y mobiliario de almacenaje</p></div></div>
       <div class="doc-meta">
         <span class="doc-type">Nota de venta</span>
         <p class="num">N° ${docNum}</p>
@@ -4393,7 +4412,7 @@ function genMRNotaVenta(saleId){
         ${saldo>0?`<div class="saldo"><span>Saldo pendiente</span><span>${fM(saldo)}</span></div>`:`<div class="pagadocompleto">✓ Pagado por completo</div>`}
       </div>
     </div>
-    <div class="ftr">CHISPEKAS IMPORT · San Juan de Lurigancho, Lima · 923 912 992 · jg.fernandez15@gmail.com</div>
+    <div class="ftr">STAK · San Juan de Lurigancho, Lima · 923 912 992 · jg.fernandez15@gmail.com</div>
   </div>
   </body></html>`;
   const w=window.open("","_blank");
@@ -4456,7 +4475,7 @@ function genMRCotizacion(){
   </div>
   <div class="doc">
     <div class="hdr">
-      <div class="brand">${mrLogo()}<div><h1>CHISPEKAS IMPORT</h1><p>Racks industriales y mobiliario de almacenaje</p></div></div>
+      <div class="brand">${mrLogo()}<div><h1>STAK</h1><p>Racks industriales y mobiliario de almacenaje</p></div></div>
       <div class="doc-meta">
         <span class="doc-type" style="background:#EAF1FF;color:#1D5FE0">Cotización</span>
         <p class="num">N° ${docNum}</p>
@@ -4500,7 +4519,7 @@ function genMRCotizacion(){
         <div class="tot"><span>Total</span><span>${fM(total)}</span></div>
       </div>
     </div>
-    <div class="ftr">CHISPEKAS IMPORT · San Juan de Lurigancho, Lima · 923 912 992 · jg.fernandez15@gmail.com</div>
+    <div class="ftr">STAK · San Juan de Lurigancho, Lima · 923 912 992 · jg.fernandez15@gmail.com</div>
   </div>
   </body></html>`;
   const w=window.open("","_blank");
@@ -4543,7 +4562,7 @@ function downloadCSV(prefix,headers,rows,msg){
   toast("✅ CSV descargado — "+msg);
 }
 
-/** Backup completo — descarga TODAS las colecciones (Chispekas + Mini Racks) en un solo JSON con fecha */
+/** Backup completo — descarga TODAS las colecciones (Chispekas + STAK) en un solo JSON con fecha */
 function downloadFullBackup(){
   const backup={
     _generado: new Date().toISOString(),
@@ -4568,7 +4587,7 @@ function mrCobranzaWA(id){
   const v=mrSales.find(x=>x.id===id);
   if(!v||!v.telefono){toast("Esta venta no tiene teléfono guardado","warn");return;}
   const saldo=Math.max(0,(v.total||0)-(v.pagado||0));
-  const msg=`Hola ${v.cliente}, te escribo de CHISPEKAS IMPORT para recordarte el saldo pendiente de ${v.producto} por S/ ${saldo.toFixed(2)}. ¿Cuándo podríamos coordinar el pago? Gracias 🙌`;
+  const msg=`Hola ${v.cliente}, te escribo de STAK para recordarte el saldo pendiente de ${v.producto} por S/ ${saldo.toFixed(2)}. ¿Cuándo podríamos coordinar el pago? Gracias 🙌`;
   window.open("https://wa.me/"+waPhone(v.telefono)+"?text="+encodeURIComponent(msg),"_blank");
 }
 
@@ -4582,7 +4601,47 @@ function mrPrecioAnterior(clienteName, productId){
 
 /* ════════════════ § NAVEGACIÓN Y UI ════════════════ */
 
-const TITLES={dashboard:"Inicio","chispekas-resumen":"Resumen",reservas:"Reservaciones",catalogo:"Catálogo",financiero:"Finanzas",clientes:"Clientes",racks:"Mini Racks"};
+const TITLES={dashboard:"Inicio","chispekas-resumen":"Resumen",reservas:"Reservaciones",catalogo:"Catálogo",financiero:"Finanzas",clientes:"Clientes",racks:"STAK"};
+const STAK_SUB_LABELS={analisis:"Resumen",ventas:"Ventas",stock:"Stock",clientes:"Clientes",financiero:"Finanzas"};
+let stakSub="analisis";
+
+/** Botón "+ Nueva" de arriba — cambia de acción según en qué sección estás */
+function updateNewBtnLabel(){
+  const btn=document.getElementById("btn-new-top");
+  if(!btn)return;
+  const chispekasGroup=["chispekas-resumen","reservas","catalogo","financiero","clientes"];
+  if(chispekasGroup.includes(tab)){ btn.textContent="＋ Nueva reserva"; }
+  else if(tab==="racks"){ btn.textContent="＋ Nueva venta"; }
+  else { btn.textContent="＋ Nueva"; }
+}
+function openNewSmart(){
+  const chispekasGroup=["chispekas-resumen","reservas","catalogo","financiero","clientes"];
+  if(chispekasGroup.includes(tab)){ openNewRes(); return; }
+  if(tab==="racks"){ openMRVenta(); return; }
+  // En Inicio — negocio ambiguo, deja elegir
+  const menu=document.createElement("div");
+  menu.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px)";
+  menu.innerHTML=`
+    <div style="background:var(--s);border-radius:24px 24px 0 0;width:100%;max-width:420px;padding:20px 18px;padding-bottom:calc(20px + env(safe-area-inset-bottom));box-shadow:var(--sh3)">
+      <p style="font-weight:700;font-size:15px;margin-bottom:14px">¿Qué quieres crear?</p>
+      <button onclick="openNewRes();this.closest('[style*=fixed]').remove()" style="display:flex;align-items:center;gap:10px;width:100%;background:var(--aml);border:1px solid #fde9c2;border-radius:14px;padding:13px 14px;cursor:pointer;font-family:inherit;text-align:left;margin-bottom:8px">
+        <span style="font-size:19px">🎪</span><span><span style="display:block;font-size:13px;font-weight:700;color:var(--amd)">Nueva reserva</span><span style="font-size:10.5px;color:var(--t3)">Chispekas</span></span>
+      </button>
+      <button onclick="openMRVenta();this.closest('[style*=fixed]').remove()" style="display:flex;align-items:center;gap:10px;width:100%;background:var(--bll);border:1px solid #dbe9fd;border-radius:14px;padding:13px 14px;cursor:pointer;font-family:inherit;text-align:left;margin-bottom:8px">
+        <span style="font-size:19px">🛠️</span><span><span style="display:block;font-size:13px;font-weight:700;color:var(--bl)">Nueva venta</span><span style="font-size:10.5px;color:var(--t3)">STAK</span></span>
+      </button>
+      <button onclick="this.closest('[style*=fixed]').remove()" style="display:block;width:100%;background:none;border:none;padding:10px;font-family:inherit;font-size:13px;color:var(--t2);cursor:pointer">Cancelar</button>
+    </div>`;
+  document.body.appendChild(menu);
+  menu.addEventListener("click",e=>{if(e.target===menu)menu.remove();});
+}
+
+/** Navega a STAK y abre directamente la sub-sección pedida (Resumen/Ventas/Stock/Finanzas/Clientes) — mismo patrón que Chispekas */
+function goStak(sub){
+  stakSub=sub;
+  go("racks");
+  setMRSub(sub);
+}
 function go(t){
   tab=t;
   document.querySelectorAll("[id^='v-']").forEach(el=>el.style.display="none");
@@ -4590,13 +4649,15 @@ function go(t){
 
   const chispekasGroup=["chispekas-resumen","reservas","catalogo","financiero","clientes"];
   const inChispekas=chispekasGroup.includes(t);
+  const inSTAK=t==="racks";
   const subnav=document.getElementById("chispekas-subnav");
   if(subnav)subnav.style.display=inChispekas?"block":"none";
   document.querySelectorAll("#chispekas-subnav .stab").forEach(b=>b.classList.toggle("on",b.id==="csn-"+t));
 
-  document.querySelectorAll(".nb").forEach(b=>b.classList.toggle("on",b.id==="nb-"+t));
+  document.querySelectorAll(".nb").forEach(b=>b.classList.toggle("on", b.id==="nb-"+t || (inSTAK && b.id==="nb-stak-"+stakSub)));
   document.querySelectorAll(".bn").forEach(b=>b.classList.toggle("on", b.id==="bn-"+t || (b.id==="bn-chispekas"&&inChispekas)));
-  document.getElementById("top-title").textContent = inChispekas ? "Chispekas — "+(TITLES[t]||t) : (TITLES[t]||t);
+  document.getElementById("top-title").textContent = inChispekas ? "Chispekas — "+(TITLES[t]||t) : inSTAK ? "STAK — "+(STAK_SUB_LABELS[stakSub]||"Resumen") : (TITLES[t]||t);
+  updateNewBtnLabel();
   closeSB();
   if(t==="chispekas-resumen")renderChispekasResumen();
   if(t==="reservas")renderRes();
