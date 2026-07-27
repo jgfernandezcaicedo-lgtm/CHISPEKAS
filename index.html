@@ -703,6 +703,10 @@ body.dark #dlbl,body.dark #dlbl2{color:var(--t2)}
 
       <!-- REPORTES -->
       <div id="fin-sub-reportes" style="display:none">
+        <div class="card cp" style="margin-bottom:13px">
+          <div class="ch"><div><div class="ct">🧠 Reporte en texto para análisis con IA</div><div class="cs">Genera un resumen en texto plano — cópialo y pégalo en un chat con Claude para pedir un análisis más profundo</div></div></div>
+          <button class="btn btnd sm" onclick="openTextReportMenu('chispekas')">🧠 Generar reporte de texto</button>
+        </div>
         <div style="display:flex;justify-content:flex-end;gap:6px;flex-wrap:wrap;margin-bottom:14px">
           <select class="inp" id="rep-yr" style="width:90px;font-size:13px" onchange="renderRep()"></select>
           <select class="inp" id="rep-mo" style="width:110px;font-size:13px" onchange="renderRep()"></select>
@@ -797,11 +801,39 @@ body.dark #dlbl,body.dark #dlbl2{color:var(--t2)}
 
       <!-- FINANZAS -->
       <div id="mr-sub-financiero" style="display:none">
-        <div class="g2" style="margin-bottom:13px">
-          <div class="card cp"><div class="ch"><div class="ct">Ventas por mes</div></div><div style="position:relative;height:170px"><canvas id="ch-mr-ventas"></canvas></div></div>
-          <div class="card cp"><div class="ch"><div class="ct">Margen por producto</div></div><div id="mr-an-margen"></div></div>
+        <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap">
+          <button class="btn stab on" id="mrfin-stab-resumen" onclick="setMRFinSub('resumen')">Resumen</button>
+          <button class="btn stab" id="mrfin-stab-analisis" onclick="setMRFinSub('analisis')">Análisis</button>
+          <button class="btn stab" id="mrfin-stab-reportes" onclick="setMRFinSub('reportes')">Reportes</button>
         </div>
-        <div class="card cp"><div class="ch"><div><div class="ct">💳 Por cobrar</div><div class="cs">Ventas con saldo pendiente</div></div></div><div id="mr-fin-cobros"></div></div>
+
+        <!-- RESUMEN -->
+        <div id="mrfin-sub-resumen">
+          <div class="g2" style="margin-bottom:13px">
+            <div class="card cp"><div class="ch"><div class="ct">Ventas por mes</div></div><div style="position:relative;height:170px"><canvas id="ch-mr-ventas"></canvas></div></div>
+            <div class="card cp"><div class="ch"><div class="ct">Margen por producto</div></div><div id="mr-an-margen"></div></div>
+          </div>
+          <div class="card cp"><div class="ch"><div><div class="ct">💳 Por cobrar</div><div class="cs">Ventas con saldo pendiente</div></div></div><div id="mr-fin-cobros"></div></div>
+        </div>
+
+        <!-- ANÁLISIS -->
+        <div id="mrfin-sub-analisis" style="display:none">
+          <div class="kg" id="mrfin-an-kpis" style="margin-bottom:13px"></div>
+          <div class="g2" style="margin-bottom:13px">
+            <div class="card cp"><div class="ch"><div class="ct">🏆 Productos más vendidos</div><div class="cs">Por unidades</div></div><div id="mrfin-an-topprod"></div></div>
+            <div class="card cp"><div class="ch"><div class="ct">📊 Comparativo vs mes anterior</div></div><div id="mrfin-an-comparativo"></div></div>
+          </div>
+        </div>
+
+        <!-- REPORTES -->
+        <div id="mrfin-sub-reportes" style="display:none">
+          <div class="card cp" style="margin-bottom:13px">
+            <div class="ch"><div><div class="ct">🧠 Reporte en texto para análisis con IA</div><div class="cs">Genera un resumen en texto plano — cópialo y pégalo en un chat con Claude para pedir un análisis más profundo</div></div></div>
+            <div style="display:flex;gap:7px;flex-wrap:wrap">
+              <button class="btn btnd sm" onclick="openTextReportMenu('stak')">🧠 Generar reporte de texto</button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -871,6 +903,17 @@ body.dark #dlbl,body.dark #dlbl2{color:var(--t2)}
 
 <div class="ov" id="ov-mr-prod"><div class="sheet"><div class="shh"></div><div class="shd"><span class="sht">✏️ Producto — STAK</span><button class="xb" onclick="closeOv('ov-mr-prod')">×</button></div>
   <div class="shb" id="mrp-body"></div>
+</div></div>
+
+<div class="ov" id="ov-text-report"><div class="sheet shlg"><div class="shh"></div><div class="shd"><span class="sht" id="tr-title">🧠 Reporte de texto</span><button class="xb" onclick="closeOv('ov-text-report')">×</button></div>
+  <div class="shb">
+    <p style="font-size:12px;color:var(--t2);margin-bottom:10px">Copia este texto y pégalo en un chat con Claude para pedirle un análisis más profundo.</p>
+    <textarea id="tr-textarea" class="inp" readonly style="min-height:340px;font-family:'SF Mono','Roboto Mono',ui-monospace,monospace;font-size:11.5px;line-height:1.6;white-space:pre-wrap"></textarea>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn btnd" style="flex:1;justify-content:center" onclick="copyTextReport()">📋 Copiar al portapapeles</button>
+      <button class="btn btng" onclick="downloadTextReport()">⬇ .txt</button>
+    </div>
+  </div>
 </div></div>
 
 <!-- LOGIN OVERLAY -->
@@ -3075,6 +3118,234 @@ function renderFinExtra(){const sel=document.getElementById("fin-yr");if(!sel)re
 
 function renderRep(){const selYr=document.getElementById("rep-yr"),selMo=document.getElementById("rep-mo");if(!selYr||!selMo)return;const now=new Date();const yrs=[...new Set(reservations.map(r=>r.date?.slice(0,4)).filter(Boolean))].sort().reverse();if(!yrs.includes(String(now.getFullYear())))yrs.unshift(String(now.getFullYear()));if(!selYr.options.length){selYr.innerHTML=yrs.map(y=>`<option value="${y}">${y}</option>`).join("");selYr.value=String(now.getFullYear());}if(!selMo.options.length){selMo.innerHTML=MF.map((m,i)=>`<option value="${i}">${m}</option>`).join("");selMo.value=String(now.getMonth());}const yr=parseInt(selYr.value),mo=parseInt(selMo.value);const moStr=String(mo+1).padStart(2,"0");const prefix=yr+"-"+moStr;const moRes=reservations.filter(r=>r.date?.startsWith(prefix));const conf=moRes.filter(r=>r.status==="confirmado");const rev=conf.reduce((s,r)=>s+r.total,0);const pipe=moRes.filter(r=>["cotizacion","pendiente"].includes(r.status)).reduce((s,r)=>s+r.total,0);const prevDate=new Date(yr,mo-1,1);const prevPrefix=prevDate.getFullYear()+"-"+String(prevDate.getMonth()+1).padStart(2,"0");const prevConf=reservations.filter(r=>r.date?.startsWith(prevPrefix)&&r.status==="confirmado");const prevRev=prevConf.reduce((s,r)=>s+r.total,0);const varPct=prevRev?Math.round((rev-prevRev)/prevRev*100):null;const varLabel=varPct===null?"—":(varPct>=0?`<span style="color:#15803d">▲ +${varPct}%</span>`:`<span style="color:#dc2626">▼ ${varPct}%</span>`);const evTypes={};moRes.forEach(r=>{evTypes[r.event]=(evTypes[r.event]||0)+1;});const topEv=Object.entries(evTypes).sort((a,b)=>b[1]-a[1]).slice(0,5);const prodUse={};conf.forEach(r=>(r.products||[]).forEach(pid=>{prodUse[pid]=(prodUse[pid]||0)+1;}));const topProds=Object.entries(prodUse).sort((a,b)=>b[1]-a[1]).slice(0,5);document.getElementById("rep-content").innerHTML=`<div class="kg" style="margin-bottom:14px">${[{l:"Ingresos confirmados",v:fM(rev),i:"💵",bg:"#f0fdf4",s:`${conf.length} eventos`},{l:"vs mes anterior",v:varLabel,i:"📊",bg:"#eff6ff",s:prevRev?`Antes: ${fM(prevRev)}`:"Sin datos previos"},{l:"Pipeline",v:fM(pipe),i:"🔄",bg:"#fff8ec",s:`${moRes.filter(r=>["cotizacion","pendiente"].includes(r.status)).length} cotizaciones`},{l:"Conversión",v:moRes.length?Math.round(conf.length/moRes.length*100)+"%":"—",i:"🎯",bg:"#f5f0ff",s:`${moRes.length} total`}].map(k=>`<div class="kpi"><div class="ki" style="background:${k.bg}">${k.i}</div><div class="kv">${k.v}</div><div class="kl">${k.l}</div><div class="ks">${k.s}</div></div>`).join("")}</div><div class="g2" style="margin-bottom:13px"><div class="card cp"><div class="ch"><div class="ct">📋 Reservas de ${MF[mo]} ${yr}</div></div>${moRes.length?moRes.sort((a,b)=>a.date.localeCompare(b.date)).map(r=>{const sm2=SM[r.status]||SM.cotizacion;const pm2=PM[r.payStatus]||PM.pendiente_pago;return `<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--bg)"><div style="min-width:0"><p style="font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.client)}</p><p style="font-size:10.5px;color:var(--t2)">${fD(r.date)} · ${esc(r.event)}</p></div><div style="display:flex;gap:4px;flex-shrink:0;margin-left:7px"><span class="badge" style="background:${sm2.bg};color:${sm2.c};border:1px solid ${sm2.br}">${sm2.l}</span><span class="badge" style="background:${pm2.bg};color:${pm2.c};border:1px solid ${pm2.br}">${pm2.l}</span><span style="font-weight:700;font-size:12.5px;color:var(--gr)">${fM(r.total)}</span></div></div>`;}).join(""):`<div class="empty"><div class="ei">📭</div><div class="et">Sin reservas</div></div>`}</div><div class="card cp"><div class="ch"><div class="ct">🎉 Tipos de evento</div></div>${topEv.map(([ev,cnt])=>`<div style="display:flex;justify-content:space-between;padding:8px 10px;background:var(--s2);border-radius:8px;margin-bottom:5px;border:1px solid var(--bd)"><span style="font-size:12.5px;font-weight:500">${esc(ev)}</span><span style="font-weight:700;color:var(--am)">${cnt}</span></div>`).join("")||`<div class="empty" style="padding:14px"><div class="ei">📭</div></div>`}<div style="height:10px"></div><p class="lbl" style="margin-bottom:6px">🎪 Productos top</p>${topProds.map(([pid,cnt])=>{const p=products.find(x=>x.id===pid);if(!p)return"";return `<div style="display:flex;justify-content:space-between;padding:7px 10px;background:var(--s2);border-radius:8px;margin-bottom:4px"><span style="font-size:12px">${p.emoji} ${esc(p.name)}</span><span style="font-weight:700;color:var(--amd)">${cnt}×</span></div>`;}).join("")||`<div class="empty" style="padding:14px"><div class="ei">📦</div></div>`}</div></div>`;}
 function exportRepPDF(){const selYr=document.getElementById("rep-yr"),selMo=document.getElementById("rep-mo");if(!selYr||!selMo)return;const yr=parseInt(selYr.value),mo=parseInt(selMo.value);const moStr=String(mo+1).padStart(2,"0");const prefix=yr+"-"+moStr;const moRes=reservations.filter(r=>r.date?.startsWith(prefix));const conf=moRes.filter(r=>r.status==="confirmado");const rev=conf.reduce((s,r)=>s+r.total,0);const today2=new Date().toLocaleDateString("es-PE",{day:"numeric",month:"long",year:"numeric"});const rows=moRes.sort((a,b)=>a.date.localeCompare(b.date)).map((r,i)=>{const sm2=SM[r.status]||SM.cotizacion;const pm2=PM[r.payStatus]||PM.pendiente_pago;return `<tr style="background:${i%2?"#fafafa":"#fff"}"><td style="padding:9px 12px;font-size:12.5px;font-weight:600">${esc(r.client)}</td><td style="padding:9px 12px;font-size:12px">${fD(r.date)}</td><td style="padding:9px 12px;font-size:12px">${esc(r.event)}</td><td style="padding:9px 12px"><span style="background:${sm2.bg};color:${sm2.c};border:1px solid ${sm2.br};border-radius:8px;padding:2px 7px;font-size:10px;font-weight:700">${sm2.l}</span></td><td style="padding:9px 12px"><span style="background:${pm2.bg};color:${pm2.c};border:1px solid ${pm2.br};border-radius:8px;padding:2px 7px;font-size:10px;font-weight:700">${pm2.l}</span></td><td style="padding:9px 12px;text-align:right;font-weight:700;color:#d4881a">${fM(r.total)}</td></tr>`;}).join("");const html=`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Reporte ${MF[mo]} ${yr}</title><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800&display=swap" rel="stylesheet"><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'DM Sans',sans-serif;background:#f0f0f2;-webkit-print-color-adjust:exact;print-color-adjust:exact}.page{max-width:820px;margin:24px auto;background:white;border-radius:18px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08)}.hdr{background:#1d1d1f;padding:28px 32px}.pb{position:fixed;bottom:20px;right:20px;background:linear-gradient(135deg,#f5a623,#d4881a);color:white;border:none;padding:12px 22px;border-radius:40px;font-family:'DM Sans',sans-serif;font-weight:700;font-size:13px;cursor:pointer;box-shadow:0 4px 16px rgba(245,166,35,.4)}table{width:100%;border-collapse:collapse}th{padding:9px 12px;text-align:left;font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;border-bottom:2px solid #f3f4f6;background:#fafafa}@media print{body{background:white}.page{margin:0;border-radius:0;box-shadow:none}.pb{display:none!important}@page{margin:.8cm;size:A4}}</style></head><body><button class="pb" onclick="window.print()">⬇ Guardar PDF</button><div class="page"><div class="hdr"><div style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">CHISPEKAS · REPORTE MENSUAL</div><div style="font-family:serif;font-size:28px;color:#fbbf24">${MF[mo]} ${yr}</div><div style="font-size:11px;color:#9ca3af;margin-top:5px">Generado el ${today2}</div></div><div style="padding:24px 32px"><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:20px"><div style="background:#f0fdf4;border-radius:12px;padding:14px;border:1px solid #bbf7d0"><div style="font-size:10px;color:#15803d;font-weight:700;text-transform:uppercase;margin-bottom:4px">Ingresos confirmados</div><div style="font-size:22px;font-weight:800;color:#15803d">${fM(rev)}</div><div style="font-size:11px;color:#15803d;opacity:.7">${conf.length} eventos</div></div><div style="background:#f9f9fb;border-radius:12px;padding:14px;border:1px solid #f3f4f6"><div style="font-size:10px;color:#374151;font-weight:700;text-transform:uppercase;margin-bottom:4px">Total reservas</div><div style="font-size:22px;font-weight:800;color:#1d1d1f">${moRes.length}</div><div style="font-size:11px;color:#6b7280">${conf.length} confirmadas</div></div><div style="background:#fff8ec;border-radius:12px;padding:14px;border:1px solid #fde68a"><div style="font-size:10px;color:#92400e;font-weight:700;text-transform:uppercase;margin-bottom:4px">Ticket promedio</div><div style="font-size:22px;font-weight:800;color:#92400e">${conf.length?fM(Math.round(rev/conf.length)):"—"}</div><div style="font-size:11px;color:#92400e;opacity:.7">Por evento</div></div></div><div style="border:1.5px solid #f3f4f6;border-radius:12px;overflow:hidden"><table><thead><tr><th>Cliente</th><th>Fecha</th><th>Evento</th><th>Estado</th><th>Pago</th><th style="text-align:right">Total</th></tr></thead><tbody>${rows}</tbody><tfoot><tr style="background:#fffbec"><td colspan="5" style="padding:12px;font-weight:800;font-size:14px">TOTAL CONFIRMADO</td><td style="padding:12px;text-align:right;font-weight:900;color:#d4881a;font-size:16px">${fM(rev)}</td></tr></tfoot></table></div></div></div></body></html>`;const w=window.open("","_blank","width=900,height=700");if(!w){alert("Permite ventanas emergentes");return;}w.document.write(html);w.document.close();}
+
+/* ════════════════ § REPORTE DE TEXTO PARA IA (Chispekas + STAK) ════════════════ */
+
+let _trCurrentText="", _trCurrentBiz="chispekas";
+
+/** Menú simple: elegir alcance del reporte — mes actual o histórico completo */
+function openTextReportMenu(business){
+  const menu=document.createElement("div");
+  menu.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px)";
+  menu.innerHTML=`
+    <div style="background:var(--s);border-radius:24px 24px 0 0;width:100%;max-width:420px;padding:20px 18px;padding-bottom:calc(20px + env(safe-area-inset-bottom));box-shadow:var(--sh3)">
+      <p style="font-weight:700;font-size:15px;margin-bottom:14px">🧠 ¿Qué periodo quieres analizar?</p>
+      <button onclick="showTextReport('${business}','mes');this.closest('[style*=fixed]').remove()" style="display:block;width:100%;text-align:left;background:var(--s2);border:1px solid var(--bd);border-radius:12px;padding:13px 16px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;margin-bottom:8px">📅 Mes actual</button>
+      <button onclick="showTextReport('${business}','general');this.closest('[style*=fixed]').remove()" style="display:block;width:100%;text-align:left;background:var(--s2);border:1px solid var(--bd);border-radius:12px;padding:13px 16px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;margin-bottom:8px">📚 Histórico completo</button>
+      <button onclick="this.closest('[style*=fixed]').remove()" style="display:block;width:100%;text-align:center;background:none;border:none;padding:10px;font-family:inherit;font-size:13px;color:var(--t2);cursor:pointer">Cancelar</button>
+    </div>`;
+  document.body.appendChild(menu);
+  menu.addEventListener("click",e=>{if(e.target===menu)menu.remove();});
+}
+
+function showTextReport(business,scope){
+  _trCurrentBiz=business;
+  _trCurrentText = business==="chispekas" ? buildChispekasTextReport(scope) : buildStakTextReport(scope);
+  document.getElementById("tr-title").textContent = (business==="chispekas"?"🎪 Chispekas":"🛠️ STAK")+" — Reporte de texto";
+  document.getElementById("tr-textarea").value=_trCurrentText;
+  openOv("ov-text-report");
+}
+async function copyTextReport(){
+  try{
+    await navigator.clipboard.writeText(_trCurrentText);
+    toast("📋 Copiado al portapapeles");
+  }catch(e){
+    const ta=document.getElementById("tr-textarea");
+    ta.select();document.execCommand("copy");
+    toast("📋 Copiado al portapapeles");
+  }
+}
+function downloadTextReport(){
+  const blob=new Blob([_trCurrentText],{type:"text/plain;charset=utf-8;"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  const now=new Date();
+  a.href=url;a.download=(_trCurrentBiz==="chispekas"?"CHISPEKAS":"STAK")+"_reporte_"+now.toISOString().slice(0,10)+".txt";
+  a.click();URL.revokeObjectURL(url);
+  toast("⬇ Reporte descargado");
+}
+
+/** Reporte de texto — CHISPEKAS. scope: 'mes' | 'general' */
+function buildChispekasTextReport(scope){
+  const now=new Date();
+  const moPrefix=now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0");
+  const dataset = scope==="mes" ? reservations.filter(r=>r.date?.startsWith(moPrefix)) : reservations;
+  const conf = dataset.filter(r=>r.status==="confirmado");
+  const rev = conf.reduce((s,r)=>s+(r.total||0),0);
+  const ticket = conf.length?Math.round(rev/conf.length):0;
+  const pipe = dataset.filter(r=>["cotizacion","pendiente"].includes(r.status)).reduce((s,r)=>s+(r.total||0),0);
+  const cobrosPend = conf.filter(r=>(r.adelanto||0)<(r.total||0));
+  const totalPend = cobrosPend.reduce((s,r)=>s+Math.max(0,(r.total||0)-(r.adelanto||0)),0);
+
+  // comparación vs mes anterior (solo scope=mes)
+  let comparativo="";
+  if(scope==="mes"){
+    const prevDate=new Date(now.getFullYear(),now.getMonth()-1,1);
+    const prevPrefix=prevDate.getFullYear()+"-"+String(prevDate.getMonth()+1).padStart(2,"0");
+    const prevRev=reservations.filter(r=>r.date?.startsWith(prevPrefix)&&r.status==="confirmado").reduce((s,r)=>s+(r.total||0),0);
+    const varPct=prevRev?Math.round((rev-prevRev)/prevRev*100):null;
+    comparativo=`Mes anterior: S/ ${prevRev.toLocaleString("es-PE")} — Variación: ${varPct===null?"sin datos previos":(varPct>=0?"+":"")+varPct+"%"}\n`;
+  }
+
+  // top clientes
+  const porCliente={};
+  conf.forEach(r=>{const k=(r.client||"").trim();if(k)porCliente[k]=(porCliente[k]||0)+(r.total||0);});
+  const topCli=Object.entries(porCliente).sort((a,b)=>b[1]-a[1]).slice(0,5);
+
+  // tipos de evento
+  const porEvento={};
+  dataset.forEach(r=>{const k=(r.event||"").trim();if(k)porEvento[k]=(porEvento[k]||0)+1;});
+  const topEventos=Object.entries(porEvento).sort((a,b)=>b[1]-a[1]).slice(0,5);
+
+  // productos top
+  const porProd={};
+  conf.forEach(r=>(r.products||[]).forEach(pid=>{porProd[pid]=(porProd[pid]||0)+1;}));
+  const topProd=Object.entries(porProd).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([pid,cnt])=>{const p=products.find(x=>x.id===pid);return p?`${p.name} — ${cnt}x`:null;}).filter(Boolean);
+
+  // fuentes
+  const porFuente={};
+  dataset.forEach(r=>{const s=(r.source||"").trim();if(s)porFuente[s]=(porFuente[s]||0)+1;});
+  const fuentes=Object.entries(porFuente).sort((a,b)=>b[1]-a[1]);
+
+  // distritos
+  const porDistrito={};
+  dataset.forEach(r=>{const d=(r.distrito||"").trim();if(d)porDistrito[d]=(porDistrito[d]||0)+1;});
+  const distritos=Object.entries(porDistrito).sort((a,b)=>b[1]-a[1]).slice(0,5);
+
+  const periodo = scope==="mes" ? MF[now.getMonth()]+" "+now.getFullYear() : "Histórico completo ("+reservations.length+" reservas registradas)";
+
+  return `REPORTE CHISPEKAS — ${periodo}
+Generado: ${now.toLocaleDateString("es-PE",{day:"2-digit",month:"long",year:"numeric"})}
+================================================
+
+INGRESOS
+- Ingresos confirmados: S/ ${rev.toLocaleString("es-PE")}
+- Eventos confirmados: ${conf.length}
+- Ticket promedio: S/ ${ticket.toLocaleString("es-PE")}
+- Pipeline (cotizaciones + pendientes): S/ ${pipe.toLocaleString("es-PE")}
+- Cobros pendientes: S/ ${totalPend.toLocaleString("es-PE")} (${cobrosPend.length} eventos con saldo)
+${comparativo}
+TOP CLIENTES
+${topCli.length?topCli.map(([n,v],i)=>`${i+1}. ${n} — S/ ${v.toLocaleString("es-PE")}`).join("\n"):"Sin datos"}
+
+TIPOS DE EVENTO MÁS FRECUENTES
+${topEventos.length?topEventos.map(([n,c],i)=>`${i+1}. ${n} — ${c} evento${c!==1?"s":""}`).join("\n"):"Sin datos"}
+
+PRODUCTOS MÁS ALQUILADOS
+${topProd.length?topProd.join("\n"):"Sin datos"}
+
+CÓMO LLEGAN LOS CLIENTES
+${fuentes.length?fuentes.map(([n,c])=>`${n}: ${c}`).join("\n"):"Sin datos registrados"}
+
+DISTRITOS MÁS ACTIVOS
+${distritos.length?distritos.map(([n,c])=>`${n}: ${c}`).join("\n"):"Sin datos registrados"}
+
+================================================
+Pide un análisis de este reporte: tendencias, qué está funcionando, qué mejorar, y recomendaciones concretas para hacer crecer el negocio.`;
+}
+
+/** Reporte de texto — STAK. scope: 'mes' | 'general' */
+function buildStakTextReport(scope){
+  const now=new Date();
+  const moPrefix=now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0");
+  const dataset = scope==="mes" ? mrSales.filter(v=>(v.fecha||"").startsWith(moPrefix)) : mrSales;
+  const vendido = dataset.reduce((s,v)=>s+(v.total||0),0);
+  const unidades = dataset.reduce((s,v)=>s+(v.cantidad||0),0);
+  const costo = dataset.reduce((s,v)=>{const p=mrProducts.find(x=>x.id===v.productId);return s+(v.cantidad||0)*(p?.costoUnitario||0);},0);
+  const utilidad = vendido-costo;
+  const margen = vendido?Math.round(utilidad/vendido*100):null;
+  const cobrosPend = dataset.filter(v=>Math.max(0,(v.total||0)-(v.pagado||0))>0);
+  const totalPend = cobrosPend.reduce((s,v)=>s+Math.max(0,(v.total||0)-(v.pagado||0)),0);
+  const capitalStock = mrProducts.reduce((s,p)=>s+mrStock(p.id)*(p.costoUnitario||0),0);
+  const stockBajo = mrProducts.filter(p=>{const st=mrStock(p.id);return st<=mrLowThreshold;});
+
+  let comparativo="";
+  if(scope==="mes"){
+    const prevDate=new Date(now.getFullYear(),now.getMonth()-1,1);
+    const prevPrefix=prevDate.getFullYear()+"-"+String(prevDate.getMonth()+1).padStart(2,"0");
+    const prevVendido=mrSales.filter(v=>(v.fecha||"").startsWith(prevPrefix)).reduce((s,v)=>s+(v.total||0),0);
+    const varPct=prevVendido?Math.round((vendido-prevVendido)/prevVendido*100):null;
+    comparativo=`Mes anterior: S/ ${prevVendido.toLocaleString("es-PE")} — Variación: ${varPct===null?"sin datos previos":(varPct>=0?"+":"")+varPct+"%"}\n`;
+  }
+
+  const porCliente={};
+  dataset.forEach(v=>{const k=(v.cliente||"").trim();if(k)porCliente[k]=(porCliente[k]||0)+(v.total||0);});
+  const topCli=Object.entries(porCliente).sort((a,b)=>b[1]-a[1]).slice(0,5);
+
+  const porProd={};
+  dataset.forEach(v=>{const k=v.producto||"";if(k)porProd[k]=(porProd[k]||0)+(v.cantidad||0);});
+  const topProd=Object.entries(porProd).sort((a,b)=>b[1]-a[1]).slice(0,5);
+
+  const periodo = scope==="mes" ? MF[now.getMonth()]+" "+now.getFullYear() : "Histórico completo ("+mrSales.length+" ventas registradas)";
+
+  return `REPORTE STAK — ${periodo}
+Generado: ${now.toLocaleDateString("es-PE",{day:"2-digit",month:"long",year:"numeric"})}
+================================================
+
+VENTAS
+- Total vendido: S/ ${vendido.toLocaleString("es-PE")}
+- Unidades vendidas: ${unidades}
+- Utilidad estimada: S/ ${utilidad.toLocaleString("es-PE")}
+- Margen: ${margen===null?"—":margen+"%"}
+- Capital inmovilizado en stock: S/ ${capitalStock.toLocaleString("es-PE")}
+- Cobros pendientes: S/ ${totalPend.toLocaleString("es-PE")} (${cobrosPend.length} ventas con saldo)
+${comparativo}
+TOP CLIENTES
+${topCli.length?topCli.map(([n,v],i)=>`${i+1}. ${n} — S/ ${v.toLocaleString("es-PE")}`).join("\n"):"Sin datos"}
+
+PRODUCTOS MÁS VENDIDOS (unidades)
+${topProd.length?topProd.map(([n,c],i)=>`${i+1}. ${n} — ${c} unidad${c!==1?"es":""}`).join("\n"):"Sin datos"}
+
+ALERTAS DE STOCK
+${stockBajo.length?stockBajo.map(p=>`${p.name}: ${mrStock(p.id)} unidades (umbral: ${mrLowThreshold})`).join("\n"):"Sin alertas — stock saludable"}
+
+================================================
+Pide un análisis de este reporte: tendencias, qué está funcionando, qué mejorar, y recomendaciones concretas para hacer crecer el negocio.`;
+}
+
+/* Sub-tabs de STAK > Finanzas: Resumen | Análisis | Reportes */
+function setMRFinSub(s){
+  ["resumen","analisis","reportes"].forEach(k=>{
+    document.getElementById("mrfin-sub-"+k).style.display=k===s?"block":"none";
+    document.getElementById("mrfin-stab-"+k).classList.toggle("on",k===s);
+  });
+  if(s==="analisis")renderMRFinAnalisis();
+}
+
+/** Sub-pestaña Análisis dentro de STAK > Finanzas */
+function renderMRFinAnalisis(){
+  const now=new Date();
+  const moPrefix=now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0");
+  const ventasMes=mrSales.filter(v=>(v.fecha||"").startsWith(moPrefix));
+  const vendidoMes=ventasMes.reduce((s,v)=>s+(v.total||0),0);
+  const unidadesMes=ventasMes.reduce((s,v)=>s+(v.cantidad||0),0);
+  const ticket=ventasMes.length?Math.round(vendidoMes/ventasMes.length):0;
+
+  const prevDate=new Date(now.getFullYear(),now.getMonth()-1,1);
+  const prevPrefix=prevDate.getFullYear()+"-"+String(prevDate.getMonth()+1).padStart(2,"0");
+  const vendidoPrev=mrSales.filter(v=>(v.fecha||"").startsWith(prevPrefix)).reduce((s,v)=>s+(v.total||0),0);
+  const varPct=vendidoPrev?Math.round((vendidoMes-vendidoPrev)/vendidoPrev*100):null;
+
+  document.getElementById("mrfin-an-kpis").innerHTML=[
+    {l:"Ventas este mes",v:fM(vendidoMes),i:"💵",bg:"#f0fdf4",s:ventasMes.length+" ventas"},
+    {l:"Unidades vendidas",v:unidadesMes,i:"📦",bg:"#eff6ff",s:"Este mes"},
+    {l:"Ticket promedio",v:fM(ticket),i:"🎯",bg:"#fff8ec",s:"Por venta"},
+    {l:"Vs. mes anterior",v:varPct===null?"—":(varPct>=0?"+":"")+varPct+"%",i:"📊",bg:"#f5f0ff",s:"Crecimiento"},
+  ].map(k=>`<div class="kpi"><div class="ki" style="background:${k.bg}">${k.i}</div><div class="kv">${k.v}</div><div class="kl">${k.l}</div><div class="ks">${k.s}</div></div>`).join("");
+
+  const porProd={};
+  mrSales.forEach(v=>{const k=v.producto||"";if(k)porProd[k]=(porProd[k]||0)+(v.cantidad||0);});
+  const topProd=Object.entries(porProd).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const mxP=topProd[0]?.[1]||1;
+  document.getElementById("mrfin-an-topprod").innerHTML=topProd.length
+    ?topProd.map(([n,c],i)=>`<div style="margin-bottom:9px"><div style="display:flex;justify-content:space-between;margin-bottom:3px"><span style="font-size:12px">#${i+1} ${esc(n)}</span><span style="font-weight:700;color:var(--amd);font-size:12px">${c}×</span></div><div class="pb"><div class="pf" style="width:${c/mxP*100}%;background:var(--am)"></div></div></div>`).join("")
+    :`<div class="empty" style="padding:16px"><div class="ei">📦</div><div class="et">Sin datos aún</div></div>`;
+
+  document.getElementById("mrfin-an-comparativo").innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--bg)"><span style="font-size:12.5px;color:var(--t2)">${MF[now.getMonth()]} ${now.getFullYear()}</span><span style="font-weight:700;font-size:13px">${fM(vendidoMes)}</span></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0"><span style="font-size:12.5px;color:var(--t2)">${MF[prevDate.getMonth()]} ${prevDate.getFullYear()}</span><span style="font-weight:700;font-size:13px">${fM(vendidoPrev)}</span></div>
+    <div style="margin-top:8px;padding:9px 12px;background:${varPct===null?"var(--s2)":varPct>=0?"#f0fdf4":"#fff5f5"};border-radius:9px;text-align:center;font-weight:700;font-size:13px;color:${varPct===null?"var(--t2)":varPct>=0?"#15803d":"#dc2626"}">${varPct===null?"Sin datos del mes anterior":(varPct>=0?"▲ +":"▼ ")+varPct+"%"}</div>`;
+}
 
 /* ══ GOOGLE SHEETS SYNC ══ */
 function exportToCSV(scope){
