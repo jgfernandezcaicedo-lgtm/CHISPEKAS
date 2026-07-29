@@ -454,7 +454,7 @@ body.dark #dlbl,body.dark #dlbl2{color:var(--t2)}
   </div>
   <div class="ng" style="margin-top:6px">
     <div class="ngl">🛠️ STAK</div>
-    <button class="nb" id="nb-stak-resumen"  onclick="goStak('analisis')"><span class="ni">📊</span>Resumen</button>
+    <button class="nb" id="nb-stak-analisis"  onclick="goStak('analisis')"><span class="ni">📊</span>Resumen</button>
     <button class="nb" id="nb-stak-ventas"   onclick="goStak('ventas')"  ><span class="ni">🛠️</span>Ventas</button>
     <button class="nb" id="nb-stak-stock"    onclick="goStak('stock')"   ><span class="ni">📦</span>Stock</button>
     <button class="nb" id="nb-stak-financiero" onclick="goStak('financiero')"><span class="ni">💵</span>Finanzas</button>
@@ -520,11 +520,25 @@ body.dark #dlbl,body.dark #dlbl2{color:var(--t2)}
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px" id="jfh-biz-cards"></div>
 
       <div class="card cp" style="margin-bottom:16px">
-        <div class="ch"><div><div class="ct">Utilidad — últimos 6 meses</div><div class="cs">Chispekas (ingreso confirmado) vs. Racks (utilidad real, después de costo)</div></div>
-          <div style="display:flex;gap:10px">
-            <span style="display:flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;color:var(--amd)"><span style="width:8px;height:8px;border-radius:2px;background:var(--am);display:inline-block"></span>Chispekas</span>
-            <span style="display:flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;color:var(--bl)"><span style="width:8px;height:8px;border-radius:2px;background:var(--bl);display:inline-block"></span>Racks</span>
-          </div>
+        <div class="ch" style="flex-wrap:wrap;gap:8px">
+          <div><div class="ct" id="jfh-trend-title">Utilidad — últimos 6 meses</div><div class="cs" id="jfh-trend-sub">Chispekas (ingreso confirmado) vs. STAK (utilidad real, después de costo)</div></div>
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:11px;flex-wrap:wrap">
+          <select class="inp" id="jfh-trend-metric" onchange="renderJFHTrendChart()" style="width:auto;font-size:12px;padding:6px 10px">
+            <option value="utilidad">💰 Utilidad</option>
+            <option value="ventas">📈 Ventas</option>
+            <option value="stock">📦 Valor en stock (STAK)</option>
+          </select>
+          <select class="inp" id="jfh-trend-period" onchange="renderJFHTrendChart()" style="width:auto;font-size:12px;padding:6px 10px">
+            <option value="dia">Últimos 30 días</option>
+            <option value="semana">Últimas 12 semanas</option>
+            <option value="mes" selected>Últimos 6 meses</option>
+            <option value="año">Últimos 5 años</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:10px;margin-bottom:8px" id="jfh-trend-legend">
+          <span style="display:flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;color:var(--amd)"><span style="width:8px;height:8px;border-radius:2px;background:var(--am);display:inline-block"></span>Chispekas</span>
+          <span style="display:flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;color:var(--bl)"><span style="width:8px;height:8px;border-radius:2px;background:var(--bl);display:inline-block"></span>STAK</span>
         </div>
         <div style="position:relative;height:180px"><canvas id="ch-jfh-trend"></canvas></div>
       </div>
@@ -795,6 +809,7 @@ body.dark #dlbl,body.dark #dlbl2{color:var(--t2)}
           <div class="ch"><div class="ct">📅 Resumen del mes — <span id="mr-mes-actual"></span></div></div>
           <div class="kg" id="mr-mes-kpis"></div>
         </div>
+        <p class="lbl" style="margin-bottom:8px">Histórico total</p>
         <div class="kg" id="mr-an-kpis" style="margin-bottom:14px"></div>
         <div class="card cp"><div class="ch"><div class="ct">🏆 Mejores clientes</div></div><div id="mr-an-top-cli"></div></div>
       </div>
@@ -1839,6 +1854,106 @@ function showExplainKey(key){
   openOv("ov-explain");
 }
 
+/* ── Tendencia de Inicio: filtros de métrica (utilidad/ventas/stock) y periodo (día/semana/mes/año) ── */
+
+/** Clave de bucket para una fecha YYYY-MM-DD, según granularidad */
+function jfhBucketKey(dateStr,gran){
+  if(!dateStr)return null;
+  if(gran==="dia")return dateStr;
+  if(gran==="semana"){
+    const d=new Date(dateStr+"T12:00:00");
+    const dow=d.getDay();const diff=(dow===0?-6:1-dow);
+    const monday=new Date(d);monday.setDate(d.getDate()+diff);
+    return monday.toLocaleDateString("en-CA");
+  }
+  if(gran==="año")return dateStr.slice(0,4);
+  return dateStr.slice(0,7); // mes
+}
+/** Lista de buckets {key,label} — los últimos N periodos terminando en hoy */
+function jfhBuckets(gran){
+  const buckets=[];const now=new Date();
+  if(gran==="dia"){
+    for(let i=29;i>=0;i--){const d=new Date(now);d.setDate(now.getDate()-i);buckets.push({key:d.toLocaleDateString("en-CA"),label:d.getDate()+"/"+(d.getMonth()+1)});}
+  }else if(gran==="semana"){
+    const dow=now.getDay();const diff=(dow===0?-6:1-dow);
+    const thisMonday=new Date(now);thisMonday.setDate(now.getDate()+diff);
+    for(let i=11;i>=0;i--){const d=new Date(thisMonday);d.setDate(thisMonday.getDate()-i*7);buckets.push({key:d.toLocaleDateString("en-CA"),label:d.getDate()+"/"+(d.getMonth()+1)});}
+  }else if(gran==="año"){
+    for(let i=4;i>=0;i--){const y=now.getFullYear()-i;buckets.push({key:String(y),label:String(y)});}
+  }else{
+    for(let i=5;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth()-i,1);buckets.push({key:d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"),label:MS[d.getMonth()]});}
+  }
+  return buckets;
+}
+/** Fecha de cierre de un bucket (para snapshot de stock) — nunca más allá de hoy */
+function jfhBucketEndDate(key,gran){
+  const todayStr=todayLocal();
+  let end;
+  if(gran==="dia")end=key;
+  else if(gran==="semana"){const d=new Date(key+"T12:00:00");d.setDate(d.getDate()+6);end=d.toLocaleDateString("en-CA");}
+  else if(gran==="año")end=key+"-12-31";
+  else{const [y,m]=key.split("-").map(Number);end=new Date(y,m,0).toLocaleDateString("en-CA");} // mes: último día del mes
+  return end>todayStr?todayStr:end;
+}
+/** Valor de stock STAK reconstruido a una fecha de corte: costoUnitario × (comprado−vendido hasta esa fecha) */
+function stakStockValueAt(dateStr){
+  let total=0;
+  mrProducts.forEach(p=>{
+    const comprado=mrPurchases.filter(c=>c.productId===p.id&&(c.fecha||"")<=dateStr).reduce((s,c)=>s+(c.cantidad||0),0);
+    const vendido=mrSales.filter(v=>v.productId===p.id&&(v.fecha||"")<=dateStr).reduce((s,v)=>s+(v.cantidad||0),0);
+    total+=Math.max(0,comprado-vendido)*(p.costoUnitario||0);
+  });
+  return total;
+}
+/** Renderiza el gráfico de tendencia de Inicio según los selects de métrica/periodo */
+function renderJFHTrendChart(){
+  const metric=document.getElementById("jfh-trend-metric")?.value||"utilidad";
+  const gran=document.getElementById("jfh-trend-period")?.value||"mes";
+  const buckets=jfhBuckets(gran);
+
+  const titles={utilidad:"Utilidad",ventas:"Ventas",stock:"Valor en stock (STAK)"};
+  const periodos={dia:"últimos 30 días",semana:"últimas 12 semanas",mes:"últimos 6 meses","año":"últimos 5 años"};
+  const subs={utilidad:"Chispekas (ingreso confirmado) vs. STAK (utilidad real, después de costo)",ventas:"Chispekas (ingreso confirmado) vs. STAK (ventas totales)",stock:"Capital inmovilizado en productos STAK, al cierre de cada periodo"};
+  const ttl=document.getElementById("jfh-trend-title");if(ttl)ttl.textContent=titles[metric]+" — "+periodos[gran];
+  const sub=document.getElementById("jfh-trend-sub");if(sub)sub.textContent=subs[metric];
+  const legend=document.getElementById("jfh-trend-legend");if(legend)legend.style.display=metric==="stock"?"none":"flex";
+
+  const tickOpts={autoSkip:true,maxRotation:0,font:{size:9.5}};
+
+  if(metric==="stock"){
+    const stakSerie=buckets.map(b=>stakStockValueAt(jfhBucketEndDate(b.key,gran)));
+    mkCh("ch-jfh-trend",{type:"bar",data:{labels:buckets.map(b=>b.label),datasets:[
+      {label:"STAK — valor en stock",data:stakSerie,backgroundColor:"#0071e3",borderRadius:5}
+    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>" "+fM(c.raw)}}},scales:{x:{grid:{display:false},ticks:tickOpts},y:{grid:{color:"rgba(0,0,0,.04)"},ticks:{callback:v=>v>=1000?"S/"+v/1000+"k":"S/"+v,font:{size:10}}}}}});
+    return;
+  }
+
+  const chispekasByBucket={},stakByBucket={};
+  buckets.forEach(b=>{chispekasByBucket[b.key]=0;stakByBucket[b.key]=0;});
+  reservations.filter(r=>r.status==="confirmado").forEach(r=>{
+    const k=jfhBucketKey(r.date,gran);
+    if(k in chispekasByBucket)chispekasByBucket[k]+=(r.total||0);
+  });
+
+  if(metric==="ventas"){
+    mrSales.forEach(v=>{const k=jfhBucketKey(v.fecha,gran);if(k in stakByBucket)stakByBucket[k]+=(v.total||0);});
+  }else{ // utilidad
+    const salesByBucket={};buckets.forEach(b=>salesByBucket[b.key]=[]);
+    mrSales.forEach(v=>{const k=jfhBucketKey(v.fecha,gran);if(k in salesByBucket)salesByBucket[k].push(v);});
+    buckets.forEach(b=>{
+      const ventasB=salesByBucket[b.key];
+      const costo=ventasB.reduce((s,v)=>{const p=mrProducts.find(x=>x.id===v.productId);return s+(v.cantidad||0)*(p?.costoUnitario||0);},0);
+      const vendido=ventasB.reduce((s,v)=>s+(v.total||0),0);
+      stakByBucket[b.key]=vendido-costo;
+    });
+  }
+
+  mkCh("ch-jfh-trend",{type:"bar",data:{labels:buckets.map(b=>b.label),datasets:[
+    {label:"Chispekas",data:buckets.map(b=>chispekasByBucket[b.key]),backgroundColor:"#f5a623",borderRadius:5},
+    {label:"STAK",data:buckets.map(b=>stakByBucket[b.key]),backgroundColor:"#0071e3",borderRadius:5}
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>" "+c.dataset.label+": "+fM(c.raw)}}},scales:{x:{grid:{display:false},ticks:tickOpts},y:{grid:{color:"rgba(0,0,0,.04)"},ticks:{callback:v=>v>=1000?"S/"+v/1000+"k":"S/"+v,font:{size:10}}}}}});
+}
+
 function renderJFHub(){
   const fechaEl=document.getElementById("jfh-fecha");
   if(fechaEl)fechaEl.textContent=new Date().toLocaleDateString("es-PE",{weekday:"long",day:"numeric",month:"long"});
@@ -1923,19 +2038,11 @@ function renderJFHub(){
       </div>`).join("")
     : `<div class="empty"><div class="ei">📭</div><div class="et">Sin actividad todavía</div></div>`;
 
-  /* Tendencia 6 meses — comparamos UTILIDAD, no ingresos crudos: Chispekas no trackea costo (su ingreso ≈ su utilidad),
-     así que comparar el ingreso bruto de Racks contra el de Chispekas sería injusto (Racks sí tiene costo de producto que descontar) */
+  /* Tendencia — ahora con filtros de métrica (utilidad/ventas/stock) y periodo (día/semana/mes/año), ver renderJFHTrendChart() */
   const meses6=[]; const now6=new Date();
   for(let i=5;i>=0;i--){ const d=new Date(now6.getFullYear(),now6.getMonth()-i,1); meses6.push(d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")); }
   const chispekasSerie=meses6.map(m=>reservations.filter(r=>r.status==="confirmado"&&(r.date||"").startsWith(m)).reduce((s,r)=>s+(r.total||0),0));
-  const racksSerie=meses6.map(m=>{
-    const ventasDelMes=mrSales.filter(v=>(v.fecha||"").startsWith(m));
-    return utilidad(ventasDelMes);
-  });
-  mkCh("ch-jfh-trend",{type:"bar",data:{labels:meses6.map(m=>MS[parseInt(m.split("-")[1])-1]),datasets:[
-    {label:"Chispekas (ingreso ≈ utilidad)",data:chispekasSerie,backgroundColor:"#f5a623",borderRadius:5},
-    {label:"Racks (utilidad real)",data:racksSerie,backgroundColor:"#0071e3",borderRadius:5}
-  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>" "+c.dataset.label+": "+fM(c.raw)}}},scales:{x:{grid:{display:false},ticks:{font:{size:10}}},y:{grid:{color:"rgba(0,0,0,.04)"},ticks:{callback:v=>v>=1000?"S/"+v/1000+"k":"S/"+v,font:{size:10}}}}}});
+  renderJFHTrendChart();
 
 
   /* Ratios financieros — solo con datos que realmente se registran, nada inventado.
@@ -2009,8 +2116,8 @@ function renderJFHub(){
         <b>${MF[now_c.getMonth()]}</b>: ${fM(totalMesActual)} (🎪 ${fM(chispekasSerie[5])} + 🛠️ ${fM(racksIngresoSerie[5])})<br>
         <b>${MF[(now_c.getMonth()+11)%12]}</b>: ${fM(totalMesAnterior)} (🎪 ${fM(chispekasSerie[4])} + 🛠️ ${fM(racksIngresoSerie[4])})
       </div>`},
-    margen:{title:"Margen de ganancia — Racks",html:`
-      <p style="margin-bottom:10px">De cada sol que vendes en Racks este mes, cuánto es ganancia real después de costo de producto y delivery.</p>
+    margen:{title:"Margen de ganancia — STAK",html:`
+      <p style="margin-bottom:10px">De cada sol que vendes en STAK este mes, cuánto es ganancia real después de costo de producto y delivery.</p>
       <div style="background:var(--s2);border-radius:10px;padding:12px;font-size:13px;line-height:1.9">
         Vendido este mes: ${fM(racksIngresoSerie[5])}<br>
         Utilidad este mes: ${fM(racksUtilMesActual)}<br>
@@ -2047,7 +2154,7 @@ function renderJFHub(){
       <p style="margin-bottom:10px">Valor promedio de una reserva/venta, con todo tu historial (no solo este mes).</p>
       <div style="background:var(--s2);border-radius:10px;padding:12px;font-size:13px;line-height:1.9">
         🎪 Chispekas: ${ticketChispekas===null?"—":fM(ticketChispekas)} (${chispekasConf.length} reserva${chispekasConf.length!==1?"s":""} confirmada${chispekasConf.length!==1?"s":""})<br>
-        🛠️ Racks: ${ticketRacks===null?"—":fM(ticketRacks)} (${mrSales.length} venta${mrSales.length!==1?"s":""})
+        🛠️ STAK: ${ticketRacks===null?"—":fM(ticketRacks)} (${mrSales.length} venta${mrSales.length!==1?"s":""})
       </div>`},
     concentracion:{title:"Concentración — top 3 clientes",html:`
       <p style="margin-bottom:10px">Qué tanto dependes de pocos clientes — si es muy alto, perder a uno pega fuerte.</p>
@@ -2060,7 +2167,7 @@ function renderJFHub(){
       <div style="background:var(--s2);border-radius:10px;padding:12px;font-size:13px;line-height:1.9">
         Delivery cobrado este mes: <b>${fM(deliveryMesActual)}</b>
       </div>`},
-    rotacion:{title:"Sin ventas en 60 días (Racks)",html: productosParados.length?`
+    rotacion:{title:"Sin ventas en 60 días (STAK)",html: productosParados.length?`
       <p style="margin-bottom:10px">Productos con stock disponible que no se han vendido en los últimos 60 días — plata quieta.</p>
       <div style="background:var(--s2);border-radius:10px;padding:12px;font-size:13px;line-height:1.9">
         ${productosParados.map(p=>`${esc(p.name)} — ${mrStock(p.id)} en stock (${fM(mrStock(p.id)*(p.costoUnitario||0))})`).join("<br>")}
@@ -2074,7 +2181,7 @@ function renderJFHub(){
     </div>
     <div class="kpi" style="cursor:pointer" onclick="showExplainKey('margen')">
       <div class="kv" style="color:${racksMargen===null?"var(--t)":"var(--gr)"}">${racksMargen===null?"—":racksMargen.toFixed(0)+"%"}</div>
-      <div class="kl">Margen de ganancia — Racks</div>
+      <div class="kl">Margen de ganancia — STAK</div>
     </div>
     <div class="kpi" style="cursor:pointer" onclick="showExplainKey('cobro')">
       <div class="kv" style="color:${tasaCobro===null?"var(--t)":tasaCobro>=80?"var(--gr)":"var(--am)"}">${tasaCobro===null?"—":tasaCobro.toFixed(0)+"%"}</div>
@@ -2106,7 +2213,7 @@ function renderJFHub(){
     </div>
     <div class="kpi" style="cursor:pointer" onclick="showExplainKey('rotacion')">
       <div class="kv" style="color:${sinMovimiento>0?"var(--am)":"var(--gr)"}">${sinMovimiento}</div>
-      <div class="kl">Sin ventas en 60 días (Racks)</div>
+      <div class="kl">Sin ventas en 60 días (STAK)</div>
     </div>`;
 }
 
