@@ -1,0 +1,1289 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0B0D10">
+<title>AutoCTRL</title>
+<link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiQXV0b0NUUkwiLCJzaG9ydF9uYW1lIjoiQXV0b0NUUkwiLCJzdGFydF91cmwiOiIuIiwiZGlzcGxheSI6InN0YW5kYWxvbmUiLCJiYWNrZ3JvdW5kX2NvbG9yIjoiIzBCMEQxMCIsInRoZW1lX2NvbG9yIjoiIzBCMEQxMCJ9">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0B0D10;
+    --surface:#14171B;
+    --surface-2:#1B1F24;
+    --line:#262B31;
+    --text:#EDEFF2;
+    --text-dim:#8A9099;
+    --text-faint:#575D66;
+    --accent:#3DDC97;      /* diagnóstico OK */
+    --warn:#FFB13D;        /* por vencer */
+    --danger:#FF5C5C;      /* vencido */
+    --accent-dim:rgba(61,220,151,0.12);
+    --warn-dim:rgba(255,177,61,0.12);
+    --danger-dim:rgba(255,92,92,0.12);
+    --radius:16px;
+    --radius-sm:10px;
+    --safe-b: env(safe-area-inset-bottom, 0px);
+    --safe-t: env(safe-area-inset-top, 0px);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; padding:0; background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; -webkit-font-smoothing:antialiased; overscroll-behavior-y:none;}
+  body{padding-bottom:calc(84px + var(--safe-b));}
+  h1,h2,h3,.display{font-family:'Space Grotesk',sans-serif;}
+  .mono{font-family:'JetBrains Mono',monospace;}
+  button{font-family:inherit; -webkit-appearance:none; border:none; background:none; color:inherit; cursor:pointer;}
+  input,select,textarea{font-family:inherit; color:var(--text); background:var(--surface-2); border:1px solid var(--line); border-radius:var(--radius-sm); padding:12px 14px; font-size:15px; width:100%; outline:none;}
+  input:focus,select:focus,textarea:focus{border-color:var(--accent);}
+  ::placeholder{color:var(--text-faint);}
+
+  /* Header */
+  header{position:sticky; top:0; z-index:20; padding:calc(16px + var(--safe-t)) 20px 14px; background:linear-gradient(180deg, var(--bg) 70%, rgba(11,13,16,0.85) 100%); backdrop-filter:blur(10px);}
+  .brand{display:flex; align-items:center; justify-content:space-between;}
+  .brand-mark{display:flex; align-items:center; gap:10px;}
+  .brand-dot{width:8px; height:8px; border-radius:50%; background:var(--accent); box-shadow:0 0 12px var(--accent);}
+  .brand h1{font-size:19px; font-weight:700; letter-spacing:-0.02em; margin:0;}
+  .icon-btn{width:38px; height:38px; border-radius:50%; background:var(--surface); display:flex; align-items:center; justify-content:center; border:1px solid var(--line);}
+
+  main{padding:0 20px;}
+
+  /* Vehicle hero card */
+  .hero{background:linear-gradient(155deg, var(--surface) 0%, var(--surface-2) 100%); border:1px solid var(--line); border-radius:20px; padding:22px; margin-top:6px; position:relative; overflow:hidden;}
+  .hero::after{content:''; position:absolute; top:-40%; right:-20%; width:220px; height:220px; background:radial-gradient(circle, var(--accent-dim) 0%, transparent 70%); pointer-events:none;}
+  .hero-top{display:flex; justify-content:space-between; align-items:flex-start;}
+  .veh-name{font-size:22px; font-weight:700; letter-spacing:-0.02em;}
+  .veh-plate{display:inline-block; margin-top:4px; font-size:12px; letter-spacing:0.08em; color:var(--text-dim); font-family:'JetBrains Mono',monospace; border:1px solid var(--line); padding:3px 8px; border-radius:6px;}
+  .odo{text-align:right;}
+  .odo-val{font-family:'JetBrains Mono',monospace; font-size:28px; font-weight:600; letter-spacing:-0.02em; font-variant-numeric:tabular-nums;}
+  .odo-label{font-size:11px; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.08em; margin-top:2px;}
+
+  .status-row{display:flex; gap:8px; margin-top:18px; flex-wrap:wrap;}
+  .status-chip{display:flex; align-items:center; gap:6px; background:rgba(255,255,255,0.04); border:1px solid var(--line); border-radius:20px; padding:6px 10px 6px 8px; font-size:12px; color:var(--text-dim);}
+  .status-dot{width:7px; height:7px; border-radius:50%;}
+  .status-dot.ok{background:var(--accent);}
+  .status-dot.warn{background:var(--warn);}
+  .status-dot.danger{background:var(--danger); box-shadow:0 0 8px var(--danger);}
+
+  /* Section nav pills */
+  .tabs{display:flex; gap:8px; margin:22px 0 16px; overflow-x:auto; scrollbar-width:none;}
+  .tabs::-webkit-scrollbar{display:none;}
+  .tab{flex:0 0 auto; padding:9px 16px; border-radius:20px; background:var(--surface); border:1px solid var(--line); color:var(--text-dim); font-size:14px; font-weight:600; white-space:nowrap;}
+  .tab.active{background:var(--text); color:var(--bg); border-color:var(--text);}
+
+  .section-title{display:flex; align-items:center; justify-content:space-between; margin:22px 0 12px;}
+  .section-title h2{font-size:16px; font-weight:700; margin:0; letter-spacing:-0.01em;}
+  .add-pill{display:flex; align-items:center; gap:6px; background:var(--accent-dim); color:var(--accent); border:1px solid rgba(61,220,151,0.3); padding:7px 14px; border-radius:20px; font-size:13px; font-weight:600;}
+
+  /* Cards list */
+  .card{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:16px; margin-bottom:10px;}
+  .card-row{display:flex; justify-content:space-between; align-items:flex-start; gap:12px;}
+  .card-title{font-size:15px; font-weight:600;}
+  .card-sub{font-size:12.5px; color:var(--text-dim); margin-top:3px;}
+  .badge{font-size:11px; font-weight:700; padding:4px 9px; border-radius:20px; white-space:nowrap; letter-spacing:0.01em;}
+  .badge.ok{background:var(--accent-dim); color:var(--accent);}
+  .badge.warn{background:var(--warn-dim); color:var(--warn);}
+  .badge.danger{background:var(--danger-dim); color:var(--danger);}
+  .card-meta{display:flex; gap:14px; margin-top:12px; padding-top:12px; border-top:1px solid var(--line);}
+  .meta-item{font-size:12px; color:var(--text-dim);}
+  .meta-item b{color:var(--text); font-weight:600; display:block; font-size:13.5px; margin-top:1px; font-family:'JetBrains Mono',monospace;}
+  .empty{text-align:center; padding:50px 20px; color:var(--text-faint);}
+  .empty svg{opacity:0.4; margin-bottom:10px;}
+  .empty p{font-size:13.5px; margin:0;}
+
+  /* Bottom sheet */
+  .sheet-overlay{position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:40; opacity:0; pointer-events:none; transition:opacity 0.25s;}
+  .sheet-overlay.open{opacity:1; pointer-events:auto;}
+  .sheet{position:fixed; left:0; right:0; bottom:0; z-index:41; background:var(--surface); border-radius:22px 22px 0 0; border:1px solid var(--line); border-bottom:none; padding:10px 20px calc(24px + var(--safe-b)); transform:translateY(105%); transition:transform 0.3s cubic-bezier(.32,.72,0,1); max-height:88vh; overflow-y:auto;}
+  .sheet.open{transform:translateY(0);}
+  .sheet-handle{width:36px; height:4px; background:var(--line); border-radius:4px; margin:6px auto 16px;}
+  .sheet h3{font-size:17px; margin:0 0 16px; font-weight:700;}
+  .field{margin-bottom:12px;}
+  .field label{display:block; font-size:12.5px; color:var(--text-dim); margin-bottom:6px; font-weight:500;}
+  .field-row{display:flex; gap:10px;}
+  .field-row .field{flex:1;}
+  .sheet-actions{display:flex; gap:10px; margin-top:18px;}
+  .btn{flex:1; padding:14px; border-radius:14px; font-size:14.5px; font-weight:700; text-align:center;}
+  .btn-primary{background:var(--accent); color:#04140C;}
+  .btn-ghost{background:var(--surface-2); color:var(--text-dim); border:1px solid var(--line);}
+  .btn-danger-text{color:var(--danger); font-size:13px; font-weight:600; text-align:center; padding:12px; width:100%; margin-top:4px;}
+
+  /* Bottom nav */
+  nav.bottom{position:fixed; left:0; right:0; bottom:0; z-index:30; background:rgba(20,23,27,0.92); backdrop-filter:blur(16px); border-top:1px solid var(--line); padding:10px 12px calc(10px + var(--safe-b)); display:flex; justify-content:space-around;}
+  .nav-btn{display:flex; flex-direction:column; align-items:center; gap:4px; color:var(--text-faint); font-size:10.5px; font-weight:600; padding:4px 10px;}
+  .nav-btn.active{color:var(--accent);}
+  .nav-btn svg{width:22px; height:22px;}
+
+  .toast{position:fixed; top:calc(16px + var(--safe-t)); left:50%; transform:translateX(-50%) translateY(-140%); background:var(--text); color:var(--bg); padding:11px 18px; border-radius:30px; font-size:13.5px; font-weight:600; z-index:100; transition:transform 0.3s cubic-bezier(.32,.72,0,1); white-space:nowrap;}
+  .toast.show{transform:translateX(-50%) translateY(0);}
+
+  .fab-space{height:6px;}
+  select{-webkit-appearance:none; appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238A9099' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 14px center;}
+
+  /* KPIs */
+  .kpi-grid{display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-top:14px;}
+  .kpi-card{background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:13px 14px;}
+  .kpi-label{font-size:10.5px; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.06em; font-weight:600;}
+  .kpi-value{font-family:'JetBrains Mono',monospace; font-size:17px; font-weight:600; margin-top:5px; letter-spacing:-0.02em; font-variant-numeric:tabular-nums;}
+  .kpi-value.small{font-size:15px;}
+
+  /* Chart */
+  .chart-card{background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:14px 14px 10px; margin-top:10px;}
+  .chart-title{font-size:12.5px; color:var(--text-dim); font-weight:600; margin-bottom:8px;}
+
+  /* Search sheet */
+  .search-input-wrap{position:relative; margin-bottom:14px;}
+  .search-input-wrap svg{position:absolute; left:14px; top:50%; transform:translateY(-50%); pointer-events:none;}
+  .search-input-wrap input{padding-left:38px;}
+  .search-result{display:flex; justify-content:space-between; align-items:center; padding:12px 4px; border-bottom:1px solid var(--line);}
+  .search-result:last-child{border-bottom:none;}
+  .search-result-title{font-size:14px; font-weight:600;}
+  .search-result-sub{font-size:12px; color:var(--text-dim); margin-top:2px;}
+  .search-result-cat{font-size:10.5px; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.05em;}
+
+  .settings-divider{border-top:1px solid var(--line); margin:18px 0 14px; padding-top:14px;}
+  .settings-label{font-size:12px; color:var(--text-dim); font-weight:600; margin-bottom:10px;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="brand-mark">
+      <div class="brand-dot"></div>
+      <h1>AutoCTRL</h1>
+    </div>
+    <div style="display:flex; gap:8px;">
+      <button class="icon-btn" onclick="openSearchSheet()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8A9099" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      </button>
+      <button class="icon-btn" onclick="openVehicleSheet()">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#8A9099" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- Vehicle hero -->
+  <div class="hero" id="heroCard"></div>
+
+  <!-- Tabs -->
+  <div class="tabs" id="tabs">
+    <button class="tab active" data-tab="inicio">Inicio</button>
+    <button class="tab" data-tab="documentos">Documentos</button>
+    <button class="tab" data-tab="mantenimiento">Mantenimiento</button>
+    <button class="tab" data-tab="combustible">Combustible</button>
+    <button class="tab" data-tab="repuestos">Repuestos</button>
+  </div>
+
+  <!-- INICIO -->
+  <div class="tab-panel" id="panel-inicio">
+    <div class="kpi-grid" id="kpiGrid"></div>
+    <div class="chart-card">
+      <div class="chart-title">Gastos por mes</div>
+      <canvas id="spendChart" height="110"></canvas>
+    </div>
+    <div class="section-title"><h2>Próximos vencimientos</h2></div>
+    <div id="inicioProximos"></div>
+    <div class="section-title"><h2>Próximo mantenimiento</h2></div>
+    <div id="inicioMantProx"></div>
+    <div class="section-title"><h2>Últimos movimientos</h2></div>
+    <div id="inicioUltimos"></div>
+  </div>
+
+  <!-- DOCUMENTOS -->
+  <div class="tab-panel" id="panel-documentos" style="display:none;">
+    <div class="section-title">
+      <h2>Documentos</h2>
+      <button class="add-pill" onclick="openDocSheet()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 5v14M5 12h14"/></svg>
+        Agregar
+      </button>
+    </div>
+    <div id="docList"></div>
+  </div>
+
+  <!-- MANTENIMIENTO -->
+  <div class="tab-panel" id="panel-mantenimiento" style="display:none;">
+    <div class="section-title">
+      <h2>Mantenimiento</h2>
+      <button class="add-pill" onclick="openMantSheet()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 5v14M5 12h14"/></svg>
+        Agregar
+      </button>
+    </div>
+    <div id="mantList"></div>
+  </div>
+
+  <!-- COMBUSTIBLE -->
+  <div class="tab-panel" id="panel-combustible" style="display:none;">
+    <div class="section-title">
+      <h2>Combustible</h2>
+      <button class="add-pill" onclick="openFuelSheet()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 5v14M5 12h14"/></svg>
+        Agregar
+      </button>
+    </div>
+    <div id="fuelStats"></div>
+    <div id="fuelList"></div>
+  </div>
+
+  <!-- REPUESTOS -->
+  <div class="tab-panel" id="panel-repuestos" style="display:none;">
+    <div class="section-title">
+      <h2>Repuestos</h2>
+      <button class="add-pill" onclick="openRepSheet()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 5v14M5 12h14"/></svg>
+        Agregar
+      </button>
+    </div>
+    <div id="repList"></div>
+  </div>
+
+  <div class="fab-space"></div>
+</main>
+
+<nav class="bottom">
+  <button class="nav-btn active" data-tab="inicio">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l9-9 9 9"/><path d="M5 10v10h14V10"/></svg>
+    Inicio
+  </button>
+  <button class="nav-btn" data-tab="documentos">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/></svg>
+    Docs
+  </button>
+  <button class="nav-btn" data-tab="mantenimiento">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94Z"/></svg>
+    Servicio
+  </button>
+  <button class="nav-btn" data-tab="combustible">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 22V8a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v14"/><path d="M3 22h10"/><path d="M13 9h2a2 2 0 0 1 2 2v1a2 2 0 0 0 2 2v5.5a1.5 1.5 0 0 1-3 0"/><path d="M9 6V4a1 1 0 0 1 1-1h0"/></svg>
+    Combustible
+  </button>
+  <button class="nav-btn" data-tab="repuestos">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+    Repuestos
+  </button>
+</nav>
+
+<div class="toast" id="toast"></div>
+
+<!-- Sheets -->
+<div class="sheet-overlay" id="overlay" onclick="closeAllSheets()"></div>
+
+<div class="sheet" id="sheetVehicle">
+  <div class="sheet-handle"></div>
+  <h3>Mi vehículo</h3>
+  <div class="field-row">
+    <div class="field"><label>Marca</label><input id="vMarca" placeholder="Toyota"></div>
+    <div class="field"><label>Modelo</label><input id="vModelo" placeholder="Yaris"></div>
+  </div>
+  <div class="field-row">
+    <div class="field"><label>Año</label><input id="vAnio" type="number" placeholder="2021"></div>
+    <div class="field"><label>Placa</label><input id="vPlaca" placeholder="ABC-123" style="text-transform:uppercase;"></div>
+  </div>
+  <div class="field"><label>Kilometraje actual</label><input id="vKm" type="number" placeholder="45000"></div>
+  <div class="sheet-actions">
+    <button class="btn btn-primary" onclick="saveVehicle()">Guardar</button>
+  </div>
+  <div class="settings-divider">
+    <div class="settings-label">Respaldo de datos</div>
+    <div class="sheet-actions" style="margin-top:0;">
+      <button class="btn btn-ghost" onclick="exportData()">⬇️ Exportar</button>
+      <button class="btn btn-ghost" onclick="document.getElementById('importFile').click()">⬆️ Importar</button>
+    </div>
+    <input type="file" id="importFile" accept="application/json" style="display:none;" onchange="importData(this.files[0])">
+  </div>
+</div>
+
+<div class="sheet" id="sheetDoc">
+  <div class="sheet-handle"></div>
+  <h3 id="docSheetTitle">Nuevo documento</h3>
+  <input type="hidden" id="docId">
+  <div class="field"><label>Tipo de documento</label><input id="docTipo" placeholder="SOAT, Revisión Técnica, Seguro..." list="docTipos"></div>
+  <datalist id="docTipos">
+    <option value="SOAT"></option><option value="Revisión Técnica"></option><option value="Seguro vehicular"></option><option value="Tarjeta de propiedad"></option><option value="Permiso de circulación"></option>
+  </datalist>
+  <div class="field-row">
+    <div class="field"><label>Fecha de emisión</label><input id="docEmision" type="date"></div>
+    <div class="field"><label>Fecha de vencimiento</label><input id="docVence" type="date"></div>
+  </div>
+  <div class="field"><label>Notas (opcional)</label><input id="docNotas" placeholder="N° de póliza, entidad, etc."></div>
+  <div class="sheet-actions">
+    <button class="btn btn-ghost" onclick="closeAllSheets()">Cancelar</button>
+    <button class="btn btn-primary" onclick="saveDoc()">Guardar</button>
+  </div>
+  <button class="btn-danger-text" id="docDeleteBtn" style="display:none;" onclick="deleteDoc()">Eliminar documento</button>
+</div>
+
+<div class="sheet" id="sheetMant">
+  <div class="sheet-handle"></div>
+  <h3 id="mantSheetTitle">Nuevo servicio</h3>
+  <input type="hidden" id="mantId">
+  <div class="field"><label>Tipo de servicio</label><input id="mantTipo" placeholder="Cambio de aceite, afinamiento..." list="mantTipos"></div>
+  <datalist id="mantTipos">
+    <option value="Cambio de aceite"></option><option value="Afinamiento"></option><option value="Alineamiento y balanceo"></option><option value="Cambio de filtros"></option><option value="Revisión de frenos"></option>
+  </datalist>
+  <div class="field-row">
+    <div class="field"><label>Fecha</label><input id="mantFecha" type="date"></div>
+    <div class="field"><label>Kilometraje</label><input id="mantKm" type="number" placeholder="45200"></div>
+  </div>
+  <div class="field-row">
+    <div class="field"><label>Taller</label><input id="mantTaller" placeholder="Nombre del taller"></div>
+    <div class="field"><label>Costo (S/)</label><input id="mantCosto" type="number" placeholder="150"></div>
+  </div>
+  <div class="field"><label>Notas (opcional)</label><input id="mantNotas" placeholder="Detalles adicionales"></div>
+  <div class="settings-divider" style="margin:14px 0 12px; padding-top:0; border-top:1px solid var(--line);">
+    <div class="settings-label">Próximo servicio (opcional) — activa el recordatorio</div>
+    <div class="field-row">
+      <div class="field"><label>Próximo km</label><input id="mantProxKm" type="number" placeholder="ej. 50000"></div>
+      <div class="field"><label>Próxima fecha</label><input id="mantProxFecha" type="date"></div>
+    </div>
+  </div>
+  <div class="sheet-actions">
+    <button class="btn btn-ghost" onclick="closeAllSheets()">Cancelar</button>
+    <button class="btn btn-primary" onclick="saveMant()">Guardar</button>
+  </div>
+  <button class="btn-danger-text" id="mantDeleteBtn" style="display:none;" onclick="deleteMant()">Eliminar registro</button>
+</div>
+
+<div class="sheet" id="sheetFuel">
+  <div class="sheet-handle"></div>
+  <h3 id="fuelSheetTitle">Nuevo tanqueo</h3>
+  <input type="hidden" id="fuelId">
+  <div class="field-row">
+    <div class="field"><label>Fecha</label><input id="fuelFecha" type="date"></div>
+    <div class="field"><label>Kilometraje</label><input id="fuelKm" type="number" placeholder="45200"></div>
+  </div>
+  <div class="field-row">
+    <div class="field"><label>Galones</label><input id="fuelGalones" type="number" step="0.01" placeholder="8.5"></div>
+    <div class="field"><label>Costo (S/)</label><input id="fuelCosto" type="number" placeholder="130"></div>
+  </div>
+  <div class="field"><label>Grifo (opcional)</label><input id="fuelGrifo" placeholder="Primax, Repsol..."></div>
+  <div class="sheet-actions">
+    <button class="btn btn-ghost" onclick="closeAllSheets()">Cancelar</button>
+    <button class="btn btn-primary" onclick="saveFuel()">Guardar</button>
+  </div>
+  <button class="btn-danger-text" id="fuelDeleteBtn" style="display:none;" onclick="deleteFuel()">Eliminar tanqueo</button>
+</div>
+
+<div class="sheet" id="sheetSearch">
+  <div class="sheet-handle"></div>
+  <h3>Buscar</h3>
+  <div class="search-input-wrap">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#575D66" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+    <input id="searchInput" placeholder="Documento, servicio, repuesto, tanqueo..." oninput="renderSearch()">
+  </div>
+  <div id="searchResults"></div>
+</div>
+
+<div class="sheet" id="sheetRep">
+  <div class="sheet-handle"></div>
+  <h3 id="repSheetTitle">Nuevo repuesto</h3>
+  <input type="hidden" id="repId">
+  <div class="field"><label>Repuesto</label><input id="repNombre" placeholder="Batería, llantas, pastillas de freno..."></div>
+  <div class="field-row">
+    <div class="field"><label>Fecha de cambio</label><input id="repFecha" type="date"></div>
+    <div class="field"><label>Kilometraje</label><input id="repKm" type="number"></div>
+  </div>
+  <div class="field-row">
+    <div class="field"><label>Marca / modelo</label><input id="repMarca" placeholder="Opcional"></div>
+    <div class="field"><label>Costo (S/)</label><input id="repCosto" type="number"></div>
+  </div>
+  <div class="field"><label>Garantía hasta (opcional)</label><input id="repGarantia" type="date"></div>
+  <div class="sheet-actions">
+    <button class="btn btn-ghost" onclick="closeAllSheets()">Cancelar</button>
+    <button class="btn btn-primary" onclick="saveRep()">Guardar</button>
+  </div>
+  <button class="btn-danger-text" id="repDeleteBtn" style="display:none;" onclick="deleteRep()">Eliminar repuesto</button>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+/* ============================================================
+   FIREBASE — mismo proyecto que CHISPEKAS/STAK, colección
+   separada "autoctrl" para no mezclar datos.
+   ============================================================ */
+const FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyDEMPKn-7GemMVVF4Yf7cYGDzrSoSrelbc",
+  authDomain:        "chispekas-24448.firebaseapp.com",
+  projectId:         "chispekas-24448",
+  storageBucket:     "chispekas-24448.firebasestorage.app",
+  messagingSenderId: "420833748478",
+  appId:             "1:420833748478:web:b6fc5480045f8c3c65ccaf"
+};
+
+let useFirebase = false;
+let db = null;
+let docRef = null;
+
+try {
+  firebase.initializeApp(FIREBASE_CONFIG);
+  db = firebase.firestore();
+  db.enablePersistence({ synchronizeTabs: true }).catch(()=>{}); // permite trabajar offline
+  docRef = db.collection('autoctrl').doc('main');
+  useFirebase = true;
+} catch(e) {
+  console.warn('Firebase no disponible, usando solo localStorage', e);
+  useFirebase = false;
+}
+
+/* ============================================================
+   ESTADO / STORAGE
+   localStorage = caché instantánea (pinta rápido, funciona offline)
+   Firestore   = fuente de verdad, sincroniza entre dispositivos
+   ============================================================ */
+const STORE_KEY = 'autoctrl_data_v1';
+
+function defaultState(){
+  return {
+    vehicle: { marca:'', modelo:'', anio:'', placa:'', km:0, kmUpdatedAt:null },
+    docs: [],
+    mant: [],
+    rep: [],
+    fuel: []
+  };
+}
+function normalizeState(s){
+  if(!s.fuel) s.fuel = [];
+  if(!s.docs) s.docs = [];
+  if(!s.mant) s.mant = [];
+  if(!s.rep) s.rep = [];
+  if(!s.vehicle) s.vehicle = { marca:'', modelo:'', anio:'', placa:'', km:0, kmUpdatedAt:null };
+  return s;
+}
+function loadLocalState(){
+  const raw = localStorage.getItem(STORE_KEY);
+  return raw ? normalizeState(JSON.parse(raw)) : defaultState();
+}
+function saveState(){
+  localStorage.setItem(STORE_KEY, JSON.stringify(state));
+  if (useFirebase && docRef) {
+    docRef.set(state).catch(err => console.error('Error guardando en Firestore:', err));
+  }
+}
+let state = loadLocalState();
+
+if (useFirebase && docRef) {
+  docRef.onSnapshot(snap => {
+    if (snap.exists) {
+      state = normalizeState(snap.data());
+      localStorage.setItem(STORE_KEY, JSON.stringify(state));
+      renderAll();
+    } else {
+      // Primera vez que se conecta: sube lo que ya había en local
+      docRef.set(state).catch(()=>{});
+    }
+  }, err => console.error('Error sincronizando con Firestore:', err));
+}
+
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+function fmtDate(d){
+  if(!d) return '—';
+  const dt = new Date(d + 'T00:00:00');
+  return dt.toLocaleDateString('es-PE', {day:'2-digit', month:'short', year:'numeric'});
+}
+function fmtMoney(n){
+  if(n===undefined || n===null || n==='') return '—';
+  return 'S/ ' + Number(n).toLocaleString('es-PE', {minimumFractionDigits:0});
+}
+function fmtKm(n){
+  if(n===undefined || n===null || n==='') return '—';
+  return Number(n).toLocaleString('es-PE') + ' km';
+}
+function daysUntil(dateStr){
+  if(!dateStr) return null;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const target = new Date(dateStr + 'T00:00:00');
+  return Math.round((target - today) / 86400000);
+}
+function statusFromDays(days){
+  if(days === null) return 'ok';
+  if(days < 0) return 'danger';
+  if(days <= 30) return 'warn';
+  return 'ok';
+}
+function statusLabel(days){
+  if(days === null) return '';
+  if(days < 0) return `Vencido hace ${Math.abs(days)}d`;
+  if(days === 0) return 'Vence hoy';
+  if(days <= 30) return `Vence en ${days}d`;
+  return `Vence en ${days}d`;
+}
+
+/* ============================================================
+   TOAST
+   ============================================================ */
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=> t.classList.remove('show'), 1800);
+}
+
+/* ============================================================
+   TABS
+   ============================================================ */
+function setTab(name){
+  document.querySelectorAll('.tab').forEach(b=> b.classList.toggle('active', b.dataset.tab===name));
+  document.querySelectorAll('.nav-btn').forEach(b=> b.classList.toggle('active', b.dataset.tab===name));
+  document.querySelectorAll('.tab-panel').forEach(p=> p.style.display = (p.id === 'panel-'+name) ? '' : 'none');
+  window.scrollTo({top:0, behavior:'instant'});
+  if(name === 'inicio') setTimeout(renderChart, 0);
+}
+document.querySelectorAll('.tab, .nav-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=> setTab(btn.dataset.tab));
+});
+
+/* ============================================================
+   SHEETS
+   ============================================================ */
+function openSheet(id){
+  document.getElementById('overlay').classList.add('open');
+  document.getElementById(id).classList.add('open');
+}
+function closeAllSheets(){
+  document.getElementById('overlay').classList.remove('open');
+  document.querySelectorAll('.sheet').forEach(s=> s.classList.remove('open'));
+}
+
+/* ============================================================
+   VEHICLE
+   ============================================================ */
+function openVehicleSheet(){
+  const v = state.vehicle;
+  document.getElementById('vMarca').value = v.marca || '';
+  document.getElementById('vModelo').value = v.modelo || '';
+  document.getElementById('vAnio').value = v.anio || '';
+  document.getElementById('vPlaca').value = v.placa || '';
+  document.getElementById('vKm').value = v.km || '';
+  openSheet('sheetVehicle');
+}
+function saveVehicle(){
+  const newKm = Number(document.getElementById('vKm').value || 0);
+  const kmChanged = newKm !== (state.vehicle.km || 0);
+  state.vehicle = {
+    marca: document.getElementById('vMarca').value.trim(),
+    modelo: document.getElementById('vModelo').value.trim(),
+    anio: document.getElementById('vAnio').value.trim(),
+    placa: document.getElementById('vPlaca').value.trim().toUpperCase(),
+    km: newKm,
+    kmUpdatedAt: kmChanged ? todayISO() : state.vehicle.kmUpdatedAt
+  };
+  saveState();
+  closeAllSheets();
+  renderAll();
+  toast('Vehículo actualizado');
+}
+function todayISO(){
+  return new Date().toISOString().slice(0,10);
+}
+function openVehicleSheetFocusKm(){
+  openVehicleSheet();
+  setTimeout(()=>{
+    const el = document.getElementById('vKm');
+    el.focus();
+    el.select();
+  }, 320);
+}
+
+/* ============================================================
+   DOCUMENTOS
+   ============================================================ */
+function openDocSheet(id){
+  document.getElementById('docSheetTitle').textContent = id ? 'Editar documento' : 'Nuevo documento';
+  document.getElementById('docDeleteBtn').style.display = id ? '' : 'none';
+  document.getElementById('docId').value = id || '';
+  if(id){
+    const d = state.docs.find(x=>x.id===id);
+    document.getElementById('docTipo').value = d.tipo;
+    document.getElementById('docEmision').value = d.emision || '';
+    document.getElementById('docVence').value = d.vence || '';
+    document.getElementById('docNotas').value = d.notas || '';
+  } else {
+    ['docTipo','docEmision','docVence','docNotas'].forEach(i=> document.getElementById(i).value='');
+  }
+  openSheet('sheetDoc');
+}
+function saveDoc(){
+  const tipo = document.getElementById('docTipo').value.trim();
+  if(!tipo){ toast('Ponle un tipo al documento'); return; }
+  const id = document.getElementById('docId').value;
+  const payload = {
+    tipo,
+    emision: document.getElementById('docEmision').value,
+    vence: document.getElementById('docVence').value,
+    notas: document.getElementById('docNotas').value.trim()
+  };
+  if(id){
+    const idx = state.docs.findIndex(x=>x.id===id);
+    state.docs[idx] = {...state.docs[idx], ...payload};
+  } else {
+    state.docs.push({id: uid(), ...payload});
+  }
+  saveState();
+  closeAllSheets();
+  renderAll();
+  toast('Documento guardado');
+}
+function deleteDoc(){
+  const id = document.getElementById('docId').value;
+  state.docs = state.docs.filter(x=>x.id!==id);
+  saveState();
+  closeAllSheets();
+  renderAll();
+  toast('Documento eliminado');
+}
+
+/* ============================================================
+   MANTENIMIENTO
+   ============================================================ */
+function openMantSheet(id){
+  document.getElementById('mantSheetTitle').textContent = id ? 'Editar servicio' : 'Nuevo servicio';
+  document.getElementById('mantDeleteBtn').style.display = id ? '' : 'none';
+  document.getElementById('mantId').value = id || '';
+  if(id){
+    const m = state.mant.find(x=>x.id===id);
+    document.getElementById('mantTipo').value = m.tipo;
+    document.getElementById('mantFecha').value = m.fecha || '';
+    document.getElementById('mantKm').value = m.km || '';
+    document.getElementById('mantTaller').value = m.taller || '';
+    document.getElementById('mantCosto').value = m.costo || '';
+    document.getElementById('mantNotas').value = m.notas || '';
+    document.getElementById('mantProxKm').value = m.proxKm || '';
+    document.getElementById('mantProxFecha').value = m.proxFecha || '';
+  } else {
+    ['mantTipo','mantFecha','mantKm','mantTaller','mantCosto','mantNotas','mantProxKm','mantProxFecha'].forEach(i=> document.getElementById(i).value='');
+  }
+  openSheet('sheetMant');
+}
+function saveMant(){
+  const tipo = document.getElementById('mantTipo').value.trim();
+  if(!tipo){ toast('Ponle un tipo de servicio'); return; }
+  const id = document.getElementById('mantId').value;
+  const payload = {
+    tipo,
+    fecha: document.getElementById('mantFecha').value,
+    km: document.getElementById('mantKm').value ? Number(document.getElementById('mantKm').value) : null,
+    taller: document.getElementById('mantTaller').value.trim(),
+    costo: document.getElementById('mantCosto').value ? Number(document.getElementById('mantCosto').value) : null,
+    notas: document.getElementById('mantNotas').value.trim(),
+    proxKm: document.getElementById('mantProxKm').value ? Number(document.getElementById('mantProxKm').value) : null,
+    proxFecha: document.getElementById('mantProxFecha').value || ''
+  };
+  if(id){
+    const idx = state.mant.findIndex(x=>x.id===id);
+    state.mant[idx] = {...state.mant[idx], ...payload};
+  } else {
+    state.mant.push({id: uid(), ...payload});
+  }
+  // actualizar km del vehículo si es mayor
+  if(payload.km && payload.km > (state.vehicle.km||0)){
+    state.vehicle.km = payload.km;
+    state.vehicle.kmUpdatedAt = todayISO();
+  }
+  saveState();
+  closeAllSheets();
+  renderAll();
+  toast('Servicio guardado');
+}
+function deleteMant(){
+  const id = document.getElementById('mantId').value;
+  state.mant = state.mant.filter(x=>x.id!==id);
+  saveState();
+  closeAllSheets();
+  renderAll();
+  toast('Registro eliminado');
+}
+
+/* ============================================================
+   REPUESTOS
+   ============================================================ */
+function openRepSheet(id){
+  document.getElementById('repSheetTitle').textContent = id ? 'Editar repuesto' : 'Nuevo repuesto';
+  document.getElementById('repDeleteBtn').style.display = id ? '' : 'none';
+  document.getElementById('repId').value = id || '';
+  if(id){
+    const r = state.rep.find(x=>x.id===id);
+    document.getElementById('repNombre').value = r.nombre;
+    document.getElementById('repFecha').value = r.fecha || '';
+    document.getElementById('repKm').value = r.km || '';
+    document.getElementById('repMarca').value = r.marca || '';
+    document.getElementById('repCosto').value = r.costo || '';
+    document.getElementById('repGarantia').value = r.garantia || '';
+  } else {
+    ['repNombre','repFecha','repKm','repMarca','repCosto','repGarantia'].forEach(i=> document.getElementById(i).value='');
+  }
+  openSheet('sheetRep');
+}
+function saveRep(){
+  const nombre = document.getElementById('repNombre').value.trim();
+  if(!nombre){ toast('Ponle un nombre al repuesto'); return; }
+  const id = document.getElementById('repId').value;
+  const payload = {
+    nombre,
+    fecha: document.getElementById('repFecha').value,
+    km: document.getElementById('repKm').value ? Number(document.getElementById('repKm').value) : null,
+    marca: document.getElementById('repMarca').value.trim(),
+    costo: document.getElementById('repCosto').value ? Number(document.getElementById('repCosto').value) : null,
+    garantia: document.getElementById('repGarantia').value
+  };
+  if(id){
+    const idx = state.rep.findIndex(x=>x.id===id);
+    state.rep[idx] = {...state.rep[idx], ...payload};
+  } else {
+    state.rep.push({id: uid(), ...payload});
+  }
+  saveState();
+  closeAllSheets();
+  renderAll();
+  toast('Repuesto guardado');
+}
+function deleteRep(){
+  const id = document.getElementById('repId').value;
+  state.rep = state.rep.filter(x=>x.id!==id);
+  saveState();
+  closeAllSheets();
+  renderAll();
+  toast('Repuesto eliminado');
+}
+
+/* ============================================================
+   COMBUSTIBLE
+   ============================================================ */
+function openFuelSheet(id){
+  document.getElementById('fuelSheetTitle').textContent = id ? 'Editar tanqueo' : 'Nuevo tanqueo';
+  document.getElementById('fuelDeleteBtn').style.display = id ? '' : 'none';
+  document.getElementById('fuelId').value = id || '';
+  if(id){
+    const f = state.fuel.find(x=>x.id===id);
+    document.getElementById('fuelFecha').value = f.fecha || '';
+    document.getElementById('fuelKm').value = f.km || '';
+    document.getElementById('fuelGalones').value = f.galones || '';
+    document.getElementById('fuelCosto').value = f.costo || '';
+    document.getElementById('fuelGrifo').value = f.grifo || '';
+  } else {
+    ['fuelFecha','fuelKm','fuelGalones','fuelCosto','fuelGrifo'].forEach(i=> document.getElementById(i).value='');
+    document.getElementById('fuelFecha').value = todayISO();
+  }
+  openSheet('sheetFuel');
+}
+function saveFuel(){
+  const km = document.getElementById('fuelKm').value;
+  const galones = document.getElementById('fuelGalones').value;
+  if(!km || !galones){ toast('Completa km y galones'); return; }
+  const id = document.getElementById('fuelId').value;
+  const payload = {
+    fecha: document.getElementById('fuelFecha').value || todayISO(),
+    km: Number(km),
+    galones: Number(galones),
+    costo: document.getElementById('fuelCosto').value ? Number(document.getElementById('fuelCosto').value) : null,
+    grifo: document.getElementById('fuelGrifo').value.trim()
+  };
+  if(id){
+    const idx = state.fuel.findIndex(x=>x.id===id);
+    state.fuel[idx] = {...state.fuel[idx], ...payload};
+  } else {
+    state.fuel.push({id: uid(), ...payload});
+  }
+  if(payload.km > (state.vehicle.km||0)){
+    state.vehicle.km = payload.km;
+    state.vehicle.kmUpdatedAt = todayISO();
+  }
+  saveState();
+  closeAllSheets();
+  renderAll();
+  toast('Tanqueo guardado');
+}
+function deleteFuel(){
+  const id = document.getElementById('fuelId').value;
+  state.fuel = state.fuel.filter(x=>x.id!==id);
+  saveState();
+  closeAllSheets();
+  renderAll();
+  toast('Tanqueo eliminado');
+}
+/* rendimiento km/galón entre tanqueos consecutivos, ordenados por km */
+function fuelWithYield(){
+  const sorted = [...state.fuel].sort((a,b)=> a.km - b.km);
+  return sorted.map((f,i)=>{
+    if(i===0) return {...f, rendimiento:null};
+    const kmRec = f.km - sorted[i-1].km;
+    const rendimiento = kmRec > 0 && f.galones > 0 ? kmRec / f.galones : null;
+    return {...f, rendimiento};
+  });
+}
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+function emptyState(msg){
+  return `<div class="empty">
+    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#575D66" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+    <p>${msg}</p>
+  </div>`;
+}
+
+function renderHero(){
+  const v = state.vehicle;
+  const hasVehicle = v.marca || v.modelo;
+  const name = hasVehicle ? `${v.marca} ${v.modelo}` : 'Toca para agregar tu vehículo';
+  const sub = v.anio ? `${v.anio}` : '';
+
+  // status chips a partir de documentos
+  const chips = state.docs.map(d=>{
+    const days = daysUntil(d.vence);
+    const st = statusFromDays(days);
+    return `<div class="status-chip"><span class="status-dot ${st}"></span>${d.tipo}</div>`;
+  }).join('');
+
+  document.getElementById('heroCard').innerHTML = `
+    <div class="hero-top">
+      <div>
+        <div class="veh-name" onclick="openVehicleSheet()">${name}</div>
+        ${v.placa ? `<div class="veh-plate">${v.placa}${sub ? ' · '+sub : ''}</div>` : (sub ? `<div class="veh-plate">${sub}</div>` : '')}
+      </div>
+      <div class="odo" onclick="openVehicleSheetFocusKm()">
+        <div class="odo-val">${hasVehicle ? Number(v.km||0).toLocaleString('es-PE') : '—'}</div>
+        <div class="odo-label">km actuales</div>
+      </div>
+    </div>
+    ${chips ? `<div class="status-row">${chips}</div>` : ''}
+    ${kmReminderBanner()}
+  `;
+}
+
+const KM_REMINDER_DAYS = 15; // cada cuántos días recuerda actualizar el km
+
+function kmReminderBanner(){
+  if(!state.vehicle.marca && !state.vehicle.modelo) return '';
+  const last = state.vehicle.kmUpdatedAt;
+  const days = last ? daysUntil(last) : null; // negativo = días desde entonces
+  const daysSince = days !== null ? Math.abs(days) : null;
+  const needsUpdate = !last || daysSince >= KM_REMINDER_DAYS;
+  if(!needsUpdate) return '';
+  const msg = last ? `Sin actualizar hace ${daysSince} días` : 'Aún no registras tu kilometraje';
+  return `<div class="status-row" style="margin-top:8px;">
+    <div class="status-chip" onclick="openVehicleSheetFocusKm()" style="border-color:rgba(255,177,61,0.35); color:var(--warn); cursor:pointer;">
+      <span class="status-dot warn"></span>${msg} · Actualizar
+    </div>
+  </div>`;
+}
+
+function renderInicio(){
+  const withDays = state.docs
+    .map(d=>({...d, days: daysUntil(d.vence)}))
+    .filter(d=> d.vence)
+    .sort((a,b)=> a.days - b.days);
+
+  const proximos = withDays.slice(0,4);
+  document.getElementById('inicioProximos').innerHTML = proximos.length ? proximos.map(d=>{
+    const st = statusFromDays(d.days);
+    return `<div class="card" onclick="openDocSheet('${d.id}')">
+      <div class="card-row">
+        <div>
+          <div class="card-title">${d.tipo}</div>
+          <div class="card-sub">Vence ${fmtDate(d.vence)}</div>
+        </div>
+        <span class="badge ${st}">${statusLabel(d.days)}</span>
+      </div>
+    </div>`;
+  }).join('') : emptyState('No tienes documentos con vencimiento registrado');
+
+  // próximo mantenimiento: entradas con proxKm o proxFecha activos
+  const km = state.vehicle.km || 0;
+  const proxMant = state.mant
+    .filter(m=> m.proxKm || m.proxFecha)
+    .map(m=>{
+      let remainKm = m.proxKm ? m.proxKm - km : null;
+      let remainDays = m.proxFecha ? daysUntil(m.proxFecha) : null;
+      // prioriza el criterio más urgente para status/orden
+      let urgency = Infinity, st = 'ok', label = '';
+      if(remainKm !== null){
+        st = remainKm <= 0 ? 'danger' : (remainKm <= 500 ? 'warn' : 'ok');
+        label = remainKm <= 0 ? `Venció hace ${Math.abs(remainKm).toLocaleString('es-PE')} km` : `En ${remainKm.toLocaleString('es-PE')} km`;
+        urgency = remainKm;
+      }
+      if(remainDays !== null){
+        const stD = remainDays < 0 ? 'danger' : (remainDays <= 15 ? 'warn' : 'ok');
+        const labelD = statusLabel(remainDays);
+        if(remainKm === null || remainDays < urgency/50){ st = stD; label = label ? label+' · '+labelD : labelD; }
+      }
+      return {...m, _st:st, _label:label, _urgency: remainKm !== null ? remainKm : (remainDays!==null? remainDays*50 : Infinity)};
+    })
+    .sort((a,b)=> a._urgency - b._urgency)
+    .slice(0,3);
+
+  document.getElementById('inicioMantProx').innerHTML = proxMant.length ? proxMant.map(m=>`
+    <div class="card" onclick="openMantSheet('${m.id}')">
+      <div class="card-row">
+        <div>
+          <div class="card-title">${m.tipo}</div>
+          <div class="card-sub">Último: ${fmtDate(m.fecha)}${m.km ? ' · '+fmtKm(m.km) : ''}</div>
+        </div>
+        <span class="badge ${m._st}">${m._label}</span>
+      </div>
+    </div>
+  `).join('') : emptyState('Agrega un "próximo km/fecha" a un servicio para ver el recordatorio aquí');
+
+  // últimos movimientos: combinar mant + rep, ordenar por fecha desc
+  const movs = [
+    ...state.mant.map(m=>({...m, _tipo:'mant', _fecha:m.fecha})),
+    ...state.rep.map(r=>({...r, _tipo:'rep', _fecha:r.fecha}))
+  ].filter(x=>x._fecha).sort((a,b)=> new Date(b._fecha) - new Date(a._fecha)).slice(0,4);
+
+  document.getElementById('inicioUltimos').innerHTML = movs.length ? movs.map(m=>{
+    const isM = m._tipo==='mant';
+    return `<div class="card" onclick="${isM ? `openMantSheet('${m.id}')` : `openRepSheet('${m.id}')`}">
+      <div class="card-row">
+        <div>
+          <div class="card-title">${isM ? m.tipo : m.nombre}</div>
+          <div class="card-sub">${fmtDate(m._fecha)}${m.km ? ' · '+fmtKm(m.km) : ''}</div>
+        </div>
+        <span class="badge ok" style="background:var(--surface-2); color:var(--text-dim);">${isM ? 'Servicio' : 'Repuesto'}</span>
+      </div>
+    </div>`;
+  }).join('') : emptyState('Todavía no registraste mantenimiento ni repuestos');
+}
+
+function renderDocs(){
+  const list = [...state.docs].sort((a,b)=>{
+    if(!a.vence) return 1;
+    if(!b.vence) return -1;
+    return new Date(a.vence) - new Date(b.vence);
+  });
+  document.getElementById('docList').innerHTML = list.length ? list.map(d=>{
+    const days = daysUntil(d.vence);
+    const st = statusFromDays(days);
+    return `<div class="card" onclick="openDocSheet('${d.id}')">
+      <div class="card-row">
+        <div>
+          <div class="card-title">${d.tipo}</div>
+          <div class="card-sub">${d.emision ? 'Emitido '+fmtDate(d.emision) : 'Sin fecha de emisión'}</div>
+        </div>
+        ${d.vence ? `<span class="badge ${st}">${statusLabel(days)}</span>` : ''}
+      </div>
+      ${d.vence || d.notas ? `<div class="card-meta">
+        ${d.vence ? `<div class="meta-item">Vence<b>${fmtDate(d.vence)}</b></div>` : ''}
+        ${d.notas ? `<div class="meta-item">Notas<b style="font-family:'Inter',sans-serif; font-weight:500;">${d.notas}</b></div>` : ''}
+      </div>` : ''}
+    </div>`;
+  }).join('') : emptyState('Agrega tu SOAT, revisión técnica u otro documento');
+}
+
+function renderMant(){
+  const list = [...state.mant].sort((a,b)=> new Date(b.fecha||0) - new Date(a.fecha||0));
+  document.getElementById('mantList').innerHTML = list.length ? list.map(m=>`
+    <div class="card" onclick="openMantSheet('${m.id}')">
+      <div class="card-row">
+        <div>
+          <div class="card-title">${m.tipo}</div>
+          <div class="card-sub">${m.taller || 'Taller no especificado'}</div>
+        </div>
+        <span class="badge ok" style="background:var(--surface-2); color:var(--text-dim);">${fmtDate(m.fecha)}</span>
+      </div>
+      <div class="card-meta">
+        <div class="meta-item">Kilometraje<b>${fmtKm(m.km)}</b></div>
+        <div class="meta-item">Costo<b>${fmtMoney(m.costo)}</b></div>
+      </div>
+    </div>
+  `).join('') : emptyState('Registra tu primer cambio de aceite o servicio');
+}
+
+function renderRep(){
+  const list = [...state.rep].sort((a,b)=> new Date(b.fecha||0) - new Date(a.fecha||0));
+  document.getElementById('repList').innerHTML = list.length ? list.map(r=>{
+    const gDays = r.garantia ? daysUntil(r.garantia) : null;
+    return `<div class="card" onclick="openRepSheet('${r.id}')">
+      <div class="card-row">
+        <div>
+          <div class="card-title">${r.nombre}</div>
+          <div class="card-sub">${r.marca || 'Marca no especificada'}</div>
+        </div>
+        <span class="badge ok" style="background:var(--surface-2); color:var(--text-dim);">${fmtDate(r.fecha)}</span>
+      </div>
+      <div class="card-meta">
+        <div class="meta-item">Kilometraje<b>${fmtKm(r.km)}</b></div>
+        <div class="meta-item">Costo<b>${fmtMoney(r.costo)}</b></div>
+        ${r.garantia ? `<div class="meta-item">Garantía<b style="color:${gDays<0?'var(--danger)':'var(--text)'}">${fmtDate(r.garantia)}</b></div>` : ''}
+      </div>
+    </div>`;
+  }).join('') : emptyState('Registra baterías, llantas, frenos y más');
+}
+
+function renderFuel(){
+  const withYield = fuelWithYield().sort((a,b)=> new Date(b.fecha||0) - new Date(a.fecha||0));
+
+  // stats: rendimiento promedio y gasto del mes
+  const yields = withYield.map(f=>f.rendimiento).filter(v=>v!==null);
+  const avgYield = yields.length ? (yields.reduce((a,b)=>a+b,0)/yields.length) : null;
+  const thisMonth = new Date().toISOString().slice(0,7);
+  const gastoMes = state.fuel.filter(f=> (f.fecha||'').slice(0,7)===thisMonth).reduce((s,f)=>s+(f.costo||0),0);
+
+  document.getElementById('fuelStats').innerHTML = `
+    <div class="kpi-grid" style="margin-top:0; margin-bottom:16px;">
+      <div class="kpi-card">
+        <div class="kpi-label">Rendimiento prom.</div>
+        <div class="kpi-value small">${avgYield ? avgYield.toFixed(1)+' km/gal' : '—'}</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Gasto este mes</div>
+        <div class="kpi-value small">${fmtMoney(gastoMes)}</div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('fuelList').innerHTML = withYield.length ? withYield.map(f=>`
+    <div class="card" onclick="openFuelSheet('${f.id}')">
+      <div class="card-row">
+        <div>
+          <div class="card-title">${f.grifo || 'Tanqueo'}</div>
+          <div class="card-sub">${fmtDate(f.fecha)} · ${fmtKm(f.km)}</div>
+        </div>
+        <span class="badge ok" style="background:var(--surface-2); color:var(--text-dim);">${fmtMoney(f.costo)}</span>
+      </div>
+      <div class="card-meta">
+        <div class="meta-item">Galones<b>${f.galones}</b></div>
+        <div class="meta-item">Rendimiento<b>${f.rendimiento ? f.rendimiento.toFixed(1)+' km/gal' : '—'}</b></div>
+      </div>
+    </div>
+  `).join('') : emptyState('Registra tu primer tanqueo para calcular rendimiento');
+}
+
+/* ============================================================
+   KPIs FINANCIEROS + GRÁFICO DE GASTOS
+   ============================================================ */
+function allExpenses(){
+  return [
+    ...state.mant.filter(m=>m.costo).map(m=>({fecha:m.fecha, costo:m.costo})),
+    ...state.rep.filter(r=>r.costo).map(r=>({fecha:r.fecha, costo:r.costo})),
+    ...state.fuel.filter(f=>f.costo).map(f=>({fecha:f.fecha, costo:f.costo}))
+  ].filter(x=>x.fecha);
+}
+
+function renderKPIs(){
+  const exp = allExpenses();
+  const total = exp.reduce((s,x)=>s+x.costo,0);
+  const thisMonth = new Date().toISOString().slice(0,7);
+  const esteMes = exp.filter(x=> x.fecha.slice(0,7)===thisMonth).reduce((s,x)=>s+x.costo,0);
+  const km = state.vehicle.km || 0;
+  const costoPorKm = km > 0 ? total / km : null;
+  const yields = fuelWithYield().map(f=>f.rendimiento).filter(v=>v!==null);
+  const avgYield = yields.length ? yields.reduce((a,b)=>a+b,0)/yields.length : null;
+
+  document.getElementById('kpiGrid').innerHTML = `
+    <div class="kpi-card">
+      <div class="kpi-label">Invertido total</div>
+      <div class="kpi-value">${fmtMoney(total)}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Este mes</div>
+      <div class="kpi-value">${fmtMoney(esteMes)}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Costo por km</div>
+      <div class="kpi-value small">${costoPorKm ? 'S/ '+costoPorKm.toFixed(2) : '—'}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Rendimiento</div>
+      <div class="kpi-value small">${avgYield ? avgYield.toFixed(1)+' km/gal' : '—'}</div>
+    </div>
+  `;
+}
+
+function renderChart(){
+  const canvas = document.getElementById('spendChart');
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const cssWidth = canvas.clientWidth || (canvas.parentElement.clientWidth - 28);
+  const cssHeight = 110;
+  canvas.width = cssWidth * dpr;
+  canvas.height = cssHeight * dpr;
+  canvas.style.width = cssWidth + 'px';
+  canvas.style.height = cssHeight + 'px';
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,cssWidth,cssHeight);
+
+  // últimos 6 meses
+  const months = [];
+  const now = new Date();
+  for(let i=5;i>=0;i--){
+    const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+    months.push({key: d.toISOString().slice(0,7), label: d.toLocaleDateString('es-PE',{month:'short'})});
+  }
+  const exp = allExpenses();
+  const totals = months.map(m=> exp.filter(x=>x.fecha.slice(0,7)===m.key).reduce((s,x)=>s+x.costo,0));
+  const max = Math.max(...totals, 1);
+
+  const padBottom = 18, padTop = 6;
+  const barAreaH = cssHeight - padBottom - padTop;
+  const gap = 10;
+  const barW = (cssWidth - gap*(months.length+1)) / months.length;
+
+  months.forEach((m,i)=>{
+    const h = (totals[i]/max) * barAreaH;
+    const x = gap + i*(barW+gap);
+    const y = padTop + (barAreaH - h);
+    ctx.fillStyle = totals[i] > 0 ? '#3DDC97' : '#262B31';
+    ctx.beginPath();
+    const r = 4;
+    ctx.moveTo(x, y+Math.max(h,3));
+    ctx.arcTo(x, y, x+r, y, r);
+    ctx.arcTo(x+barW, y, x+barW, y+r, r);
+    ctx.lineTo(x+barW, y+Math.max(h,3));
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = '#575D66';
+    ctx.font = '10px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(m.label, x+barW/2, cssHeight-4);
+  });
+}
+
+/* ============================================================
+   BÚSQUEDA GLOBAL
+   ============================================================ */
+function openSearchSheet(){
+  document.getElementById('searchInput').value = '';
+  document.getElementById('searchResults').innerHTML = '';
+  openSheet('sheetSearch');
+  setTimeout(()=> document.getElementById('searchInput').focus(), 320);
+}
+function renderSearch(){
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  const container = document.getElementById('searchResults');
+  if(!q){ container.innerHTML = ''; return; }
+
+  const results = [];
+  state.docs.forEach(d=>{
+    if((d.tipo+' '+(d.notas||'')).toLowerCase().includes(q))
+      results.push({cat:'Documento', title:d.tipo, sub:fmtDate(d.vence), action:`openDocSheet('${d.id}')`});
+  });
+  state.mant.forEach(m=>{
+    if((m.tipo+' '+(m.taller||'')+' '+(m.notas||'')).toLowerCase().includes(q))
+      results.push({cat:'Servicio', title:m.tipo, sub:fmtDate(m.fecha)+(m.taller?' · '+m.taller:''), action:`openMantSheet('${m.id}')`});
+  });
+  state.rep.forEach(r=>{
+    if((r.nombre+' '+(r.marca||'')).toLowerCase().includes(q))
+      results.push({cat:'Repuesto', title:r.nombre, sub:fmtDate(r.fecha), action:`openRepSheet('${r.id}')`});
+  });
+  state.fuel.forEach(f=>{
+    if(((f.grifo||'')+' tanqueo').toLowerCase().includes(q))
+      results.push({cat:'Combustible', title:f.grifo || 'Tanqueo', sub:fmtDate(f.fecha), action:`openFuelSheet('${f.id}')`});
+  });
+
+  container.innerHTML = results.length ? results.map(r=>`
+    <div class="search-result" onclick="closeAllSheets(); ${r.action}">
+      <div>
+        <div class="search-result-title">${r.title}</div>
+        <div class="search-result-sub">${r.sub}</div>
+      </div>
+      <div class="search-result-cat">${r.cat}</div>
+    </div>
+  `).join('') : `<div class="empty"><p>Sin resultados para "${q}"</p></div>`;
+}
+
+/* ============================================================
+   BACKUP — exportar / importar JSON
+   ============================================================ */
+function exportData(){
+  const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `autoctrl-backup-${todayISO()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast('Backup descargado');
+}
+function importData(file){
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e=>{
+    try{
+      const parsed = JSON.parse(e.target.result);
+      state = normalizeState(parsed);
+      saveState();
+      closeAllSheets();
+      renderAll();
+      toast('Datos importados');
+    }catch(err){
+      toast('Archivo inválido');
+    }
+  };
+  reader.readAsText(file);
+}
+
+function renderAll(){
+  renderHero();
+  renderKPIs();
+  renderInicio();
+  renderDocs();
+  renderMant();
+  renderFuel();
+  renderRep();
+  renderChart();
+}
+renderAll();
+window.addEventListener('resize', ()=> renderChart());
+
+/* ============================================================
+   NOTIFICACIONES PUSH (locales) — avisa cuando un documento
+   está por vencer. Requiere permiso del navegador/PWA instalada.
+   ============================================================ */
+async function checkNotifications(){
+  if(!('Notification' in window)) return;
+  if(Notification.permission === 'default'){
+    // Se pide el permiso la primera vez que hay algo por vencer,
+    // no apenas se abre la app.
+  }
+  const soon = state.docs.filter(d=>{
+    const days = daysUntil(d.vence);
+    return days !== null && days >= 0 && days <= 15;
+  });
+  const last = state.vehicle.kmUpdatedAt;
+  const daysSinceKm = last ? Math.abs(daysUntil(last)) : null;
+  const kmDue = (state.vehicle.marca || state.vehicle.modelo) && (!last || daysSinceKm >= KM_REMINDER_DAYS);
+
+  if(soon.length === 0 && !kmDue) return;
+
+  if(Notification.permission === 'granted'){
+    const lastNotified = localStorage.getItem('autoctrl_last_notif');
+    const today = new Date().toDateString();
+    if(lastNotified === today) return; // máximo 1 notificación al día
+    soon.forEach(d=>{
+      const days = daysUntil(d.vence);
+      new Notification('AutoCTRL', {
+        body: `${d.tipo} ${days===0 ? 'vence hoy' : 'vence en '+days+' días'}`,
+        icon: '', tag: 'autoctrl-'+d.id
+      });
+    });
+    if(kmDue){
+      new Notification('AutoCTRL', {
+        body: last ? `Actualiza tu kilometraje (sin cambios hace ${daysSinceKm} días)` : 'Registra el kilometraje de tu vehículo',
+        icon: '', tag: 'autoctrl-km'
+      });
+    }
+    localStorage.setItem('autoctrl_last_notif', today);
+  } else if(Notification.permission !== 'denied'){
+    Notification.requestPermission().then(()=> checkNotifications());
+  }
+}
+setTimeout(checkNotifications, 1200);
+
+/* Registrar service worker mínimo para instalar como PWA */
+if('serviceWorker' in navigator){
+  const swCode = `self.addEventListener('install', e=>self.skipWaiting()); self.addEventListener('activate', e=>self.clients.claim());`;
+  const blob = new Blob([swCode], {type:'application/javascript'});
+  navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(()=>{});
+}
+</script>
+</body>
+</html>
