@@ -195,6 +195,15 @@ document.getElementById("btn-scan").onclick = async () => {
   const matchedFull = [];
   notFound = [];
 
+  // Set de IDs de producto que SÍ existen hoy en el catálogo
+  const validProductIds = new Set(products.map(p => p.id));
+  function hasUsableProducts(r){
+    if(!Array.isArray(r.products) || r.products.length === 0) return false;
+    // Si ninguno de los IDs guardados existe hoy en el catálogo, están huérfanos:
+    // técnicamente "tiene datos" pero en la app no se puede mostrar nada.
+    return r.products.some(id => validProductIds.has(id));
+  }
+
   EXCEL_ROWS.forEach(row => {
     const candidates = byDate[row.fecha] || [];
     let best = null, bestScore = 0;
@@ -208,13 +217,18 @@ document.getElementById("btn-scan").onclick = async () => {
     });
 
     if(best && bestScore >= 70){
-      // Determine which fields are empty in Firebase doc that Excel could fill
+      // Determine which fields are empty (o inservibles) en el doc de Firebase
       const fillFields = {};
       if(!best.distrito && row.distrito) fillFields.distrito = row.distrito;
       if(!best.event && row.tipo_evento) fillFields.event = row.tipo_evento;
       if((!best.total || best.total===0) && row.total) fillFields.total = Number(row.total);
       if((!best.adelanto || best.adelanto===0) && row.adelanto) fillFields.adelanto = Number(row.adelanto);
-      if((!best.products || best.products.length===0) && row.servicios) fillFields.__servicios_text = row.servicios;
+      if(!hasUsableProducts(best) && row.servicios){
+        fillFields.__servicios_text = row.servicios;
+        if(Array.isArray(best.products) && best.products.length > 0){
+          fillFields.__productos_huerfanos = best.products.join(", ");
+        }
+      }
       if((!best.notes) && row.estado) fillFields.__estado_note = row.estado;
 
       if(Object.keys(fillFields).length > 0){
@@ -223,6 +237,7 @@ document.getElementById("btn-scan").onclick = async () => {
         matchedFull.push({row, resDoc: best});
       }
     } else {
+
       // guess product ids from servicios text
       const svcList = (row.servicios||"").split(",").map(s=>s.trim()).filter(Boolean);
       const guessedIds = [];
@@ -252,6 +267,7 @@ function renderTables(){
   matchedEmpty.forEach((m, i) => {
     const fieldsTxt = Object.entries(m.fillFields).map(([k,v]) => {
       if(k==="__servicios_text") return "servicios: " + v;
+      if(k==="__productos_huerfanos") return "⚠️ IDs viejos sin producto: " + v;
       if(k==="__estado_note") return "nota estado: " + v;
       return k + ": " + v;
     }).join(" · ");
