@@ -91,6 +91,21 @@
   <div class="log hidden" id="log2"></div>
 </div>
 
+<div class="card hidden" id="products-card">
+  <div class="section-title">🆕 Productos que no existen en tu catálogo</div>
+  <p class="muted" style="font-size:12px;margin-top:-4px">
+    Estos nombres aparecieron en Calendar pero no se encontró un producto que los cubra. Elige cuáles crear,
+    ajusta categoría y precio (quedan en S/ 0 hasta que tú los edites en la app si lo dejas así). Crea primero
+    esto y luego vuelve a darle "Analizar" para que las reservas de arriba se emparejen bien con lo nuevo.
+  </p>
+  <div class="tablewrap"><table id="tbl-missing-products">
+    <thead><tr><th><input type="checkbox" id="chk-all-mp"></th><th>Nombre detectado</th><th>Usado en</th><th>Categoría</th><th>Precio (S/)</th></tr></thead>
+    <tbody></tbody>
+  </table></div>
+  <button class="btn btn-primary" id="btn-create-products" style="margin-top:12px">➕ Crear productos seleccionados</button>
+  <div class="log hidden" id="log3"></div>
+</div>
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getFirestore, collection, getDocs, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
@@ -116,6 +131,7 @@ let reservations = [];
 let products = [];
 let matchedEmpty = [];   // {excelRow, resDoc, fillFields:{...}}
 let notFound = [];       // {excelRow, guessedProductIds, unmatchedServices}
+let missingProducts = new Map();
 
 function norm(s){
   return (s||"").toString().toLowerCase()
@@ -124,12 +140,48 @@ function norm(s){
 }
 
 // Nombres viejos de Calendar -> nombre actual en el catálogo.
-// "H2O" y "H20" eran el mismo producto, ahora se llama "Slide".
-// "Tropical" es un producto nuevo y distinto, NO se alía con nada.
-const NAME_ALIASES = { "h2o": "slide", "h20": "slide" };
-function normService(s){
-  const n = norm(s);
-  return NAME_ALIASES[n] || n;
+// Se compara la FRASE COMPLETA (ya sin palabras genéricas) contra "from";
+// si coincide exacto, se reemplaza por "to". Así "Circuito 1/2/3" (específicos)
+// no se ven afectados, solo el "circuito" genérico y ambiguo.
+const PHRASE_ALIASES = [
+  { from: ["h2o"], to: ["slide"] },              // "H2O" ahora se llama "Slide"
+  { from: ["h20"], to: ["slide"] },
+  { from: ["circuito"], to: ["circuito","completo"] }, // "Circuito" (sin número) ahora es "Circuito completo"
+];
+// "Tropical" y "Princesas" son productos que NO se alían con nada: si no existen
+// todavía en el catálogo, deben quedar como "sin match" para revisión manual.
+
+// Palabras muy genéricas que no ayudan a identificar el producto (se ignoran al comparar)
+const STOPWORDS = new Set(["inflable","carrito","de","con","y","el","la","los","las"]);
+
+function svcTokens(s){
+  let t = norm(s).split(" ").filter(Boolean).filter(w => !STOPWORDS.has(w));
+  for(const alias of PHRASE_ALIASES){
+    if(t.length === alias.from.length && alias.from.every((w,i) => t[i] === w)){
+      t = alias.to.slice();
+      break;
+    }
+  }
+  return t;
+}
+function prodTokens(name){
+  return norm(name).split(" ").filter(Boolean).filter(w => !STOPWORDS.has(w));
+}
+
+// Solo confirma match si TODAS las palabras del nombre del producto están en el texto del servicio.
+// Si el texto es ambiguo (ej: "circuito" sin número) y el producto requiere más especificidad
+// (ej: "Circuito 1"), NO adivina — devuelve null y se deja para revisión manual.
+function matchProduct(svcText, products){
+  const st = new Set(svcTokens(svcText));
+  if(st.size === 0) return null;
+  let best = null, bestLen = -1;
+  products.forEach(p => {
+    const pt = prodTokens(p.name);
+    if(pt.length === 0) return;
+    const allIn = pt.every(w => st.has(w));
+    if(allIn && pt.length > bestLen){ best = p; bestLen = pt.length; }
+  });
+  return best;
 }
 
 document.getElementById("btn-login").onclick = async () => {
@@ -204,6 +256,14 @@ document.getElementById("btn-scan").onclick = async () => {
     return r.products.some(id => validProductIds.has(id));
   }
 
+  missingProducts = new Map(); // nombre normalizado -> {label, count}
+  function addMissingProduct(svc){
+    const key = norm(svc);
+    if(!key) return;
+    if(missingProducts.has(key)) missingProducts.get(key).count++;
+    else missingProducts.set(key, { label: svc.trim(), count: 1 });
+  }
+
   EXCEL_ROWS.forEach(row => {
     const candidates = byDate[row.fecha] || [];
     let best = null, bestScore = 0;
@@ -228,6 +288,10 @@ document.getElementById("btn-scan").onclick = async () => {
         if(Array.isArray(best.products) && best.products.length > 0){
           fillFields.__productos_huerfanos = best.products.join(", ");
         }
+        // También detectamos aquí qué nombres no encuentran producto, para la lista de "faltantes"
+        row.servicios.split(",").map(s=>s.trim()).filter(Boolean).forEach(svc => {
+          if(!matchProduct(svc, products)) addMissingProduct(svc);
+        });
       }
       if((!best.notes) && row.estado) fillFields.__estado_note = row.estado;
 
@@ -243,22 +307,22 @@ document.getElementById("btn-scan").onclick = async () => {
       const guessedIds = [];
       const unmatched = [];
       svcList.forEach(svc => {
-        const svcN = normService(svc);
-        let match = products.find(p => norm(p.name) === svcN);
-        if(!match) match = products.find(p => svcN.includes(norm(p.name)) || norm(p.name).includes(svcN));
-        if(match) guessedIds.push(match.id); else unmatched.push(svc);
+        const match = matchProduct(svc, products);
+        if(match) guessedIds.push(match.id); else { unmatched.push(svc); addMissingProduct(svc); }
       });
       notFound.push({row, guessedIds, unmatched});
     }
   });
 
   log("log", `✔ Listo. ${matchedFull.length} ya completas, ${matchedEmpty.length} para rellenar, ${notFound.length} sin encontrar en la app.`);
+  log("log", `⚠ ${missingProducts.size} nombres de producto distintos no existen en tu catálogo.`);
 
   document.getElementById("cnt-full").textContent = matchedFull.length;
   document.getElementById("cnt-empty").textContent = matchedEmpty.length;
   document.getElementById("cnt-new").textContent = notFound.length;
   document.getElementById("report-card").classList.remove("hidden");
   renderTables();
+  renderMissingProducts();
 };
 
 function renderTables(){
@@ -318,9 +382,7 @@ document.getElementById("btn-apply").onclick = async () => {
       const ids = [];
       const unmatched = [];
       svcList.forEach(svc => {
-        const svcN = normService(svc);
-        let match = products.find(p => norm(p.name) === svcN);
-        if(!match) match = products.find(p => svcN.includes(norm(p.name)) || norm(p.name).includes(svcN));
+        const match = matchProduct(svc, products);
         if(match) ids.push(match.id); else unmatched.push(svc);
       });
       if(ids.length) patch.products = ids;
@@ -362,6 +424,66 @@ document.getElementById("btn-apply").onclick = async () => {
 
   log("log2", `\n🎉 Listo. ${updated} reservas actualizadas, ${created} reservas nuevas creadas.`);
   alert(`Listo ✅\n${updated} actualizadas, ${created} creadas.`);
+};
+
+const CATS = ["inflable","mobiliario","snack","otros"];
+
+function renderMissingProducts(){
+  const card = document.getElementById("products-card");
+  const tb = document.querySelector("#tbl-missing-products tbody");
+  tb.innerHTML = "";
+  if(missingProducts.size === 0){ card.classList.add("hidden"); return; }
+  card.classList.remove("hidden");
+  let i = 0;
+  missingProducts.forEach((info, key) => {
+    const idx = i++;
+    const cat = guessCategory(info.label);
+    const tr = document.createElement("tr");
+    tr.dataset.key = key;
+    tr.innerHTML = `<td><input type="checkbox" class="chk-mp" data-key="${escapeHtml(key)}" checked></td>
+      <td>${escapeHtml(info.label)}</td>
+      <td class="muted">${info.count} reserva(s)</td>
+      <td><select class="mp-cat">${CATS.map(c=>`<option value="${c}" ${c===cat?"selected":""}>${c}</option>`).join("")}</select></td>
+      <td><input type="number" class="mp-price" value="0" min="0" step="1" style="width:80px"></td>`;
+    tb.appendChild(tr);
+  });
+  document.getElementById("chk-all-mp").onchange = (e) => {
+    document.querySelectorAll(".chk-mp").forEach(c => c.checked = e.target.checked);
+  };
+}
+
+function guessCategory(label){
+  const n = norm(label);
+  const snackWords = ["pop corn","popcorn","algodon","hamburguesa","hot dog","panchos","churros","manzana","tequeno","salchipapa","chicha","donofrio","helado"];
+  const mobWords = ["salita","lounge","mesa","silla","barra","grass"];
+  if(snackWords.some(w => n.includes(w))) return "snack";
+  if(mobWords.some(w => n.includes(w))) return "mobiliario";
+  return "inflable";
+}
+
+document.getElementById("btn-create-products").onclick = async () => {
+  document.getElementById("btn-create-products").disabled = true;
+  let created = 0;
+  const rows = [...document.querySelectorAll("#tbl-missing-products tbody tr")];
+  for(const tr of rows){
+    const chk = tr.querySelector(".chk-mp");
+    if(!chk.checked) continue;
+    const key = chk.dataset.key;
+    const info = missingProducts.get(key);
+    const category = tr.querySelector(".mp-cat").value;
+    const price = Number(tr.querySelector(".mp-price").value) || 0;
+    // Nombre "bonito": primera letra de cada palabra en mayúscula
+    const name = info.label.replace(/\s+/g," ").trim()
+      .split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ");
+    const id = "p" + Date.now() + Math.floor(Math.random()*1000);
+    const newProduct = { id, name, category, price, available:true, stock:1, description:"[Creado desde recuperación de Calendar]", emoji:"🆕", photo:"" };
+    await setDoc(doc(db, "products", id), newProduct);
+    products.push(newProduct);
+    created++;
+    log("log3", `✔ Producto creado: ${name} (${category}, S/ ${price})`);
+  }
+  log("log3", `\n🎉 ${created} productos creados. Vuelve a darle "Analizar" para que las reservas de arriba se re-emparejen con lo nuevo.`);
+  alert(`Listo ✅\n${created} productos creados.\nAhora dale de nuevo a "Analizar" para re-emparejar las reservas.`);
 };
 </script>
 </body>
