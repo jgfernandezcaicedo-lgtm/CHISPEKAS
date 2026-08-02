@@ -147,25 +147,83 @@ const PHRASE_ALIASES = [
   { from: ["h2o"], to: ["slide"] },              // "H2O" ahora se llama "Slide"
   { from: ["h20"], to: ["slide"] },
   { from: ["circuito"], to: ["circuito","completo"] }, // "Circuito" (sin número) ahora es "Circuito completo"
+  { from: ["panchitos"], to: ["panchos"] },      // "Panchitos" = "Panchos"
+  { from: ["pan","hot","dog"], to: ["panchos"] },// "Pan con Hot Dog" = "Panchos"
 ];
 // "Tropical" y "Princesas" son productos que NO se alían con nada: si no existen
 // todavía en el catálogo, deben quedar como "sin match" para revisión manual.
 
-// Palabras muy genéricas que no ayudan a identificar el producto (se ignoran al comparar)
-const STOPWORDS = new Set(["inflable","carrito","de","con","y","el","la","los","las"]);
+// Palabras muy genéricas que no ayudan a identificar el producto (se ignoran al comparar).
+// "m2" se ignora porque el área (80 m2, 100 m2...) no cambia qué producto es (el grass es el grass).
+const STOPWORDS = new Set(["inflable","carrito","de","con","y","el","la","los","las","m2"]);
+
+// Quita un número de CANTIDAD al inicio del texto (ej: "50 algodón dulce" -> "algodón dulce",
+// "2 Salitas Lounge" -> "Salitas Lounge"). No toca números que van AL FINAL o en medio
+// (esos suelen ser tamaño/modelo real del producto, ej "Cama saltarina 3 mt", "Circuito 3").
+function stripLeadingQty(tokens){
+  if(tokens.length > 1 && /^\d+([.,]\d+)?$/.test(tokens[0])) return tokens.slice(1);
+  return tokens;
+}
+
+// Normaliza plural/singular de forma simple (salitas->salita, hamburguesas->hamburguesa)
+// para que no importe si el texto o el catálogo usan una u otra forma.
+// No toca "grass" ni palabras que terminan en doble "s".
+function stem(w){
+  if(/^\d/.test(w)) return w;
+  if(w.length > 4 && w.endsWith("s") && !w.endsWith("ss")) return w.slice(0, -1);
+  return w;
+}
 
 function svcTokens(s){
   let t = norm(s).split(" ").filter(Boolean).filter(w => !STOPWORDS.has(w));
+  t = stripLeadingQty(t);
   for(const alias of PHRASE_ALIASES){
     if(t.length === alias.from.length && alias.from.every((w,i) => t[i] === w)){
       t = alias.to.slice();
       break;
     }
   }
-  return t;
+  return t.map(stem);
 }
 function prodTokens(name){
-  return norm(name).split(" ").filter(Boolean).filter(w => !STOPWORDS.has(w));
+  return norm(name).split(" ").filter(Boolean).filter(w => !STOPWORDS.has(w)).map(stem);
+}
+
+// Versión "bonita" del texto de servicio, sin la cantidad inicial, para mostrar y agrupar
+// (así "50 algodón dulce" y "80 algodón dulce" cuentan como el mismo nombre detectado).
+function cleanServiceLabel(s){
+  let raw = (s||"").trim();
+  const m = raw.match(/^(\d+([.,]\d+)?)\s+(.+)$/);
+  raw = m ? m[3].trim() : raw;
+  // Quita unidades sueltas de área (m2, m²) que no aportan al nombre del producto
+  raw = raw.replace(/\b[mM]2\b/g, "").replace(/\s+/g," ").trim();
+  return raw;
+}
+
+// Lista de distritos que aparecen en tus datos (Lima, Callao y alrededores).
+// Ordenados de más largo a más corto para no confundir "San Juan de Miraflores" con "San Juan de Lurigancho".
+const DISTRITOS = [
+  "San Juan de Miraflores","San Juan de Lurigancho","San Martín de Porres",
+  "Villa María del Triunfo","Villa el Salvador","Santiago de Surco",
+  "Punta Hermosa","Punta Negra","Santa María","San Isidro","San Miguel",
+  "San Borja","San Luis","La Molina","La Victoria","La Perla","La Punta",
+  "Los Olivos","Puente Piedra","Santa Anita","Independencia","Carabayllo",
+  "Chaclacayo","Cieneguilla","Pachacamac","Chorrillos","Barranco","Surquillo",
+  "Miraflores","Surco","Comas","Rimac","Rímac","Breña","Ate","Lince",
+  "Callao","Lurin","Lurín","Pucusana","San Bartolo","Bellavista",
+  "El Agustino","Jesús Maria","Jesús María","Cercado de Lima","Huachipa",
+  "Cañete","Imperial","Chincha","Asia","Paracas","Huacho","Mala",
+];
+function extractDistrito(rawLocation){
+  const raw = (rawLocation || "").trim();
+  if(!raw) return "";
+  const n = norm(raw);
+  for(const d of DISTRITOS){
+    if(n.includes(norm(d))) return d;
+  }
+  // Si no reconocemos ningún distrito conocido, devolvemos el primer segmento
+  // (antes de la primera coma) como mejor intento, no la dirección completa.
+  return raw.split(",")[0].trim();
 }
 
 // Solo confirma match si TODAS las palabras del nombre del producto están en el texto del servicio.
@@ -233,6 +291,10 @@ document.getElementById("btn-scan").onclick = async () => {
   products = pSnap.docs.map(d => d.data());
   log("log", `→ ${products.length} productos en el catálogo.`);
 
+  const realCats = [...new Set(products.map(p => p.category).filter(Boolean))];
+  if(realCats.length > 0) CATS = realCats;
+  log("log", `→ Categorías detectadas en tu catálogo: ${CATS.join(", ")}`);
+
   log("log", `Comparando contra ${EXCEL_ROWS.length} eventos del Excel...`);
 
   // Index reservations by date for faster lookup
@@ -257,11 +319,22 @@ document.getElementById("btn-scan").onclick = async () => {
   }
 
   missingProducts = new Map(); // nombre normalizado -> {label, count}
+  function canonicalLabel(svc){
+    const raw = cleanServiceLabel(svc);
+    const tokensNorm = norm(raw).split(" ").filter(Boolean).filter(w => !STOPWORDS.has(w));
+    for(const alias of PHRASE_ALIASES){
+      if(tokensNorm.length === alias.from.length && alias.from.every((w,i) => tokensNorm[i] === w)){
+        return alias.to.map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+      }
+    }
+    return raw;
+  }
   function addMissingProduct(svc){
-    const key = norm(svc);
+    const label = canonicalLabel(svc);
+    const key = norm(label);
     if(!key) return;
     if(missingProducts.has(key)) missingProducts.get(key).count++;
-    else missingProducts.set(key, { label: svc.trim(), count: 1 });
+    else missingProducts.set(key, { label, count: 1 });
   }
 
   EXCEL_ROWS.forEach(row => {
@@ -279,7 +352,7 @@ document.getElementById("btn-scan").onclick = async () => {
     if(best && bestScore >= 70){
       // Determine which fields are empty (o inservibles) en el doc de Firebase
       const fillFields = {};
-      if(!best.distrito && row.distrito) fillFields.distrito = row.distrito;
+      if(!best.distrito && row.distrito) fillFields.distrito = extractDistrito(row.distrito);
       if(!best.event && row.tipo_evento) fillFields.event = row.tipo_evento;
       if((!best.total || best.total===0) && row.total) fillFields.total = Number(row.total);
       if((!best.adelanto || best.adelanto===0) && row.adelanto) fillFields.adelanto = Number(row.adelanto);
@@ -348,7 +421,7 @@ function renderTables(){
     const tr = document.createElement("tr");
     tr.innerHTML = `<td><input type="checkbox" class="chk-new" data-i="${i}"></td>
       <td>${m.row.fecha}</td><td>${escapeHtml(m.row.cliente)}</td>
-      <td>${escapeHtml(m.row.distrito)}</td>
+      <td>${escapeHtml(extractDistrito(m.row.distrito))}</td>
       <td>${escapeHtml(m.row.servicios)}${m.unmatched.length? '<br><span class="muted">sin match: '+escapeHtml(m.unmatched.join(", "))+'</span>':''}</td>
       <td>${m.row.total||""}</td>`;
     tbNew.appendChild(tr);
@@ -410,7 +483,7 @@ document.getElementById("btn-apply").onclick = async () => {
       payStatus: m.row.adelanto ? "parcial" : "pendiente_pago",
       status: "confirmado",
       dni:"", ruc:"", razon:"",
-      direccion:"", distrito: m.row.distrito || "",
+      direccion:"", distrito: extractDistrito(m.row.distrito),
       notes: m.unmatched.length ? `[Recuperado de Calendar, sin match de producto]: ${m.unmatched.join(", ")}` : "[Recuperado desde Google Calendar]",
       source:"",
       products: m.guessedIds,
@@ -426,7 +499,7 @@ document.getElementById("btn-apply").onclick = async () => {
   alert(`Listo ✅\n${updated} actualizadas, ${created} creadas.`);
 };
 
-const CATS = ["inflable","mobiliario","snack","otros"];
+let CATS = ["inflable"]; // se reemplaza con tus categorías reales al analizar
 
 function renderMissingProducts(){
   const card = document.getElementById("products-card");
@@ -454,11 +527,24 @@ function renderMissingProducts(){
 
 function guessCategory(label){
   const n = norm(label);
-  const snackWords = ["pop corn","popcorn","algodon","hamburguesa","hot dog","panchos","churros","manzana","tequeno","salchipapa","chicha","donofrio","helado"];
-  const mobWords = ["salita","lounge","mesa","silla","barra","grass"];
-  if(snackWords.some(w => n.includes(w))) return "snack";
-  if(mobWords.some(w => n.includes(w))) return "mobiliario";
-  return "inflable";
+  const groups = [
+    { key: "saltarin",  words: ["saltarin","slide"] },
+    { key: "snack",     words: ["pop corn","popcorn","algodon","hamburguesa","hot dog","pancho","churro","manzana","tequeno","salchipapa","chicha","donofrio","helado"] },
+    { key: "mobiliario",words: ["salita","lounge","mesa","silla","barra"] },
+    { key: "juegos",    words: ["montana rusa","jenga","tobogan","piscina","pelotas","grass","personal"] },
+    { key: "inflable",  words: ["castillo","circuito","h2o","doble tobogan","princesas","tropical"] },
+  ];
+  // Busca, entre TUS categorías reales, cuál coincide (por substring) con el grupo detectado
+  function findRealCat(groupKey){
+    return CATS.find(c => norm(c).includes(groupKey) || groupKey.includes(norm(c)));
+  }
+  for(const g of groups){
+    if(g.words.some(w => n.includes(w))){
+      const real = findRealCat(g.key);
+      if(real) return real;
+    }
+  }
+  return CATS[0]; // si no logramos adivinar, la primera de tu lista real
 }
 
 document.getElementById("btn-create-products").onclick = async () => {
