@@ -94,7 +94,7 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getFirestore, collection, getDocs, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 const FIREBASE_CONFIG = {
   apiKey:            "AIzaSyDEMPKn-7GemMVVF4Yf7cYGDzrSoSrelbc",
@@ -134,8 +134,16 @@ function normService(s){
 
 document.getElementById("btn-login").onclick = async () => {
   try{
-    await signInWithRedirect(auth, provider);
-  }catch(e){ alert("Error al iniciar sesión: " + e.message); }
+    await signInWithPopup(auth, provider);
+  }catch(e){
+    // Si el navegador bloquea el pop-up, usamos redirección como respaldo
+    if(e && (e.code === "auth/popup-blocked" || e.code === "auth/popup-closed-by-user" || e.code === "auth/cancelled-popup-request")){
+      try{ await signInWithRedirect(auth, provider); }
+      catch(e2){ alert("Error al iniciar sesión: " + e2.message); }
+    } else {
+      alert("Error al iniciar sesión: " + e.message);
+    }
+  }
 };
 
 // Si venimos de vuelta de Google, procesar el resultado de la redirección
