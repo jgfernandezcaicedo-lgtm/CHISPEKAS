@@ -2809,6 +2809,7 @@ async function init(){
   window.reservations=reservations;
   reqNotif().then(()=>{scheduleSmartNotifs();scheduleBusinessAlerts();}).catch(()=>{});
   go("dashboard");  // Show app immediately
+  setTimeout(renderAll, 400); // re-render de seguridad
   document.getElementById("boot-loader")?.remove();
   initAuth();       // Auth check runs in background
   const invDate=document.getElementById("inv-date");
