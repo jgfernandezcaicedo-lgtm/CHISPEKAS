@@ -1,4 +1,4 @@
-const CACHE = "chispekas-v2";
+const CACHE = "chispekas-v3";
 const ASSETS = [
   "/CHISPEKAS/",
   "/CHISPEKAS/index.html",
