@@ -1704,11 +1704,16 @@ function tmplKpi(k) {
 
 /* Render All */
 function renderAll(){
-  if(tab==="chispekas-resumen")renderChispekasResumen();
-  if(tab==="reservas")renderRes();
-  if(tab==="catalogo"){renderCat();renderInv();}
-  if(tab==="financiero"){renderFin();renderAnalisis();renderRep();}
-  if(tab==="clientes")renderCli();
+  // Antes esto solo dibujaba la pestaña activa, y si esa sección tronaba
+  // en algún punto (ej. datos aún no listos), no se dibujaba nada — pantalla
+  // en blanco hasta que algo más disparara renderAll() de nuevo.
+  // Ahora se dibujan TODAS las secciones siempre, cada una aislada con
+  // try/catch para que un error en una no bloquee a las demás.
+  try{renderChispekasResumen();}catch(e){console.error("renderChispekasResumen:",e);}
+  try{renderRes();}catch(e){console.error("renderRes:",e);}
+  try{renderCat();renderInv();}catch(e){console.error("renderCat/Inv:",e);}
+  try{renderFin();renderAnalisis();renderRep();}catch(e){console.error("renderFin/Analisis/Rep:",e);}
+  try{renderCli();}catch(e){console.error("renderCli:",e);}
 }
 
 /* DASHBOARD */
@@ -3072,7 +3077,13 @@ function initAuth(){
       document.getElementById("login-overlay").style.display = "none";
       document.getElementById("login-overlay").style.flexDirection = "";
       updateUserUI(user);
-      if(!_authReady){ _authReady=true; }
+      if(!_authReady){
+        _authReady=true;
+        // La primerísima carga de datos pudo haber salido antes de que la
+        // sesión quedara confirmada (y Firestore rechazarla). Ahora que sí
+        // está confirmada, se vuelve a pedir todo por si acaso.
+        Store.loadAll();
+      }
     } else {
       // Not logged in — show login screen
       showLoginScreen();

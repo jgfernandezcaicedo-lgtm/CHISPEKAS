@@ -2060,7 +2060,7 @@ function initAuth(){
       document.getElementById("login-overlay").style.display = "none";
       document.getElementById("login-overlay").style.flexDirection = "";
       updateUserUI(user);
-      if(!_authReady){ _authReady=true; }
+      if(!_authReady){ _authReady=true; Store.loadAll(); }
     } else {
       // Not logged in — show login screen
       showLoginScreen();
