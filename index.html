@@ -8,8 +8,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="JGK Fernández">
-<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E %3Cdefs%3E %3ClinearGradient id='bg' x1='0' y1='0' x2='1' y2='1'%3E %3Cstop offset='0' stop-color='%232c2c2e'/%3E %3Cstop offset='1' stop-color='%231c1c1e'/%3E %3C/linearGradient%3E %3C/defs%3E %3Crect width='192' height='192' rx='40' fill='url(%23bg)'/%3E %3C!-- three connected nodes representing the three businesses --%3E %3Ccircle cx='96' cy='56' r='12' fill='%23f5a623'/%3E %3Ccircle cx='56' cy='128' r='12' fill='%230071e3'/%3E %3Ccircle cx='136' cy='128' r='12' fill='%233DDC97'/%3E %3Cpath d='M96 68 L60 118 M96 68 L132 118 M64 128 H128' stroke='%23ffffff' stroke-width='4' stroke-linecap='round' opacity='0.55'/%3E %3Ctext x='96' y='160' font-family='Georgia, serif' font-size='24' fill='%23ffffff' text-anchor='middle' letter-spacing='2'%3EJGK%3C/text%3E %3C/svg%3E">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E %3Cdefs%3E %3ClinearGradient id='bg' x1='0' y1='0' x2='1' y2='1'%3E %3Cstop offset='0' stop-color='%232c2c2e'/%3E %3Cstop offset='1' stop-color='%231c1c1e'/%3E %3C/linearGradient%3E %3C/defs%3E %3Crect width='192' height='192' rx='40' fill='url(%23bg)'/%3E %3C!-- three connected nodes representing the three businesses --%3E %3Ccircle cx='96' cy='56' r='12' fill='%23f5a623'/%3E %3Ccircle cx='56' cy='128' r='12' fill='%230071e3'/%3E %3Ccircle cx='136' cy='128' r='12' fill='%233DDC97'/%3E %3Cpath d='M96 68 L60 118 M96 68 L132 118 M64 128 H128' stroke='%23ffffff' stroke-width='4' stroke-linecap='round' opacity='0.55'/%3E %3Ctext x='96' y='160' font-family='Georgia, serif' font-size='24' fill='%23ffffff' text-anchor='middle' letter-spacing='2'%3EJGK%3C/text%3E %3C/svg%3E">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E %3Cdefs%3E %3ClinearGradient id='bg' x1='0' y1='0' x2='1' y2='1'%3E %3Cstop offset='0' stop-color='%232c2c2e'/%3E %3Cstop offset='1' stop-color='%231c1c1e'/%3E %3C/linearGradient%3E %3C/defs%3E %3Crect width='192' height='192' rx='40' fill='url(%23bg)'/%3E %3C!-- three linked nodes: the three businesses under one hub --%3E %3Cpath d='M96 67 L58 122 M96 67 L134 122 M64 132 H128' stroke='%23ffffff' stroke-width='7' stroke-linecap='round' opacity='0.55'/%3E %3Ccircle cx='96' cy='52' r='15' fill='%23f5a623'/%3E %3Ccircle cx='52' cy='132' r='15' fill='%230071e3'/%3E %3Ccircle cx='140' cy='132' r='15' fill='%233DDC97'/%3E %3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E %3Cdefs%3E %3ClinearGradient id='bg' x1='0' y1='0' x2='1' y2='1'%3E %3Cstop offset='0' stop-color='%232c2c2e'/%3E %3Cstop offset='1' stop-color='%231c1c1e'/%3E %3C/linearGradient%3E %3C/defs%3E %3Crect width='192' height='192' rx='40' fill='url(%23bg)'/%3E %3C!-- three linked nodes: the three businesses under one hub --%3E %3Cpath d='M96 67 L58 122 M96 67 L134 122 M64 132 H128' stroke='%23ffffff' stroke-width='7' stroke-linecap='round' opacity='0.55'/%3E %3Ccircle cx='96' cy='52' r='15' fill='%23f5a623'/%3E %3Ccircle cx='52' cy='132' r='15' fill='%230071e3'/%3E %3Ccircle cx='140' cy='132' r='15' fill='%233DDC97'/%3E %3C/svg%3E">
 <link rel="manifest" href="manifest.json">
 <script>
 if("serviceWorker" in navigator){
@@ -33,10 +33,10 @@ function scheduleNotifs(){
     const tmrEvs=window.reservations.filter(r=>r.date===tomorrowStr&&r.status==="confirmado");
     const todEvs=window.reservations.filter(r=>r.date===todayStr&&r.status==="confirmado");
     if(tmrEvs.length>0){
-      new Notification("⚡ CHISPEKAS — Eventos mañana",{body:tmrEvs.map(r=>r.client+" · "+r.event).join("\n"),icon:"data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>"});
+      new Notification("🎈 CHISPEKAS — Eventos mañana",{body:tmrEvs.map(r=>r.client+" · "+r.event).join("\n"),icon:"data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎈</text></svg>"});
     }
     if(todEvs.length>0){
-      new Notification("🎉 CHISPEKAS — Eventos HOY",{body:todEvs.map(r=>r.client+" · "+r.event).join("\n"),icon:"data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>"});
+      new Notification("🎉 CHISPEKAS — Eventos HOY",{body:todEvs.map(r=>r.client+" · "+r.event).join("\n"),icon:"data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎈</text></svg>"});
     }
   },3000);
 }
@@ -657,7 +657,7 @@ body.dark #dlbl,body.dark #dlbl2{color:var(--t2)}
 <!-- LOGIN OVERLAY -->
 <div id="login-overlay" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:99999;flex-direction:column;align-items:center;justify-content:center;padding:24px">
   <div style="text-align:center;max-width:340px;width:100%">
-    <div style="font-size:48px;margin-bottom:16px">⚡</div>
+    <div style="font-size:48px;margin-bottom:16px">🎈</div>
     <h1 style="font-size:32px;margin-bottom:6px;color:var(--t)">CHISPEKAS</h1>
     <p style="color:var(--t2);font-size:13px;margin-bottom:36px">Panel de Administración</p>
     <button id="btn-google-login" onclick="loginGoogle()" style="display:flex;align-items:center;justify-content:center;gap:12px;width:100%;background:var(--s);border:1.5px solid var(--bd);border-radius:14px;padding:14px 20px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;color:var(--t);box-shadow:var(--sh1);transition:box-shadow .2s">
@@ -816,7 +816,33 @@ const DR=[
 
 
 /* ════════════════ § STORE (Firebase / localStorage) ════════════════ */
+const CACHE_COLS = ["products","reservations","referrals","mr_clients","mr_products","mr_purchases","mr_sales"];
 const Store={
+  loadCache() {
+    const raw = localStorage.getItem("ck_cache_products");
+    if(raw === null) return false;
+    try {
+      products     = JSON.parse(localStorage.getItem("ck_cache_products")     || "[]");
+      reservations = JSON.parse(localStorage.getItem("ck_cache_reservations") || "[]");
+      referrals    = JSON.parse(localStorage.getItem("ck_cache_referrals")    || "[]");
+      mrClients    = JSON.parse(localStorage.getItem("ck_cache_mr_clients")   || "[]");
+      mrProducts   = JSON.parse(localStorage.getItem("ck_cache_mr_products")  || "[]");
+      mrPurchases  = JSON.parse(localStorage.getItem("ck_cache_mr_purchases") || "[]");
+      mrSales      = JSON.parse(localStorage.getItem("ck_cache_mr_sales")     || "[]");
+      return true;
+    } catch(e) { console.error("loadCache:",e); return false; }
+  },
+  writeCache() {
+    try {
+      localStorage.setItem("ck_cache_products",     JSON.stringify(products));
+      localStorage.setItem("ck_cache_reservations", JSON.stringify(reservations));
+      localStorage.setItem("ck_cache_referrals",    JSON.stringify(referrals));
+      localStorage.setItem("ck_cache_mr_clients",   JSON.stringify(mrClients));
+      localStorage.setItem("ck_cache_mr_products",  JSON.stringify(mrProducts));
+      localStorage.setItem("ck_cache_mr_purchases", JSON.stringify(mrPurchases));
+      localStorage.setItem("ck_cache_mr_sales",     JSON.stringify(mrSales));
+    } catch(e) { console.error("writeCache:",e); }
+  },
   async save(col, data) {
     setSyncing();
     try {
@@ -903,6 +929,7 @@ const Store={
         mrSales     = JSON.parse(localStorage.getItem("ck_mr_sales")    ||"[]");
       }
       setSaved();
+      if(window._fbReady) this.writeCache();
       renderAll();
     } catch(e) { console.error(e); setErr(); }
   }
@@ -2096,7 +2123,7 @@ function openSheetsSync(){
 }
 
 /* ══ NOTIF MEJORADAS ══ */
-function scheduleSmartNotifs(){if(!("Notification" in window)||Notification.permission!=="granted")return;const today2=new Date();const checkDate=(d)=>{const t=new Date(today2);t.setDate(today2.getDate()+d);return t.toISOString().split("T")[0];};const d0=checkDate(0),d1=checkDate(1),d2=checkDate(2);const evs0=reservations.filter(r=>r.date===d0&&r.status==="confirmado");const evs1=reservations.filter(r=>r.date===d1&&r.status==="confirmado");const evs2=reservations.filter(r=>r.date===d2&&r.status==="confirmado");setTimeout(()=>{if(evs0.length)new Notification("🎉 CHISPEKAS — ¡Evento HOY!",{body:evs0.map(r=>r.client+" · "+r.event+(r.horaInicio?" · "+r.horaInicio:"")).join("\n"),tag:"ck-hoy"});if(evs1.length)new Notification("⚡ CHISPEKAS — Mañana",{body:evs1.map(r=>r.client+" · "+r.event).join("\n"),tag:"ck-manana"});if(evs2.length)new Notification("📅 CHISPEKAS — En 2 días",{body:evs2.map(r=>r.client+" · "+r.event).join("\n"),tag:"ck-2d"});},2500);}
+function scheduleSmartNotifs(){if(!("Notification" in window)||Notification.permission!=="granted")return;const today2=new Date();const checkDate=(d)=>{const t=new Date(today2);t.setDate(today2.getDate()+d);return t.toISOString().split("T")[0];};const d0=checkDate(0),d1=checkDate(1),d2=checkDate(2);const evs0=reservations.filter(r=>r.date===d0&&r.status==="confirmado");const evs1=reservations.filter(r=>r.date===d1&&r.status==="confirmado");const evs2=reservations.filter(r=>r.date===d2&&r.status==="confirmado");setTimeout(()=>{if(evs0.length)new Notification("🎉 CHISPEKAS — ¡Evento HOY!",{body:evs0.map(r=>r.client+" · "+r.event+(r.horaInicio?" · "+r.horaInicio:"")).join("\n"),tag:"ck-hoy"});if(evs1.length)new Notification("🎈 CHISPEKAS — Mañana",{body:evs1.map(r=>r.client+" · "+r.event).join("\n"),tag:"ck-manana"});if(evs2.length)new Notification("📅 CHISPEKAS — En 2 días",{body:evs2.map(r=>r.client+" · "+r.event).join("\n"),tag:"ck-2d"});},2500);}
 
 /** Alertas proactivas de negocio — stock crítico (STAK) + cobros vencidos (ambos negocios). Una vez al día como máximo. */
 function scheduleBusinessAlerts(){
@@ -2805,6 +2832,11 @@ function toast(msg, type = "ok") {
 
 async function init(){
   initDark();
+  if(Store.loadCache()){
+    window.reservations=reservations;
+    go("dashboard");
+    document.getElementById("boot-loader")?.remove();
+  }
   await new Promise(r=>{if(window._fbReady!==undefined)r();else{const h=()=>{window.removeEventListener("fb-ready",h);r();};window.addEventListener("fb-ready",h);setTimeout(r,4500);}});
   await Store.loadAll();
   window.reservations=reservations;
