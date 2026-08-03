@@ -1,4 +1,4 @@
-const CACHE = "chispekas-v3";
+const CACHE = "chispekas-v4";
 const ASSETS = [
   "/CHISPEKAS/",
   "/CHISPEKAS/index.html",
@@ -26,13 +26,25 @@ self.addEventListener("activate", e => {
 });
 
 self.addEventListener("fetch", e => {
+  const req = e.request;
+  const url = new URL(req.url);
+
+  // Solo se cachean páginas propias del sitio y los 2 recursos externos
+  // listados en ASSETS. TODO lo demás (Firebase, Firestore, Google Auth,
+  // etc.) se deja pasar sin tocar — interceptarlo rompía la carga de datos.
+  const isOwnPage = url.origin === self.location.origin;
+  const isKnownAsset = ASSETS.includes(req.url);
+  if (req.method !== "GET" || (!isOwnPage && !isKnownAsset)) {
+    return; // no respondWith → la petición sigue su curso normal, sin SW
+  }
+
   e.respondWith(
-    fetch(e.request)
+    fetch(req)
       .then(res => {
         const clone = res.clone();
-        caches.open(CACHE).then(c => c.put(e.request, clone));
+        caches.open(CACHE).then(c => c.put(req, clone)).catch(() => {});
         return res;
       })
-      .catch(() => caches.match(e.request))
+      .catch(() => caches.match(req))
   );
 });
