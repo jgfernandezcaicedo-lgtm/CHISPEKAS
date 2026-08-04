@@ -442,7 +442,34 @@ body.dark #dlbl,body.dark #dlbl2{color:var(--t2)}
   <div style="font-size:11px;color:var(--t3);font-weight:600;letter-spacing:.05em">Cargando STAK…</div>
   <style>@keyframes bootSpin{to{transform:rotate(360deg)}}</style>
 </div>
-<script>setTimeout(()=>{const bl=document.getElementById("boot-loader");if(bl)bl.remove();},8000);</script>
+<script>setTimeout(()=>{
+  const bl=document.getElementById("boot-loader");
+  if(bl){
+    bl.remove();
+    // Si a los 8s seguía el spinner de carga, algo se quedó colgado
+    // (ni error, ni éxito) — avisamos en vez de dejarlo en blanco.
+    const b=document.getElementById("load-err-banner"), t=document.getElementById("load-err-text");
+    if(b&&t){ t.textContent="La carga está tardando más de lo normal. Revisa tu conexión."; b.style.display="flex"; }
+  }
+},8000);</script>
+<script>
+// Captor global: muestra en pantalla CUALQUIER error de JS o promesa
+// rechazada sin capturar — no solo los de Firestore — para poder
+// diagnosticar fallos que ocurren antes de que la app misma cargue.
+window.addEventListener("error", function(e){
+  try{
+    var b=document.getElementById("load-err-banner"), t=document.getElementById("load-err-text");
+    if(b&&t){ t.textContent="Error de JS: "+(e.message||"desconocido")+" ("+(e.filename? e.filename.split("/").pop():"?")+":"+e.lineno+")"; b.style.display="flex"; }
+  }catch(_){}
+});
+window.addEventListener("unhandledrejection", function(e){
+  try{
+    var b=document.getElementById("load-err-banner"), t=document.getElementById("load-err-text");
+    var r=e.reason; var msg = (r && r.message) ? r.message : String(r);
+    if(b&&t){ t.textContent="Promesa sin capturar: "+msg; b.style.display="flex"; }
+  }catch(_){}
+});
+</script>
 <div id="load-err-banner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:99999;background:#c0392b;color:#fff;font-size:12.5px;font-weight:600;padding:10px 14px;align-items:center;gap:10px;box-shadow:0 2px 8px rgba(0,0,0,.2)">
   <span style="flex:1" id="load-err-text">No se pudo cargar la información.</span>
   <button onclick="hideLoadError();Store.loadAll();" style="background:#fff;color:#c0392b;border:none;border-radius:6px;padding:6px 10px;font-weight:700;font-size:12px">Reintentar</button>
