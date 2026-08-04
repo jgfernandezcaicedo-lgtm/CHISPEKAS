@@ -43,7 +43,7 @@ function scheduleNotifs(){
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" crossorigin="anonymous"></script>
 <script>
 const FIREBASE_CONFIG = {
   apiKey:            "AIzaSyDEMPKn-7GemMVVF4Yf7cYGDzrSoSrelbc",
@@ -459,7 +459,8 @@ body.dark #dlbl,body.dark #dlbl2{color:var(--t2)}
 window.addEventListener("error", function(e){
   try{
     var b=document.getElementById("load-err-banner"), t=document.getElementById("load-err-text");
-    if(b&&t){ t.textContent="Error de JS: "+(e.message||"desconocido")+" ("+(e.filename? e.filename.split("/").pop():"?")+":"+e.lineno+")"; b.style.display="flex"; }
+    var stack = (e.error && e.error.stack) ? (" — " + e.error.stack.split("\n").slice(0,4).join(" | ")) : "";
+    if(b&&t){ t.textContent="Error de JS: "+(e.message||"desconocido")+" ("+(e.filename? e.filename.split("/").pop():"?")+":"+e.lineno+")"+stack; b.style.display="flex"; }
   }catch(_){}
 });
 window.addEventListener("unhandledrejection", function(e){
