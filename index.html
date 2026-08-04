@@ -1002,6 +1002,7 @@ function mkCh(id, cfg) {
   if(CH[id]) CH[id].destroy();
   const c = document.getElementById(id);
   if(!c) return;
+  if(c.offsetParent === null) return;
   applyChartTheme(cfg);
   CH[id] = new Chart(c, cfg);
 }

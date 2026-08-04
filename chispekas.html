@@ -1135,6 +1135,10 @@ function mkCh(id, cfg) {
   if(CH[id]) CH[id].destroy();
   const c = document.getElementById(id);
   if(!c) return;
+  // Si el canvas está dentro de una pestaña oculta (display:none), Chart.js
+  // no puede calcular su tamaño y truena por dentro. Se salta la creación
+  // aquí — go() vuelve a llamar a este mismo render al mostrar la pestaña.
+  if(c.offsetParent === null) return;
   applyChartTheme(cfg);
   CH[id] = new Chart(c, cfg);
 }
