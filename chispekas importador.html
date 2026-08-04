@@ -35,7 +35,7 @@
 
 <div class="card">
   <h1>🎈 CHISPEKAS — Importador de histórico</h1>
-  <div class="sub">Sube tus 382 reservas limpias y 32 productos del catálogo a Firebase. No modifica ni borra nada existente.</div>
+  <div class="sub">Sube tus 382 reservas limpias y 32 productos del catálogo a Firebase. Corrige el catálogo (categoría/precio/emoji) y reemplaza la lista de productos en reservas existentes por la versión limpia. No toca estado, pagos ni notas.</div>
   <div id="whoami"></div>
   <button class="btn btn-dark" id="btn-login">🔐 Iniciar sesión con Google</button>
   <button class="btn btn-outline hide" id="btn-logout">Cerrar sesión</button>
@@ -47,7 +47,7 @@
     <div class="kpi"><b id="k-prod">32</b><span>Productos del catálogo</span></div>
   </div>
   <button class="btn btn-outline" id="btn-preview">🔍 Vista previa (no guarda nada)</button>
-  <button class="btn btn-primary" id="btn-import" disabled>⬆️ Importar a Firebase</button>
+  <button class="btn btn-primary" id="btn-import" disabled>⬆️ Importar / completar en Firebase</button>
   <div class="sub" id="preview-hint">Corre primero la vista previa para activar la importación.</div>
 </div>
 
@@ -132,19 +132,32 @@ document.getElementById("btn-preview").onclick = async () => {
   log(`Productos ya existentes en tu app: ${existingProducts.length}`, "ok");
   log(`Reservas ya existentes en tu app: ${existingReservations.length}`, "ok");
 
-  let newProducts = 0, matchedProducts = 0;
+  let newProducts = 0, matchedProducts = 0, toFixProducts = 0;
   CATALOG_PRODUCTS.forEach(p => {
-    if(findExistingProduct(p.name)) matchedProducts++; else newProducts++;
+    const existing = findExistingProduct(p.name);
+    if(!existing){ newProducts++; return; }
+    if(existing.category !== p.category || existing.price !== p.price || existing.emoji !== p.emoji) toFixProducts++;
+    else matchedProducts++;
   });
   log(`→ Productos que se crearán: ${newProducts}`, newProducts ? "warn" : "ok");
-  log(`→ Productos que ya existen y se reutilizarán: ${matchedProducts}`, "ok");
+  log(`→ Productos que se corregirán (categoría/precio/emoji): ${toFixProducts}`, toFixProducts ? "warn" : "ok");
+  log(`→ Productos que ya están bien: ${matchedProducts}`, "ok");
 
-  let newRes = 0, dupRes = 0;
+  let newRes = 0, replaceRes = 0, alreadyOk = 0;
   RESERVATIONS.forEach(r => {
-    if(findExistingReservation(r.client, r.date)) dupRes++; else newRes++;
+    const existing = findExistingReservation(r.client, r.date);
+    if(!existing){ newRes++; return; }
+    const productIds = (r.productSlugs || []).map(slug => {
+      const catP = CATALOG_PRODUCTS.find(cp => cp.slug === slug);
+      return catP ? findExistingProduct(catP.name)?.id : null;
+    }).filter(Boolean);
+    const current = existing.products || [];
+    const same = current.length === productIds.length && current.every(pid => productIds.includes(pid));
+    if(!same) replaceRes++; else alreadyOk++;
   });
   log(`→ Reservas nuevas que se crearán: ${newRes}`, newRes ? "warn" : "ok");
-  log(`→ Reservas que parecen duplicadas (mismo cliente + fecha) y se omitirán: ${dupRes}`, dupRes ? "warn" : "ok");
+  log(`→ Reservas existentes con productos que se reemplazarán: ${replaceRes}`, replaceRes ? "warn" : "ok");
+  log(`→ Reservas existentes que ya están iguales (sin cambios): ${alreadyOk}`, "ok");
   log("Vista previa lista. Nada se ha guardado todavía.", "ok");
 
   previewDone = true;
@@ -154,37 +167,65 @@ document.getElementById("btn-preview").onclick = async () => {
 
 document.getElementById("btn-import").onclick = async () => {
   if(!previewDone){ alert("Corre primero la vista previa."); return; }
-  if(!confirm("¿Importar " + RESERVATIONS.length + " reservas y crear los productos del catálogo que falten en Firebase? Esta acción no se puede deshacer fácilmente.")) return;
+  if(!confirm("¿Corregir el catálogo (categoría/precio/emoji de los 32 productos), crear las reservas nuevas, y REEMPLAZAR la lista de productos en las reservas existentes por la versión limpia del Excel? El resto de cada reserva (estado, pagos, total, notas) no se toca. Esto sí sobrescribe datos existentes.")) return;
 
   document.getElementById("btn-import").disabled = true;
   document.getElementById("btn-preview").disabled = true;
   log("=== Iniciando importación ===");
 
-  // 1. Productos: crear los que falten
+  // 1. Productos: crear los que falten, CORREGIR los que ya existen
+  //    (categoría/precio/emoji) para que calcen con el catálogo limpio.
   const slugToId = {};
+  let prodCreated = 0, prodFixed = 0, prodOk = 0;
   for(const p of CATALOG_PRODUCTS){
     const existing = findExistingProduct(p.name);
     if(existing){
       slugToId[p.slug] = existing.id;
+      const needsFix = existing.category !== p.category || existing.price !== p.price || existing.emoji !== p.emoji;
+      if(needsFix){
+        const fixed = { ...existing, category: p.category, price: p.price, emoji: p.emoji };
+        await setDoc(doc(db, "products", existing.id), fixed);
+        const idx = existingProducts.findIndex(x => x.id === existing.id);
+        if(idx >= 0) existingProducts[idx] = fixed;
+        prodFixed++;
+        log(`🔧 Producto corregido: ${p.name} (categoría: ${p.category})`, "ok");
+      } else {
+        prodOk++;
+      }
     } else {
       const newId = "p" + uid();
       const data = { id: newId, name: p.name, category: p.category, price: p.price, available: true, stock: 1, description: "", emoji: p.emoji, photo: null };
       await setDoc(doc(db, "products", newId), data);
       existingProducts.push(data);
       slugToId[p.slug] = newId;
+      prodCreated++;
       log("✅ Producto creado: " + p.name, "ok");
     }
   }
+  log(`Catálogo: ${prodCreated} creados, ${prodFixed} corregidos, ${prodOk} ya estaban bien`, "ok");
 
-  // 2. Reservas
-  let created = 0, skipped = 0;
+  // 2. Reservas: crear las que falten, REEMPLAZAR por completo la lista de
+  //    productos en las que ya existen (el Excel ya está limpio y es la
+  //    fuente de verdad). El resto de cada reserva no se toca.
+  let created = 0, replaced = 0, alreadyOk = 0;
   for(const r of RESERVATIONS){
-    if(findExistingReservation(r.client, r.date)){
-      skipped++;
+    const productIds = (r.productSlugs || []).map(s => slugToId[s]).filter(Boolean);
+    const existing = findExistingReservation(r.client, r.date);
+
+    if(existing){
+      const current = existing.products || [];
+      const same = current.length === productIds.length && current.every(pid => productIds.includes(pid));
+      if(same){ alreadyOk++; continue; }
+      const updatedRes = { ...existing, products: productIds };
+      await setDoc(doc(db, "reservations", existing.id), updatedRes);
+      const idx = existingReservations.findIndex(x => x.id === existing.id);
+      if(idx >= 0) existingReservations[idx] = updatedRes;
+      replaced++;
+      log(`🔧 ${existing.client} (${existing.date}): productos reemplazados (${productIds.length})`, "ok");
       continue;
     }
+
     const newId = "r" + uid();
-    const productIds = (r.productSlugs || []).map(s => slugToId[s]).filter(Boolean);
     const data = {
       id: newId, client: r.client, event: r.event, date: r.date, phone: r.phone, email: r.email,
       horaInicio: r.horaInicio, horaFin: r.horaFin, payStatus: r.payStatus, status: r.status,
@@ -200,9 +241,10 @@ document.getElementById("btn-import").onclick = async () => {
 
   log(`=== Listo ===`, "ok");
   log(`Reservas creadas: ${created}`, "ok");
-  log(`Reservas omitidas (ya existían): ${skipped}`, skipped ? "warn" : "ok");
+  log(`Reservas con productos reemplazados: ${replaced}`, "ok");
+  log(`Reservas que ya estaban completas: ${alreadyOk}`, "ok");
   log("Abre tu app CHISPEKAS y revisa la sección de Reservas.", "ok");
-  alert("Importación terminada: " + created + " reservas creadas, " + skipped + " omitidas.");
+  alert("Listo: " + created + " reservas creadas, " + replaced + " con productos reemplazados, " + alreadyOk + " ya estaban bien.");
 };
 </script>
 </body>
