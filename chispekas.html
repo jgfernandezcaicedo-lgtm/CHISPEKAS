@@ -3882,6 +3882,15 @@ function updateBizAccent(inChispekas,inSTAK){
   else if(inSTAK){tb.style.borderBottomColor="var(--bl)";tb.style.borderBottomWidth="3px";}
   else{tb.style.borderBottomColor="var(--bd)";tb.style.borderBottomWidth="1px";}
 }
+/** Títulos legibles por pestaña, usados en la barra superior por go().
+ *  Esta constante faltaba por completo — go() truena sin ella. */
+const TITLES = {
+  "chispekas-resumen": "Resumen",
+  "reservas": "Reservas",
+  "catalogo": "Catálogo",
+  "financiero": "Finanzas",
+  "clientes": "Clientes"
+};
 function go(t){
   tab=t;
   document.querySelectorAll("[id^='v-']").forEach(el=>el.style.display="none");
