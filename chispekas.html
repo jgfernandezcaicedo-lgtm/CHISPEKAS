@@ -575,6 +575,7 @@ window.addEventListener("unhandledrejection", function(e){
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:9px">
         <div><h1 style="font-size:24px">Catálogo</h1><p style="color:var(--t2);font-size:12px;margin-top:2px" id="cat-cnt"></p></div>
         <div style="display:flex;gap:5px;flex-wrap:wrap">
+          <button class="btn btng sm" onclick="openMergeOv()" title="Unir productos duplicados">🔗 Unir</button>
           <button class="btn btnd sm" onclick="openEditProd(null)">＋ Agregar</button>
         </div>
       </div>
@@ -745,6 +746,7 @@ window.addEventListener("unhandledrejection", function(e){
 <div class="ov" id="ov-view"><div class="sheet shlg"><div class="shh"></div><div class="shd"><span class="sht" id="sv-t">Detalle</span><button class="xb" onclick="closeOv('ov-view')">×</button></div><div class="shb" id="sv-b"></div></div></div>
 <div class="ov" id="ov-res" style="align-items:stretch;justify-content:stretch"><div class="sheet" style="max-width:100%;max-height:100%;height:100%;border-radius:0;display:flex;flex-direction:column"><div class="shh" style="display:none"></div><div class="shd"><span class="sht" id="sr-t">Nueva reserva</span><button class="xb" onclick="closeOv('ov-res')">×</button></div><div class="shb" style="flex:1;overflow-y:auto" id="sr-b"></div></div></div>
 <div class="ov" id="ov-prod"><div class="sheet"><div class="shh"></div><div class="shd"><span class="sht" id="sp-t">Producto</span><button class="xb" onclick="closeOv('ov-prod')">×</button></div><div class="shb" id="sp-b"></div></div></div>
+<div class="ov" id="ov-merge"><div class="sheet"><div class="shh"></div><div class="shd"><span class="sht" id="merge-t">🔗 Unir productos</span><button class="xb" onclick="closeOv('ov-merge')">×</button></div><div class="shb" id="merge-b"></div></div></div>
 <div class="ov" id="ov-rev" ><div class="sheet"><div class="shh"></div><div class="shd"><span class="sht" id="srev-t">Reseña</span><button class="xb" onclick="closeOv('ov-rev')">×</button></div><div class="shb" id="srev-b"></div></div></div>
 <div class="ov" id="ov-explain"><div class="sheet"><div class="shh"></div><div class="shd"><span class="sht" id="explain-title">Detalle</span><button class="xb" onclick="closeOv('ov-explain')">×</button></div>
   <div class="shb" id="explain-body"></div>
@@ -872,7 +874,7 @@ function waPhone(phone) {
 const MS=["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
 const MF=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const DF=["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
-let CAT={inflable:{l:"Inflable",bg:"#fff7ed",c:"#c2410c",br:"#fed7aa",i:"🏰"},mobiliario:{l:"Mobiliario",bg:"#eff6ff",c:"#1d4ed8",br:"#bfdbfe",i:"🪑"},snack:{l:"Snack",bg:"#f0fdf4",c:"#15803d",br:"#bbf7d0",i:"🍿"}};
+let CAT={inflable:{l:"Inflable",bg:"#fff7ed",c:"#c2410c",br:"#fed7aa",i:"🏰"},saltarines:{l:"Saltarines",bg:"#fdf4ff",c:"#a21caf",br:"#f5d0fe",i:"🤸"},juegos_infantiles:{l:"Juegos infantiles",bg:"#eef2ff",c:"#4338ca",br:"#c7d2fe",i:"🎠"},mobiliario:{l:"Mobiliario",bg:"#eff6ff",c:"#1d4ed8",br:"#bfdbfe",i:"🪑"},snack:{l:"Snack",bg:"#f0fdf4",c:"#15803d",br:"#bbf7d0",i:"🍿"}};
 try{Object.assign(CAT,JSON.parse(localStorage.getItem("ck_categories")||"{}"));}catch(e){}
 const PM={pagado:{bg:"#f0fdf4",c:"#15803d",br:"#bbf7d0",l:"Pagado",i:"✅"},parcial:{bg:"#fffbeb",c:"#b45309",br:"#fde68a",l:"Parcial",i:"💛"},pendiente_pago:{bg:"#fff5f5",c:"#dc2626",br:"#fecaca",l:"Pendiente",i:"🔴"}};
 const SM={whatsapp:{bg:"#e7fbe9",c:"#128C7E",br:"#a7f3d0",l:"WhatsApp",i:"💬"},cotizacion:{bg:"#f5f3ff",c:"#7c3aed",br:"#ddd6fe",l:"Cotización",i:"📋"},pendiente:{bg:"#fffbeb",c:"#b45309",br:"#fde68a",l:"Pendiente",i:"⏳"},confirmado:{bg:"#f0fdf4",c:"#15803d",br:"#bbf7d0",l:"Confirmado",i:"✅"},cancelado:{bg:"#fef2f2",c:"#dc2626",br:"#fecaca",l:"Cancelado",i:"❌"}};
@@ -1066,14 +1068,15 @@ const Store={
     try {
       if(window._fbReady) {
         const { collection, getDocs } = window._fb;
-        const [ps, rs, rf, mrc, mrp, mrpu, mrs] = await Promise.all([
+        const [ps, rs, rf, mrc, mrp, mrpu, mrs, cats] = await Promise.all([
           getDocs(collection(window._db, "products")),
           getDocs(collection(window._db, "reservations")),
           getDocs(collection(window._db, "referrals")),
           getDocs(collection(window._db, "mr_clients")),
           getDocs(collection(window._db, "mr_products")),
           getDocs(collection(window._db, "mr_purchases")),
-          getDocs(collection(window._db, "mr_sales"))
+          getDocs(collection(window._db, "mr_sales")),
+          getDocs(collection(window._db, "categories"))
         ]);
         if(ps.empty) {
           await this.save("products", DP);
@@ -1088,6 +1091,9 @@ const Store={
         mrProducts = mrp.docs.map(d=>d.data());
         mrPurchases= mrpu.docs.map(d=>d.data());
         mrSales    = mrs.docs.map(d=>d.data());
+        // Categorías personalizadas: viven en Firestore (no solo localStorage)
+        // para que no se pierdan si se borra la caché del teléfono.
+        cats.docs.forEach(d=>{ const c=d.data(); CAT[c.id]={l:c.l,i:c.i,bg:c.bg,c:c.c,br:c.br}; });
       } else {
         const sp  = localStorage.getItem("ck_products");
         const sr  = localStorage.getItem("ck_reservations");
@@ -1895,6 +1901,7 @@ function addCategory(){
   const custom=JSON.parse(localStorage.getItem("ck_categories")||"{}");
   custom[key]=CAT[key];
   localStorage.setItem("ck_categories",JSON.stringify(custom));
+  Store.one("categories",{id:key,l:nombre,i:emoji,...style});
   toast("✅ Categoría \""+nombre+"\" creada");
   renderCatFilters();
   renderCat();
@@ -2584,6 +2591,86 @@ function saveResF(){
 /* ════════════════ § FORMULARIO PRODUCTO ════════════════ */
 
 const EMOJIS=["🏰","🌊","🎪","🎯","🪑","✨","🍸","🍿","🍭","🌭","🎠","🎡","🎢","🎨","🎭","🎊","🎁","🎈","🎀","⭐","🏆","🎤","🛝","💡","🎆","🎵","🎸","🪄"];
+/* ════════════════ § UNIR PRODUCTOS DUPLICADOS ════════════════ */
+let mergeSelIds = [];
+function openMergeOv(){
+  mergeSelIds = [];
+  renderMergeStep1();
+  openOv("ov-merge");
+}
+function renderMergeStep1(){
+  document.getElementById("merge-t").textContent = "🔗 Unir productos";
+  document.getElementById("merge-b").innerHTML = `
+    <p style="font-size:12.5px;color:var(--t2);margin-bottom:12px">Marca 2 o más productos que en realidad son el mismo (ej. "Circuito 3" e "Inflable Circuito 3"). Se sumará su stock y todas las reservas que usaban cualquiera de ellos pasarán al que elijas mantener.</p>
+    <div style="display:flex;flex-direction:column;gap:6px;max-height:52vh;overflow:auto">
+      ${products.length?products.map(p=>{const cm=CAT[p.category]||{l:p.category||"Sin categoría"};return `
+        <label style="display:flex;align-items:center;gap:10px;padding:9px 11px;background:var(--s2);border-radius:10px;border:1px solid var(--bd)">
+          <input type="checkbox" value="${p.id}" onchange="toggleMergeSel('${p.id}',this.checked)" ${mergeSelIds.includes(p.id)?"checked":""}>
+          <span style="font-size:18px">${p.emoji||"📦"}</span>
+          <div style="min-width:0;flex:1">
+            <p style="font-size:13px;font-weight:600">${esc(p.name)}</p>
+            <p style="font-size:10.5px;color:var(--t2)">${cm.l||"Sin categoría"} · Stock ${p.stock||1}</p>
+          </div>
+        </label>`;}).join(""):`<div class="empty" style="padding:20px"><div class="ei">📦</div><div class="et">Sin productos</div></div>`}
+    </div>
+    <button class="btn btna" style="width:100%;margin-top:14px" onclick="mergeStep2()">Continuar →</button>
+  `;
+}
+function toggleMergeSel(id,checked){
+  if(checked){ if(!mergeSelIds.includes(id)) mergeSelIds.push(id); }
+  else { mergeSelIds = mergeSelIds.filter(x=>x!==id); }
+}
+function mergeStep2(){
+  if(mergeSelIds.length<2){ toast("⚠️ Selecciona al menos 2 productos","warn"); return; }
+  const sel = products.filter(p=>mergeSelIds.includes(p.id));
+  document.getElementById("merge-t").textContent = "🔗 ¿Cuál mantener?";
+  document.getElementById("merge-b").innerHTML = `
+    <p style="font-size:12.5px;color:var(--t2);margin-bottom:12px">Los demás se eliminarán. Sus reservas pasarán a este, y el stock se sumará.</p>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      ${sel.map((p,i)=>`
+        <label style="display:flex;align-items:center;gap:10px;padding:9px 11px;background:var(--s2);border-radius:10px;border:1px solid var(--bd)">
+          <input type="radio" name="merge-keep" value="${p.id}" ${i===0?"checked":""}>
+          <span style="font-size:18px">${p.emoji||"📦"}</span>
+          <div style="min-width:0;flex:1"><p style="font-size:13px;font-weight:600">${esc(p.name)}</p><p style="font-size:10.5px;color:var(--t2)">Stock ${p.stock||1}</p></div>
+        </label>`).join("")}
+    </div>
+    <button class="btn btna" style="width:100%;margin-top:14px" onclick="confirmMerge()">✅ Unir</button>
+    <button class="btn btng" style="width:100%;margin-top:8px" onclick="renderMergeStep1()">← Atrás</button>
+  `;
+}
+async function confirmMerge(){
+  const radio = document.querySelector('input[name="merge-keep"]:checked');
+  if(!radio){ toast("⚠️ Elige cuál mantener","warn"); return; }
+  const keepId = radio.value;
+  const removeIds = mergeSelIds.filter(id=>id!==keepId);
+  const keepProd = products.find(p=>p.id===keepId);
+  if(!keepProd) return;
+  const removedProds = products.filter(p=>removeIds.includes(p.id));
+  keepProd.stock = (keepProd.stock||1) + removedProds.reduce((s,p)=>s+(p.stock||1),0);
+
+  const changedRes = [];
+  reservations = reservations.map(r=>{
+    if(!r.products || !r.products.some(pid=>removeIds.includes(pid))) return r;
+    const updated = { ...r, products: [...new Set(r.products.map(pid=>removeIds.includes(pid)?keepId:pid))] };
+    changedRes.push(updated);
+    return updated;
+  });
+
+  setSyncing();
+  try{
+    await Store.one("products", keepProd);
+    for(const id of removeIds){ await Store.del("products", id); }
+    for(const r of changedRes){ await Store.one("reservations", r); }
+    setSaved();
+  }catch(e){ console.error(e); setErr(e&&e.message?e.message:String(e)); }
+
+  products = products.filter(p=>!removeIds.includes(p.id));
+  mergeSelIds = [];
+  closeOv("ov-merge");
+  renderAll();
+  toast(`✅ Unidos en "${keepProd.name}" (stock: ${keepProd.stock})`);
+}
+
 function openEditProd(pid){
   const p=pid?products.find(x=>x.id===pid):null;ePid=pid||null;pPh=p?.photo||"";pAv=p?.available!==false;sEmo=p?.emoji||"🎪";
   document.getElementById("sp-t").textContent=pid?"Editar Producto":"Nuevo Producto";
@@ -2793,7 +2880,7 @@ function saveSign() {
 function renderInv(){const dt=document.getElementById("inv-date")?.value||todayLocal();const usageMap={};reservations.filter(r=>r.date===dt&&r.status!=="cancelado").forEach(r=>(r.products||[]).forEach(pid=>{usageMap[pid]=(usageMap[pid]||0)+1;}));
   const avail=products.filter(p=>p.available&&(usageMap[p.id]||0)<(p.stock||1));
   const busy=products.filter(p=>p.available&&(usageMap[p.id]||0)>=(p.stock||1));
-  const partial=products.filter(p=>p.available&&(usageMap[p.id]||0)>0&&(usageMap[p.id]||0)<(p.stock||1));document.getElementById("inv-kpis").innerHTML=[{l:"Disponibles",v:avail.length,i:"✅",bg:"#f0fdf4",s:"Stock libre"},{l:"Stock parcial",v:partial.length,i:"💛",bg:"#fffbeb",s:"Quedan unidades"},{l:"Agotados",v:busy.length,i:"🔴",bg:"#fff5f5",s:"Sin stock ese día"},{l:"Eventos ese día",v:reservations.filter(r=>r.date===dt&&r.status!=="cancelado").length,i:"📅",bg:"#fff8ec",s:"Activos"},].map(k=>`<div class="kpi"><div class="ki" style="background:${k.bg}">${k.i}</div><div class="kv">${k.v}</div><div class="kl">${k.l}</div><div class="ks">${k.s}</div></div>`).join("");document.getElementById("inv-avail").innerHTML=avail.length?avail.map(p=>{const cm=CAT[p.category];const libre=(p.stock||1)-(usageMap[p.id]||0);const isPartial=(usageMap[p.id]||0)>0;return `<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 11px;background:${isPartial?"#fffbeb":"#f0fdf4"};border-radius:10px;margin-bottom:5px;border:1px solid ${isPartial?"#fde68a":"#bbf7d0"}"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:18px">${p.emoji}</span><div><p style="font-size:13px;font-weight:600">${esc(p.name)}</p><p style="font-size:10px;color:var(--t2)">${cm.l}</p></div></div><div style="text-align:right"><p style="font-weight:700;color:${isPartial?"#b45309":"#15803d"};font-size:12.5px">${fM(p.price)}</p><p style="font-size:10px;color:${isPartial?"#b45309":"#15803d"};font-weight:600">${libre} de ${p.stock||1} libre${libre!==1?"s":""}</p></div></div>`;}).join(""):`<div class="empty" style="padding:20px"><div class="ei">📭</div><div class="et">Todo ocupado ese día</div></div>`;const busyEl=document.getElementById("inv-busy");if(busyEl){busyEl.innerHTML=busy.length?busy.map(p=>{const res=reservations.find(r=>r.date===dt&&r.products?.includes(p.id)&&r.status!=="cancelado");const sm2=res?SM[res.status]||SM.cotizacion:SM.cotizacion;const clients2=reservations.filter(r=>r.date===dt&&r.status!=="cancelado"&&(r.products||[]).includes(p.id)).map(r=>r.client);return `<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 11px;background:#fff5f5;border-radius:10px;margin-bottom:5px;border:1px solid #fecaca"><div style="display:flex;align-items:center;gap:8px;min-width:0"><span style="font-size:18px">${p.emoji}</span><div style="min-width:0"><p style="font-size:13px;font-weight:600">${esc(p.name)}</p><p style="font-size:10px;color:#dc2626;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${clients2.join(", ")}</p></div></div><div style="text-align:right;flex-shrink:0;margin-left:6px"><p style="font-weight:700;color:#dc2626;font-size:12px">${usageMap[p.id]||0}/${p.stock||1}</p><p style="font-size:9.5px;color:#dc2626">agotado</p></div></div>`;}).join(""):`<div class="empty" style="padding:20px"><div class="ei">✅</div><div class="et">Todo disponible</div></div>`;const today3=todayLocal();const upcoming=reservations.filter(r=>r.date>=today3&&r.status!=="cancelado").sort((a,b)=>a.date.localeCompare(b.date)).slice(0,6);busyEl.innerHTML+=`<div style="margin-top:12px"><p class="lbl" style="margin-bottom:7px">Próximos eventos</p>${upcoming.map(r=>{const sm2=SM[r.status]||SM.cotizacion;return `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--bg)"><div><p style="font-size:12px;font-weight:600">${fD(r.date)}</p><p style="font-size:10.5px;color:var(--t2)">${esc(r.client)} · ${esc(r.event)}</p></div><span class="badge" style="background:${sm2.bg};color:${sm2.c};border:1px solid ${sm2.br}">${sm2.l}</span></div>`;}).join("")}</div>`;}const cutoff=new Date();cutoff.setDate(cutoff.getDate()-30);const cutStr=cutoff.toISOString().slice(0,10);const usage={};reservations.filter(r=>r.date>=cutStr).forEach(r=>(r.products||[]).forEach(pid=>{usage[pid]=(usage[pid]||0)+1;}));const sorted=Object.entries(usage).sort((a,b)=>b[1]-a[1]);const mx2=sorted[0]?.[1]||1;document.getElementById("inv-usage").innerHTML=sorted.length?sorted.map(([pid,cnt])=>{const p=products.find(x=>x.id===pid);if(!p)return"";return `<div style="margin-bottom:9px"><div style="display:flex;justify-content:space-between;margin-bottom:3px"><span style="font-size:12.5px">${p.emoji} ${esc(p.name)}</span><span style="font-weight:700;color:var(--amd);font-size:12px">${cnt} uso${cnt!==1?"s":""}</span></div><div class="pb"><div class="pf" style="width:${cnt/mx2*100}%;background:var(--am)"></div></div></div>`;}).join(""):`<div class="empty" style="padding:20px"><div class="ei">📦</div><div class="et">Sin datos aún</div></div>`;}
+  const partial=products.filter(p=>p.available&&(usageMap[p.id]||0)>0&&(usageMap[p.id]||0)<(p.stock||1));document.getElementById("inv-kpis").innerHTML=[{l:"Disponibles",v:avail.length,i:"✅",bg:"#f0fdf4",s:"Stock libre"},{l:"Stock parcial",v:partial.length,i:"💛",bg:"#fffbeb",s:"Quedan unidades"},{l:"Agotados",v:busy.length,i:"🔴",bg:"#fff5f5",s:"Sin stock ese día"},{l:"Eventos ese día",v:reservations.filter(r=>r.date===dt&&r.status!=="cancelado").length,i:"📅",bg:"#fff8ec",s:"Activos"},].map(k=>`<div class="kpi"><div class="ki" style="background:${k.bg}">${k.i}</div><div class="kv">${k.v}</div><div class="kl">${k.l}</div><div class="ks">${k.s}</div></div>`).join("");document.getElementById("inv-avail").innerHTML=avail.length?avail.map(p=>{const cm=CAT[p.category]||{l:p.category||"Sin categoría",bg:"#f5f5f7",c:"#6e6e73",br:"#e5e5ea",i:"📦"};const libre=(p.stock||1)-(usageMap[p.id]||0);const isPartial=(usageMap[p.id]||0)>0;return `<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 11px;background:${isPartial?"#fffbeb":"#f0fdf4"};border-radius:10px;margin-bottom:5px;border:1px solid ${isPartial?"#fde68a":"#bbf7d0"}"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:18px">${p.emoji}</span><div><p style="font-size:13px;font-weight:600">${esc(p.name)}</p><p style="font-size:10px;color:var(--t2)">${cm.l}</p></div></div><div style="text-align:right"><p style="font-weight:700;color:${isPartial?"#b45309":"#15803d"};font-size:12.5px">${fM(p.price)}</p><p style="font-size:10px;color:${isPartial?"#b45309":"#15803d"};font-weight:600">${libre} de ${p.stock||1} libre${libre!==1?"s":""}</p></div></div>`;}).join(""):`<div class="empty" style="padding:20px"><div class="ei">📭</div><div class="et">Todo ocupado ese día</div></div>`;const busyEl=document.getElementById("inv-busy");if(busyEl){busyEl.innerHTML=busy.length?busy.map(p=>{const res=reservations.find(r=>r.date===dt&&r.products?.includes(p.id)&&r.status!=="cancelado");const sm2=res?SM[res.status]||SM.cotizacion:SM.cotizacion;const clients2=reservations.filter(r=>r.date===dt&&r.status!=="cancelado"&&(r.products||[]).includes(p.id)).map(r=>r.client);return `<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 11px;background:#fff5f5;border-radius:10px;margin-bottom:5px;border:1px solid #fecaca"><div style="display:flex;align-items:center;gap:8px;min-width:0"><span style="font-size:18px">${p.emoji}</span><div style="min-width:0"><p style="font-size:13px;font-weight:600">${esc(p.name)}</p><p style="font-size:10px;color:#dc2626;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${clients2.join(", ")}</p></div></div><div style="text-align:right;flex-shrink:0;margin-left:6px"><p style="font-weight:700;color:#dc2626;font-size:12px">${usageMap[p.id]||0}/${p.stock||1}</p><p style="font-size:9.5px;color:#dc2626">agotado</p></div></div>`;}).join(""):`<div class="empty" style="padding:20px"><div class="ei">✅</div><div class="et">Todo disponible</div></div>`;const today3=todayLocal();const upcoming=reservations.filter(r=>r.date>=today3&&r.status!=="cancelado").sort((a,b)=>a.date.localeCompare(b.date)).slice(0,6);busyEl.innerHTML+=`<div style="margin-top:12px"><p class="lbl" style="margin-bottom:7px">Próximos eventos</p>${upcoming.map(r=>{const sm2=SM[r.status]||SM.cotizacion;return `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--bg)"><div><p style="font-size:12px;font-weight:600">${fD(r.date)}</p><p style="font-size:10.5px;color:var(--t2)">${esc(r.client)} · ${esc(r.event)}</p></div><span class="badge" style="background:${sm2.bg};color:${sm2.c};border:1px solid ${sm2.br}">${sm2.l}</span></div>`;}).join("")}</div>`;}const cutoff=new Date();cutoff.setDate(cutoff.getDate()-30);const cutStr=cutoff.toISOString().slice(0,10);const usage={};reservations.filter(r=>r.date>=cutStr).forEach(r=>(r.products||[]).forEach(pid=>{usage[pid]=(usage[pid]||0)+1;}));const sorted=Object.entries(usage).sort((a,b)=>b[1]-a[1]);const mx2=sorted[0]?.[1]||1;document.getElementById("inv-usage").innerHTML=sorted.length?sorted.map(([pid,cnt])=>{const p=products.find(x=>x.id===pid);if(!p)return"";return `<div style="margin-bottom:9px"><div style="display:flex;justify-content:space-between;margin-bottom:3px"><span style="font-size:12.5px">${p.emoji} ${esc(p.name)}</span><span style="font-weight:700;color:var(--amd);font-size:12px">${cnt} uso${cnt!==1?"s":""}</span></div><div class="pb"><div class="pf" style="width:${cnt/mx2*100}%;background:var(--am)"></div></div></div>`;}).join(""):`<div class="empty" style="padding:20px"><div class="ei">📦</div><div class="et">Sin datos aún</div></div>`;}
 
 /* ══ COMPARATIVO AÑO vs AÑO ══ */
 function renderFinExtra(){const sel=document.getElementById("fin-yr");if(!sel)return;const yr=parseInt(sel.value);const prevYr=yr-1;const getCurr=y=>reservations.filter(r=>r.status==="confirmado"&&r.date?.startsWith(String(y)));const curr=getCurr(yr),prev=getCurr(prevYr);const currMon=MS.map((_,i)=>curr.filter(r=>parseInt(r.date.slice(5,7))-1===i).reduce((s,r)=>s+r.total,0));const prevMon=MS.map((_,i)=>prev.filter(r=>parseInt(r.date.slice(5,7))-1===i).reduce((s,r)=>s+r.total,0));const el=document.getElementById("fin-compare");if(!el)return;const currTotal=curr.reduce((s,r)=>s+r.total,0);const prevTotal=prev.reduce((s,r)=>s+r.total,0);const varPct=prevTotal?Math.round((currTotal-prevTotal)/prevTotal*100):null;el.innerHTML=`<div class="card cp" style="margin-bottom:13px"><div class="ch"><div><div class="ct">Comparativo ${yr} vs ${prevYr}</div><div class="cs">${varPct!==null?(varPct>=0?"▲ +"+varPct+"% vs año anterior":"▼ "+varPct+"% vs año anterior"):"Sin datos del año anterior"}</div></div></div><div style="position:relative;height:170px"><canvas id="ch-fin-compare"></canvas></div><div style="margin-top:12px;border-top:1px solid var(--bd);padding-top:11px"><p class="lbl" style="margin-bottom:7px">Variación mes a mes — ${yr}</p><div style="display:flex;flex-wrap:wrap;gap:5px">${MS.map((m,i)=>{const v=currMon[i];const pv=prevMon[i];const diff=v-pv;const pct=pv?Math.round(diff/pv*100):null;const up=pct!==null?pct>=0:null;return `<div style="background:${up===null?"var(--s2)":up?"#f0fdf4":"#fff5f5"};border:1px solid ${up===null?"var(--bd)":up?"#bbf7d0":"#fecaca"};border-radius:9px;padding:7px 9px;min-width:60px;text-align:center"><p style="font-size:9.5px;font-weight:600;color:var(--t3)">${m}</p><p style="font-size:11px;font-weight:700;color:var(--t)">${fM(v)}</p><p style="font-size:9px;font-weight:600;color:${up===null?"var(--t3)":up?"#15803d":"#dc2626"}">${pct!==null?(up?"▲ +"+pct+"%":"▼ "+pct+"%"):"—"}</p></div>`;}).join("")}</div></div></div>`;mkCh("ch-fin-compare",{type:"bar",data:{labels:MS,datasets:[{label:String(yr),data:currMon,backgroundColor:"rgba(245,166,35,.2)",borderColor:"#f5a623",borderWidth:2,borderRadius:6,borderSkipped:false},{label:String(prevYr),data:prevMon,backgroundColor:"rgba(142,68,240,.12)",borderColor:"#8e44f0",borderWidth:2,borderRadius:6,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom",labels:{usePointStyle:true,pointStyle:"circle",padding:12,font:{size:10}}}},scales:{x:{grid:{display:false},ticks:{font:{size:10}}},y:{grid:{color:"rgba(0,0,0,.04)"},ticks:{callback:v=>v>=1000?"S/"+v/1000+"k":"S/"+v,font:{size:10}}}}}});}
