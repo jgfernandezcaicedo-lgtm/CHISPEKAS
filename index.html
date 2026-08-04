@@ -1691,11 +1691,12 @@ function renderJFHub(){
     const y=new Date();y.setDate(y.getDate()-1);
     periodLabel="Ayer";periodStart=periodEnd=y.toLocaleDateString("en-CA");periodPhrase="ayer";
   }else if(gran==="semana"){
-    periodLabel="Semana";periodStart=weekStart;periodPhrase="esta semana";
+    periodLabel="Semana";periodStart=weekStart;periodEnd=weekEnd;periodPhrase="esta semana";
   }else if(gran==="año"){
-    periodLabel="Año";periodStart=today_j.slice(0,4)+"-01-01";periodPhrase="este año";
+    periodLabel="Año";periodStart=today_j.slice(0,4)+"-01-01";periodEnd=today_j.slice(0,4)+"-12-31";periodPhrase="este año";
   }else{
-    periodLabel="Mes";periodStart=today_j.slice(0,7)+"-01";periodPhrase="este mes";
+    const lastDay=new Date(now_w.getFullYear(),now_w.getMonth()+1,0);
+    periodLabel="Mes";periodStart=today_j.slice(0,7)+"-01";periodEnd=lastDay.toLocaleDateString("en-CA");periodPhrase="este mes";
   }
   const chispekasPeriodo=reservations.filter(r=>r.status==="confirmado"&&r.date>=periodStart&&r.date<=periodEnd).reduce((s,r)=>s+(r.total||0),0);
   const eventosPeriodo=reservations.filter(r=>r.date>=periodStart&&r.date<=periodEnd&&r.status!=="cancelado").length;
