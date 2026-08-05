@@ -1,10 +1,12 @@
-const CACHE = "chispekas-v4";
+const CACHE = "chispekas-v5";
 const ASSETS = [
   "/CHISPEKAS/",
   "/CHISPEKAS/index.html",
   "/CHISPEKAS/chispekas.html",
   "/CHISPEKAS/stak.html",
   "/CHISPEKAS/auto.html",
+  "/CHISPEKAS/todolist.html",
+  "/CHISPEKAS/manifest-todolist.json",
   "https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Serif+Display&display=swap",
   "https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"
 ];
