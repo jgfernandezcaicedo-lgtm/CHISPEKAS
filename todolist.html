@@ -390,9 +390,9 @@ function computeDesiredCompras(prodIds){
     const ck = CK_PRODUCTS.find(p=>p.id===pid); if(!ck) return;
     const linked = PRODUCTOS.find(p=>p.chispekasId===pid);
     if(linked){
-      (linked.ingredientes||[]).forEach(ing=> out.push({key:`${pid}::${ing}`, texto:ing, checked:false}));
+      (linked.ingredientes||[]).forEach(ing=> out.push({id:uid(), key:`${pid}::${ing}`, texto:ing, checked:false}));
     } else if(ck.category==='snack'){
-      out.push({key:`${pid}::insumos`, texto:`Preparar insumos: ${ck.name||'producto'}`, checked:false});
+      out.push({id:uid(), key:`${pid}::insumos`, texto:`Preparar insumos: ${ck.name||'producto'}`, checked:false});
     }
   });
   return out;
@@ -405,9 +405,9 @@ function computeDesiredInspeccion(prodIds){
     const linkedEquipo = EQUIPOS.find(e=>e.chispekasId===pid);
     const linkedProducto = PRODUCTOS.find(p=>p.chispekasId===pid);
     if(linkedEquipo){
-      (linkedEquipo.items||[]).forEach(it=> out.push({key:`${pid}::${it}`, equipo:ck.name||'Producto', texto:it, estado:null}));
+      (linkedEquipo.items||[]).forEach(it=> out.push({id:uid(), key:`${pid}::${it}`, equipo:ck.name||'Producto', texto:it, estado:null}));
     } else if(INSPECCION_GENERICA[ck.category]){
-      INSPECCION_GENERICA[ck.category].forEach(it=> out.push({key:`${pid}::${it}`, equipo:ck.name||'Producto', texto:it, estado:null}));
+      INSPECCION_GENERICA[ck.category].forEach(it=> out.push({id:uid(), key:`${pid}::${it}`, equipo:ck.name||'Producto', texto:it, estado:null}));
     }
     if(linkedProducto) equipoIdsDeProductos.push(...(linkedProducto.equiposRequeridos||[]));
   });
@@ -427,10 +427,10 @@ function categoriasPresentesCk(prodIds){
 function computeDesiredAlistamiento(prodIds){
   const out=[];
   const {hasSnack, hasInflable} = categoriasPresentesCk(prodIds);
-  GENERAL.forEach(g=>{ if(condicionAplica(g.condicion,hasSnack,hasInflable)) out.push({key:`general::${g.id}`, texto:g.texto, grupo:g.grupo, checked:false}); });
+  GENERAL.forEach(g=>{ if(condicionAplica(g.condicion,hasSnack,hasInflable)) out.push({id:uid(), key:`general::${g.id}`, texto:g.texto, grupo:g.grupo, checked:false}); });
   prodIds.forEach(pid=>{
     const ck = CK_PRODUCTS.find(p=>p.id===pid); if(!ck) return;
-    out.push({key:`${pid}::cargar`, texto:`Cargar: ${ck.name||'producto'}`, grupo:'Productos del evento', checked:false});
+    out.push({id:uid(), key:`${pid}::cargar`, texto:`Cargar: ${ck.name||'producto'}`, grupo:'Productos del evento', checked:false});
   });
   return out;
 }
@@ -442,11 +442,24 @@ function claveEstable(arr){
     checked: !!i.checked, estado: i.estado||null
   })));
 }
+function limpiarUndefined(obj){
+  const out={};
+  Object.keys(obj).forEach(k=>{ if(obj[k]!==undefined) out[k]=obj[k]; });
+  return out;
+}
 function mergeItems(existing, desired){
   const exByKey = new Map((existing||[]).filter(i=>i.key).map(i=>[i.key,i]));
   const manual = (existing||[]).filter(i=> !i.key || i.key.startsWith('manual::'));
-  const merged = desired.map(d=> exByKey.has(d.key) ? {...exByKey.get(d.key), texto:d.texto, grupo:d.grupo, equipo:d.equipo} : d);
-  return [...merged, ...manual];
+  const merged = desired.map(d=>{
+    const ex = exByKey.get(d.key);
+    if(!ex) return limpiarUndefined(d);
+    const out = {...d}; // toma texto/grupo/equipo/key actualizados del catálogo
+    if(Object.prototype.hasOwnProperty.call(ex,'checked')) out.checked = ex.checked; // conserva lo ya marcado
+    if(Object.prototype.hasOwnProperty.call(ex,'estado')) out.estado = ex.estado;
+    if(ex.id) out.id = ex.id;
+    return limpiarUndefined(out);
+  });
+  return [...merged, ...manual].map(limpiarUndefined);
 }
 function nombreReserva(r){ return `${r.event||'Evento'}${r.client? ' - '+r.client:''}`.trim(); }
 
