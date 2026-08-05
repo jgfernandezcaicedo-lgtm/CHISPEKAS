@@ -230,59 +230,82 @@ function scheduleSync(){ clearTimeout(_syncTimer); _syncTimer=setTimeout(syncRes
 function uid(){ return Math.random().toString(36).slice(2,10); }
 function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),1800); }
 
-/* ---------- Seed inicial del catálogo (solo si está vacío) ---------- */
+/* ---------- Migración versionada del catálogo ----------
+   Si la versión guardada es menor a CATALOGO_VERSION, se borra el catálogo
+   viejo y se crea de nuevo con la info correcta. Así se corrige solo en tu
+   app ya publicada, sin que tengas que borrar nada a mano. */
+const CATALOGO_VERSION = 2;
+
+async function borrarColeccion(nombre){
+  const snap = await db.collection(nombre).get();
+  if(snap.empty) return;
+  const batch = db.batch();
+  snap.docs.forEach(d=>batch.delete(d.ref));
+  await batch.commit();
+}
+
 async function seedCatalogoSiVacio(){
-  const snapP = await db.collection('todolist_productos').limit(1).get();
-  if(snapP.empty){
-    const productos = [
-      {nombre:"Hamburguesa", categoria:"Salado", ingredientes:["Pan","Carne","Queso","Lechuga","Tomate","Papas al hilo","Kétchup","Mostaza","Envoltura/cajita"]},
-      {nombre:"Mini hamburguesa", categoria:"Salado", ingredientes:["Pan","Carne","Queso","Lechuga","Tomate","Papas al hilo","Kétchup","Mostaza","Envoltura/cajita"]},
-      {nombre:"Salchipapa", categoria:"Salado", ingredientes:["Papa","Salchicha","Aceite","Sal","Kétchup","Mayonesa","Empaque","Tenedor"]},
-      {nombre:"Pancho / hot dog", categoria:"Salado", ingredientes:["Pan","Salchicha o jamón","Queso","Kétchup","Mostaza","Mayonesa","Palito","Servilleta"]},
-      {nombre:"Pop corn salado", categoria:"Salado", ingredientes:["Maíz pop corn","Mantequilla/margarina","Sal","Envoltura"]},
-      {nombre:"Algodón de azúcar", categoria:"Dulce", ingredientes:["Azúcar","Colorante","Palito"]},
-      {nombre:"Churros grandes (comprados)", categoria:"Dulce", ingredientes:["Churros","Azúcar","Canela","Servilletas","Bolsa"]},
-      {nombre:"Churros pequeños (caseros)", categoria:"Dulce", ingredientes:["Masa","Aceite","Azúcar","Canela"]},
-      {nombre:"Helados", categoria:"Dulce", ingredientes:["Helados (comprados)","Servilletas/palitos"]},
-      {nombre:"Chicha morada", categoria:"Bebida", ingredientes:["Maíz morado","Canela","Piña","Azúcar","Vasos con tapa y sorbete o botellas"]},
-      {nombre:"Manzanas acarameladas", categoria:"Dulce", ingredientes:["Manzanas (compradas listas)"]},
-    ];
-    const batch = db.batch();
-    productos.forEach(p=>{ const ref = db.collection('todolist_productos').doc(); batch.set(ref,p); });
-    await batch.commit();
-  }
-  const snapE = await db.collection('todolist_equipos').limit(1).get();
-  if(snapE.empty){
-    const equipos = [
-      {nombre:"Cámara saltarina / inflable", tipo:"Inflable", items:["Fierros completos","Resortes en buen estado","Malla de seguridad","Motor/soplador funciona","Limpio, sin manchas","Sin roturas"]},
-      {nombre:"Extensiones eléctricas", tipo:"Eléctrico", items:["Cable sin cortes","Enchufe en buen estado","Prueba de funcionamiento"]},
-      {nombre:"Mesas y sillas", tipo:"Mobiliario", items:["Limpias","Completas","Sin roturas"]},
-      {nombre:"Plancha (hamburguesas)", tipo:"Máquina", items:["Enciende","Limpia","Gas/conexión ok"]},
-      {nombre:"Freidora (salchipapa/churros)", tipo:"Máquina", items:["Enciende","Limpia","Aceite en buen estado"]},
-      {nombre:"Máquina de algodón de azúcar", tipo:"Máquina", items:["Enciende","Limpia","Motor funciona"]},
-      {nombre:"Exhibidor de vidrio (churros)", tipo:"Máquina", items:["Enciende","Limpio","Vidrio sin roturas"]},
-      {nombre:"Carrito de helados", tipo:"Máquina", items:["Enfría correctamente","Limpio","Ruedas ok"]},
-    ];
-    const batch = db.batch();
-    equipos.forEach(e=>{ const ref = db.collection('todolist_equipos').doc(); batch.set(ref,e); });
-    await batch.commit();
-  }
-  const snapG = await db.collection('todolist_general').limit(1).get();
-  if(snapG.empty){
-    const general = [
-      {texto:"Guantes", grupo:"Uniforme/personal"},
-      {texto:"Gorro", grupo:"Uniforme/personal"},
-      {texto:"Tapabocas", grupo:"Uniforme/personal"},
-      {texto:"Mandil", grupo:"Uniforme/personal"},
-      {texto:"Polos del personal limpios", grupo:"Uniforme/personal"},
-      {texto:"Servilletas", grupo:"Insumos generales"},
-      {texto:"Cajitas/envolturas extra", grupo:"Insumos generales"},
-      {texto:"Bolsas de basura", grupo:"Insumos generales"},
-    ];
-    const batch = db.batch();
-    general.forEach(g=>{ const ref = db.collection('todolist_general').doc(); batch.set(ref,g); });
-    await batch.commit();
-  }
+  const metaRef = db.collection('todolist_meta').doc('catalogo');
+  const metaSnap = await metaRef.get();
+  const versionActual = metaSnap.exists ? (metaSnap.data().version||0) : 0;
+  if(versionActual >= CATALOGO_VERSION) return;
+
+  await borrarColeccion('todolist_productos');
+  await borrarColeccion('todolist_equipos');
+  await borrarColeccion('todolist_general');
+
+  // ---- Equipos: incluye tanto estructuras (inflables/mobiliario) como máquinas de snacks ----
+  const equipos = [
+    {nombre:"Saltarín / cama saltarina", tipo:"Saltarín", items:["Malla de seguridad","Resortes en buen estado","Fierros completos","Sin roturas, bien cosido"]},
+    {nombre:"Inflable", tipo:"Inflable", items:["Motor/soplador funciona","Limpio, sin manchas","Sin roturas, bien cosido"]},
+    {nombre:"Juegos infantiles", tipo:"Juegos infantiles", items:["Limpio"]},
+    {nombre:"Mesas y sillas (mobiliario)", tipo:"Mobiliario", items:["Limpio"]},
+    {nombre:"Plancha", tipo:"Máquina", items:["Enciende","Limpia"]},
+    {nombre:"Freidora", tipo:"Máquina", items:["Enciende","Limpia","Aceite en buen estado"]},
+    {nombre:"Máquina de algodón de azúcar", tipo:"Máquina", items:["Enciende","Limpia","Motor funciona"]},
+    {nombre:"Máquina de pop corn", tipo:"Máquina", items:["Enciende","Limpia"]},
+    {nombre:"Vitrina / exhibidor de churros", tipo:"Máquina", items:["Enciende","Limpia"]},
+    {nombre:"Carrito de helados (con baterías)", tipo:"Máquina", items:["Baterías cargadas / enfriando bien","Limpio"]},
+    {nombre:"Dispensador de chicha morada", tipo:"Máquina", items:["Limpio","Funciona bien"]},
+  ];
+  const idsEquipo = {};
+  const batchE = db.batch();
+  equipos.forEach(e=>{ const ref = db.collection('todolist_equipos').doc(); idsEquipo[e.nombre]=ref.id; batchE.set(ref,e); });
+  await batchE.commit();
+
+  // ---- Productos (snacks): ingredientes sin cantidad + equipo(s) que requieren ----
+  const productos = [
+    {nombre:"Pop corn", categoria:"Salado", ingredientes:["Maíz pop corn","Sal","Aceite","Cono/envoltura para pop corn"], equiposRequeridos:[idsEquipo["Máquina de pop corn"]]},
+    {nombre:"Salchipapa", categoria:"Salado", ingredientes:["Papa","Aceite","Sal","Kétchup","Mayonesa","Mostaza","Empaque","Tenedor"], equiposRequeridos:[idsEquipo["Freidora"]]},
+    {nombre:"Pancho / hot dog", categoria:"Salado", ingredientes:["Salchicha para hot dog","Kétchup","Mostaza","Mayonesa","Servilleta","Palito"], equiposRequeridos:[idsEquipo["Plancha"]]},
+    {nombre:"Hamburguesa", categoria:"Salado", ingredientes:["Pan","Carne","Queso","Lechuga","Tomate","Papas al hilo","Kétchup","Mostaza","Mayonesa","Envoltura","Cajita"], equiposRequeridos:[idsEquipo["Plancha"]]},
+    {nombre:"Mini hamburguesa", categoria:"Salado", ingredientes:["Pan","Carne","Queso","Lechuga","Tomate","Papas al hilo","Kétchup","Mostaza","Mayonesa","Envoltura","Cajita"], equiposRequeridos:[idsEquipo["Plancha"]]},
+    {nombre:"Churros", categoria:"Dulce", ingredientes:["Churros (comprados)","Servilletas"], equiposRequeridos:[idsEquipo["Vitrina / exhibidor de churros"]]},
+    {nombre:"Helados", categoria:"Dulce", ingredientes:[], equiposRequeridos:[idsEquipo["Carrito de helados (con baterías)"]]},
+    {nombre:"Manzanas acarameladas", categoria:"Dulce", ingredientes:["Manzanas acarameladas (compradas)"], equiposRequeridos:[]},
+    {nombre:"Chicha morada", categoria:"Bebida", ingredientes:["Maíz morado","Canela","Piña","Azúcar (por si acaso)","Esencia/concentrado/pulpa de chicha morada","Vasos con tapa y sorbete, o botellas"], equiposRequeridos:[idsEquipo["Dispensador de chicha morada"]]},
+    {nombre:"Algodón de azúcar", categoria:"Dulce", ingredientes:["Azúcar","Colorante","Palitos"], equiposRequeridos:[idsEquipo["Máquina de algodón de azúcar"]]},
+  ];
+  const batchP = db.batch();
+  productos.forEach(p=>{ const ref = db.collection('todolist_productos').doc(); batchP.set(ref,p); });
+  await batchP.commit();
+
+  // ---- General: solo aplica si hay snacks en el evento (condicion), salvo la extensión que también aplica con inflables ----
+  const general = [
+    {texto:"Guantes", grupo:"Uniforme/personal", condicion:"snack"},
+    {texto:"Gorro", grupo:"Uniforme/personal", condicion:"snack"},
+    {texto:"Tapabocas", grupo:"Uniforme/personal", condicion:"snack"},
+    {texto:"Mandil", grupo:"Uniforme/personal", condicion:"snack"},
+    {texto:"Barra de snacks / mesa bar con sombrilla", grupo:"Insumos generales", condicion:"snack"},
+    {texto:"Servilletas extra", grupo:"Insumos generales", condicion:"snack"},
+    {texto:"Bolsas de basura", grupo:"Insumos generales", condicion:"snack"},
+    {texto:"Extensión eléctrica", grupo:"Insumos generales", condicion:"snack_o_inflable"},
+  ];
+  const batchG = db.batch();
+  general.forEach(g=>{ const ref = db.collection('todolist_general').doc(); batchG.set(ref,g); });
+  await batchG.commit();
+
+  await metaRef.set({version:CATALOGO_VERSION});
 }
 
 /* ---------- Listeners en tiempo real ---------- */
@@ -327,11 +350,25 @@ function initListeners(){
 
 /* ---------- Sincronización automática con reservas de CHISPEKAS ---------- */
 const INSPECCION_GENERICA = {
-  inflable:            ["Fierros completos","Resortes en buen estado","Malla de seguridad","Motor/soplador funciona","Limpio, sin manchas","Sin roturas"],
-  saltarines:          ["Fierros completos","Resortes en buen estado","Malla de seguridad","Motor/soplador funciona","Limpio, sin manchas","Sin roturas"],
-  juegos_infantiles:   ["Piezas completas","Sin roturas","Limpio"],
-  mobiliario:          ["Limpio","Completo","Sin roturas"],
+  inflable:            ["Motor/soplador funciona","Limpio, sin manchas","Sin roturas, bien cosido"],
+  saltarines:          ["Malla de seguridad","Resortes en buen estado","Fierros completos","Sin roturas, bien cosido"],
+  juegos_infantiles:   ["Limpio"],
+  mobiliario:          ["Limpio"],
 };
+
+function inspeccionParaEquipoIds(equipoIds){
+  const out=[];
+  [...new Set(equipoIds.filter(Boolean))].forEach(eqId=>{
+    const eq = EQUIPOS.find(e=>e.id===eqId); if(!eq) return;
+    (eq.items||[]).forEach(it=> out.push({key:`equipo::${eqId}::${it}`, equipo:eq.nombre, texto:it, estado:null}));
+  });
+  return out;
+}
+function condicionAplica(condicion, hasSnack, hasInflable){
+  if(condicion==='snack') return hasSnack;
+  if(condicion==='snack_o_inflable') return hasSnack||hasInflable;
+  return true;
+}
 
 function computeDesiredCompras(prodIds){
   const out=[];
@@ -348,20 +385,35 @@ function computeDesiredCompras(prodIds){
 }
 function computeDesiredInspeccion(prodIds){
   const out=[];
+  const equipoIdsDeProductos=[];
   prodIds.forEach(pid=>{
     const ck = CK_PRODUCTS.find(p=>p.id===pid); if(!ck) return;
-    const linked = EQUIPOS.find(e=>e.chispekasId===pid);
-    if(linked){
-      (linked.items||[]).forEach(it=> out.push({key:`${pid}::${it}`, equipo:ck.name, texto:it, estado:null}));
+    const linkedEquipo = EQUIPOS.find(e=>e.chispekasId===pid);
+    const linkedProducto = PRODUCTOS.find(p=>p.chispekasId===pid);
+    if(linkedEquipo){
+      (linkedEquipo.items||[]).forEach(it=> out.push({key:`${pid}::${it}`, equipo:ck.name, texto:it, estado:null}));
     } else if(INSPECCION_GENERICA[ck.category]){
       INSPECCION_GENERICA[ck.category].forEach(it=> out.push({key:`${pid}::${it}`, equipo:ck.name, texto:it, estado:null}));
     }
+    if(linkedProducto) equipoIdsDeProductos.push(...(linkedProducto.equiposRequeridos||[]));
   });
+  out.push(...inspeccionParaEquipoIds(equipoIdsDeProductos));
   return out;
+}
+function categoriasPresentesCk(prodIds){
+  let hasSnack=false, hasInflable=false;
+  prodIds.forEach(pid=>{
+    const ck = CK_PRODUCTS.find(p=>p.id===pid); if(!ck) return;
+    if(ck.category==='snack') hasSnack=true;
+    if(ck.category==='inflable') hasInflable=true;
+    if(PRODUCTOS.find(p=>p.chispekasId===pid)) hasSnack=true;
+  });
+  return {hasSnack, hasInflable};
 }
 function computeDesiredAlistamiento(prodIds){
   const out=[];
-  GENERAL.forEach(g=> out.push({key:`general::${g.id}`, texto:g.texto, grupo:g.grupo, checked:false}));
+  const {hasSnack, hasInflable} = categoriasPresentesCk(prodIds);
+  GENERAL.forEach(g=>{ if(condicionAplica(g.condicion,hasSnack,hasInflable)) out.push({key:`general::${g.id}`, texto:g.texto, grupo:g.grupo, checked:false}); });
   prodIds.forEach(pid=>{
     const ck = CK_PRODUCTS.find(p=>p.id===pid); if(!ck) return;
     out.push({key:`${pid}::cargar`, texto:`Cargar: ${ck.name}`, grupo:'Productos del evento', checked:false});
@@ -474,10 +526,13 @@ function progresoEvento(ev){
   return Math.round((doneChecks/totalChecks)*100);
 }
 
+function hoyISO(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+
 /* ---------- RENDER: Eventos ---------- */
 function renderEventos(){
   const wrap = document.getElementById('eventosList');
-  let list = [...EVENTOS];
+  const hoy = hoyISO();
+  let list = EVENTOS.filter(e => e.fecha >= hoy); // solo hoy en adelante, los pasados no interesan
   if(eventFilter==='pend') list = list.filter(e=>progresoEvento(e)<100);
   if(eventFilter==='listo') list = list.filter(e=>progresoEvento(e)===100);
   if(list.length===0){
@@ -560,29 +615,37 @@ async function guardarEvento(){
   const prodIds = [...(sheet._selProd||[])];
   const equipIds = [...(sheet._selEquip||[])];
 
-  // Generar Compras: unión deduplicada de ingredientes
-  const ingrSet = new Map();
+  // Generar Compras: ingredientes de cada producto seleccionado
+  const compras=[];
   prodIds.forEach(pid=>{
     const p = PRODUCTOS.find(x=>x.id===pid);
-    if(p) (p.ingredientes||[]).forEach(ing=>{ ingrSet.set(ing.toLowerCase(), {texto:ing, producto:p.nombre}); });
+    if(p) (p.ingredientes||[]).forEach(ing=> compras.push({id:uid(), key:`${pid}::${ing}`, texto:ing, checked:false}));
   });
-  const compras = [...ingrSet.values()].map(v=>({id:uid(), texto:v.texto, checked:false}));
 
-  // Generar Inspección: items por equipo
+  // Generar Inspección: equipos elegidos directamente + máquinas que requiere cada producto elegido
   const inspeccion = [];
   equipIds.forEach(eid=>{
     const e = EQUIPOS.find(x=>x.id===eid);
-    if(e) (e.items||[]).forEach(it=>{ inspeccion.push({id:uid(), equipo:e.nombre, texto:it, estado:null}); });
+    if(e) (e.items||[]).forEach(it=> inspeccion.push({id:uid(), key:`${eid}::${it}`, equipo:e.nombre, texto:it, estado:null}));
+  });
+  const equipoIdsDeProductos = [];
+  prodIds.forEach(pid=>{ const p=PRODUCTOS.find(x=>x.id===pid); if(p) equipoIdsDeProductos.push(...(p.equiposRequeridos||[])); });
+  [...new Set(equipoIdsDeProductos.filter(Boolean))].forEach(eid=>{
+    if(equipIds.includes(eid)) return; // ya se agregó arriba
+    const e = EQUIPOS.find(x=>x.id===eid);
+    if(e) (e.items||[]).forEach(it=> inspeccion.push({id:uid(), key:`${eid}::${it}`, equipo:e.nombre, texto:it, estado:null}));
   });
 
-  // Generar Alistamiento: general (uniformes/insumos) + productos + equipos como "cargar"
+  // Generar Alistamiento: general (según condición) + productos + equipos como "cargar"
+  const hasSnack = prodIds.length>0;
+  const hasInflable = equipIds.some(eid=>{ const e=EQUIPOS.find(x=>x.id===eid); return e && (e.tipo==='Inflable'||e.tipo==='Saltarín'); });
   const alistamiento = [];
-  GENERAL.forEach(g=> alistamiento.push({id:uid(), texto:g.texto, grupo:g.grupo, checked:false}));
-  prodIds.forEach(pid=>{ const p=PRODUCTOS.find(x=>x.id===pid); if(p) alistamiento.push({id:uid(), texto:`Cargar insumos: ${p.nombre}`, grupo:'Productos', checked:false}); });
-  equipIds.forEach(eid=>{ const e=EQUIPOS.find(x=>x.id===eid); if(e) alistamiento.push({id:uid(), texto:`Cargar: ${e.nombre}`, grupo:'Equipos', checked:false}); });
+  GENERAL.forEach(g=>{ if(condicionAplica(g.condicion,hasSnack,hasInflable)) alistamiento.push({id:uid(), key:`general::${g.id}`, texto:g.texto, grupo:g.grupo, checked:false}); });
+  prodIds.forEach(pid=>{ const p=PRODUCTOS.find(x=>x.id===pid); if(p) alistamiento.push({id:uid(), key:`${pid}::cargar`, texto:`Cargar insumos: ${p.nombre}`, grupo:'Productos', checked:false}); });
+  equipIds.forEach(eid=>{ const e=EQUIPOS.find(x=>x.id===eid); if(e) alistamiento.push({id:uid(), key:`${eid}::cargar`, texto:`Cargar: ${e.nombre}`, grupo:'Equipos', checked:false}); });
 
   await db.collection('todolist_eventos').add({
-    nombre, fecha, negocio, estado:'pendiente',
+    nombre, fecha, negocio, estado:'pendiente', origenReservaId:null,
     productos:prodIds, equipos:equipIds,
     compras, inspeccion, alistamiento
   });
@@ -777,7 +840,8 @@ function renderCatalogo(){
           <div class="evname">${esc(p.nombre)} <span class="ingr">· ${esc(p.categoria||'')}</span></div>
           <div><button class="smallx" onclick="openProductoForm('${p.id}')">✎</button><button class="smallx" onclick="borrarDoc('todolist_productos','${p.id}')">✕</button></div>
         </div>
-        <div class="ingr">${(p.ingredientes||[]).join(' · ')}</div>
+        <div class="ingr">${(p.ingredientes||[]).length? (p.ingredientes||[]).join(' · ') : 'Sin insumos (viene comprado/listo)'}</div>
+        ${(p.equiposRequeridos||[]).length? `<div class="ingr" style="margin-top:4px">🔧 ${p.equiposRequeridos.map(eid=>esc((EQUIPOS.find(e=>e.id===eid)||{}).nombre||'')).filter(Boolean).join(', ')}</div>`:''}
         ${p.chispekasId? `<div class="ingr" style="color:var(--teal); margin-top:4px">🔗 ${esc((CK_PRODUCTS.find(c=>c.id===p.chispekasId)||{}).name||'vinculado')}</div>`:''}
       </div>`).join('');
   }
@@ -798,9 +862,10 @@ function renderCatalogo(){
     const grupos={};
     GENERAL.forEach(g=>{ (grupos[g.grupo||'Otros']=grupos[g.grupo||'Otros']||[]).push(g); });
     let html='';
+    const condTxt={snack:'Solo si hay snacks', snack_o_inflable:'Snacks o inflables', siempre:'Siempre'};
     Object.keys(grupos).forEach(gr=>{
       html += `<div class="grouphead">${esc(gr)}</div><div class="card">`;
-      html += grupos[gr].map(g=>`<div class="checkitem"><div class="checklabel">${esc(g.texto)}</div><button class="smallx" onclick="borrarDoc('todolist_general','${g.id}')">✕</button></div>`).join('');
+      html += grupos[gr].map(g=>`<div class="checkitem"><div><div class="checklabel">${esc(g.texto)}</div><div class="checksub">${condTxt[g.condicion]||'Siempre'}</div></div><button class="smallx" onclick="borrarDoc('todolist_general','${g.id}')">✕</button></div>`).join('');
       html += `</div>`;
     });
     wrap.innerHTML = html;
@@ -819,19 +884,24 @@ function openProductoForm(id){
     <select id="pCategoria">
       ${['Salado','Dulce','Bebida','Otro'].map(c=>`<option ${p&&p.categoria===c?'selected':''}>${c}</option>`).join('')}
     </select>
-    <label class="f">Ingredientes / insumos (sin cantidad, uno por línea)</label>
-    <textarea id="pIngredientes" rows="6">${p?p.ingredientes.join('\n'):''}</textarea>
+    <label class="f">Ingredientes / insumos (sin cantidad, uno por línea — deja vacío si viene comprado/listo)</label>
+    <textarea id="pIngredientes" rows="6">${p?(p.ingredientes||[]).join('\n'):''}</textarea>
+    <label class="f">Máquina(s) que requiere (opcional)</label>
+    <div class="chiplist" id="chipsMaquinas"></div>
     <label class="f">Vincular a producto real de CHISPEKAS (opcional)</label>
     <select id="pChispekasId">
       <option value="">— sin vincular —</option>
       ${CK_PRODUCTS.map(ck=>`<option value="${ck.id}" ${p&&p.chispekasId===ck.id?'selected':''}>${esc(ck.emoji||'')} ${esc(ck.name)}</option>`).join('')}
     </select>
-    <div class="ingr" style="margin-top:6px">Si lo vinculas, cada vez que ese producto aparezca en una reserva confirmada de CHISPEKAS, se generará solo esta lista de compras.</div>
+    <div class="ingr" style="margin-top:6px">Si lo vinculas, cada vez que ese producto aparezca en una reserva confirmada de CHISPEKAS, se generará solo esta lista de compras y su máquina.</div>
     <div class="btnrow">
       <button class="btn ghost" onclick="closeSheet()">Cancelar</button>
       ${p?`<button class="btn danger" onclick="borrarDoc('todolist_productos','${id}');closeSheet()">Eliminar</button>`:''}
       <button class="btn primary" onclick="guardarProducto()">Guardar</button>
     </div>`;
+  const sel = new Set(p&&p.equiposRequeridos||[]);
+  document.getElementById('chipsMaquinas').innerHTML = EQUIPOS.map(e=>`<div class="chip ${sel.has(e.id)?'sel':''}" onclick="toggleChip('_selMaquinas','${e.id}',this)">${esc(e.nombre)}</div>`).join('') || `<span class="ingr">Agrega equipos/máquinas primero en la pestaña Equipos</span>`;
+  sheet._selMaquinas = sel;
   openSheet();
 }
 async function guardarProducto(){
@@ -840,8 +910,9 @@ async function guardarProducto(){
   const categoria = document.getElementById('pCategoria').value;
   const ingredientes = document.getElementById('pIngredientes').value.split('\n').map(s=>s.trim()).filter(Boolean);
   const chispekasId = document.getElementById('pChispekasId').value || null;
+  const equiposRequeridos = [...(document.getElementById('sheet')._selMaquinas||[])];
   if(!nombre){ toast('Falta el nombre'); return; }
-  const data = {nombre, categoria, ingredientes, chispekasId};
+  const data = {nombre, categoria, ingredientes, chispekasId, equiposRequeridos};
   if(id) await db.collection('todolist_productos').doc(id).update(data);
   else await db.collection('todolist_productos').add(data);
   closeSheet(); toast('Guardado');
@@ -892,14 +963,21 @@ function openGeneralForm(){
     <label class="f">Texto</label><input type="text" id="gTexto" placeholder="Ej. Guantes">
     <label class="f">Grupo</label>
     <select id="gGrupo"><option>Uniforme/personal</option><option>Insumos generales</option><option>Otros</option></select>
+    <label class="f">¿Cuándo aplica?</label>
+    <select id="gCondicion">
+      <option value="snack">Solo si hay snacks en el evento</option>
+      <option value="snack_o_inflable">Si hay snacks o inflables</option>
+      <option value="siempre">Siempre</option>
+    </select>
     <div class="btnrow"><button class="btn ghost" onclick="closeSheet()">Cancelar</button><button class="btn primary" onclick="guardarGeneral()">Guardar</button></div>`;
   openSheet();
 }
 async function guardarGeneral(){
   const texto = document.getElementById('gTexto').value.trim();
   const grupo = document.getElementById('gGrupo').value;
+  const condicion = document.getElementById('gCondicion').value;
   if(!texto){ toast('Falta el texto'); return; }
-  await db.collection('todolist_general').add({texto, grupo});
+  await db.collection('todolist_general').add({texto, grupo, condicion});
   closeSheet(); toast('Guardado');
 }
 
