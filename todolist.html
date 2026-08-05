@@ -392,7 +392,7 @@ function computeDesiredCompras(prodIds){
     if(linked){
       (linked.ingredientes||[]).forEach(ing=> out.push({key:`${pid}::${ing}`, texto:ing, checked:false}));
     } else if(ck.category==='snack'){
-      out.push({key:`${pid}::insumos`, texto:`Preparar insumos: ${ck.name}`, checked:false});
+      out.push({key:`${pid}::insumos`, texto:`Preparar insumos: ${ck.name||'producto'}`, checked:false});
     }
   });
   return out;
@@ -405,9 +405,9 @@ function computeDesiredInspeccion(prodIds){
     const linkedEquipo = EQUIPOS.find(e=>e.chispekasId===pid);
     const linkedProducto = PRODUCTOS.find(p=>p.chispekasId===pid);
     if(linkedEquipo){
-      (linkedEquipo.items||[]).forEach(it=> out.push({key:`${pid}::${it}`, equipo:ck.name, texto:it, estado:null}));
+      (linkedEquipo.items||[]).forEach(it=> out.push({key:`${pid}::${it}`, equipo:ck.name||'Producto', texto:it, estado:null}));
     } else if(INSPECCION_GENERICA[ck.category]){
-      INSPECCION_GENERICA[ck.category].forEach(it=> out.push({key:`${pid}::${it}`, equipo:ck.name, texto:it, estado:null}));
+      INSPECCION_GENERICA[ck.category].forEach(it=> out.push({key:`${pid}::${it}`, equipo:ck.name||'Producto', texto:it, estado:null}));
     }
     if(linkedProducto) equipoIdsDeProductos.push(...(linkedProducto.equiposRequeridos||[]));
   });
@@ -430,7 +430,7 @@ function computeDesiredAlistamiento(prodIds){
   GENERAL.forEach(g=>{ if(condicionAplica(g.condicion,hasSnack,hasInflable)) out.push({key:`general::${g.id}`, texto:g.texto, grupo:g.grupo, checked:false}); });
   prodIds.forEach(pid=>{
     const ck = CK_PRODUCTS.find(p=>p.id===pid); if(!ck) return;
-    out.push({key:`${pid}::cargar`, texto:`Cargar: ${ck.name}`, grupo:'Productos del evento', checked:false});
+    out.push({key:`${pid}::cargar`, texto:`Cargar: ${ck.name||'producto'}`, grupo:'Productos del evento', checked:false});
   });
   return out;
 }
@@ -453,33 +453,44 @@ function nombreReserva(r){ return `${r.event||'Evento'}${r.client? ' - '+r.clien
 async function syncReservasConfirmadas(){
   if(!CK_RESERVATIONS.length || !CK_PRODUCTS.length) return;
   const confirmadas = CK_RESERVATIONS.filter(r=>r.status==='confirmado');
+  let fallidas = 0;
   for(const r of confirmadas){
-    const prodIds = r.products||[];
-    const existing = EVENTOS.find(e=>e.origenReservaId===r.id);
-    const desiredCompras = computeDesiredCompras(prodIds);
-    const desiredInspeccion = computeDesiredInspeccion(prodIds);
-    const desiredAlistamiento = computeDesiredAlistamiento(prodIds);
-    const nombre = nombreReserva(r);
-    if(!existing){
-      await db.collection('todolist_eventos').add({
-        nombre, fecha:r.date||'', negocio:'CHISPEKAS', estado:'pendiente',
-        origenReservaId:r.id, reservaEstado:r.status,
-        productos:[], equipos:[],
-        compras:desiredCompras, inspeccion:desiredInspeccion, alistamiento:desiredAlistamiento
-      });
-    } else {
-      const compras = mergeItems(existing.compras, desiredCompras);
-      const inspeccion = mergeItems(existing.inspeccion, desiredInspeccion);
-      const alistamiento = mergeItems(existing.alistamiento, desiredAlistamiento);
-      const changed = claveEstable(compras)!==claveEstable(existing.compras)
-        || claveEstable(inspeccion)!==claveEstable(existing.inspeccion)
-        || claveEstable(alistamiento)!==claveEstable(existing.alistamiento)
-        || existing.reservaEstado!==r.status || existing.fecha!==r.date || existing.nombre!==nombre;
-      if(changed){
-        await db.collection('todolist_eventos').doc(existing.id).update({compras, inspeccion, alistamiento, reservaEstado:r.status, fecha:r.date||existing.fecha||'', nombre});
+    try{
+      const prodIds = Array.isArray(r.products) ? r.products : [];
+      const existing = EVENTOS.find(e=>e.origenReservaId===r.id);
+      const desiredCompras = computeDesiredCompras(prodIds);
+      const desiredInspeccion = computeDesiredInspeccion(prodIds);
+      const desiredAlistamiento = computeDesiredAlistamiento(prodIds);
+      const nombre = nombreReserva(r);
+      const reservaEstado = r.status || 'confirmado';
+      const fecha = (typeof r.date==='string') ? r.date : '';
+      if(!existing){
+        await db.collection('todolist_eventos').add({
+          nombre, fecha, negocio:'CHISPEKAS', estado:'pendiente',
+          origenReservaId:r.id, reservaEstado,
+          productos:[], equipos:[],
+          compras:desiredCompras, inspeccion:desiredInspeccion, alistamiento:desiredAlistamiento
+        });
+      } else {
+        const compras = mergeItems(existing.compras, desiredCompras);
+        const inspeccion = mergeItems(existing.inspeccion, desiredInspeccion);
+        const alistamiento = mergeItems(existing.alistamiento, desiredAlistamiento);
+        const changed = claveEstable(compras)!==claveEstable(existing.compras)
+          || claveEstable(inspeccion)!==claveEstable(existing.inspeccion)
+          || claveEstable(alistamiento)!==claveEstable(existing.alistamiento)
+          || existing.reservaEstado!==reservaEstado || existing.fecha!==fecha || existing.nombre!==nombre;
+        if(changed){
+          await db.collection('todolist_eventos').doc(existing.id).update({compras, inspeccion, alistamiento, reservaEstado, fecha:fecha||existing.fecha||'', nombre});
+        }
       }
+      delete DIAG.errores[`reserva ${r.id}`];
+    }catch(err){
+      fallidas++;
+      console.error('No se pudo sincronizar la reserva', r.id, r.client, r.date, err);
+      DIAG.errores[`reserva ${r.id} (${r.client||'?'} ${r.date||'?'})`] = err.message||String(err);
     }
   }
+  if(fallidas>0) toast(`⚠️ ${fallidas} reserva(s) no se pudieron sincronizar — ver 🔍 Diagnóstico`);
   // Reservas que dejaron de estar confirmadas: no se borra nada, solo se marca
   EVENTOS.filter(e=>e.origenReservaId).forEach(async e=>{
     const r = CK_RESERVATIONS.find(x=>x.id===e.origenReservaId);
