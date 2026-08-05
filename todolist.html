@@ -143,7 +143,10 @@ textarea{resize:vertical; min-height:64px;}
       <div class="mark">✓</div>
       <div class="txt">To Do List<small>JGK Fernández</small></div>
     </div>
-    <button class="iconbtn no-print" onclick="imprimirEvento()">⎙</button>
+    <div style="display:flex; gap:8px;">
+      <button class="iconbtn no-print" onclick="imprimirEvento()">⎙</button>
+      <button class="iconbtn no-print" onclick="abrirDiagnostico()">🔍</button>
+    </div>
   </div>
 </header>
 
@@ -151,9 +154,10 @@ textarea{resize:vertical; min-height:64px;}
 <main>
   <div id="view-eventos" class="view active">
     <div class="pillnav no-print">
-      <button class="pill active" data-f="todos" onclick="filtrarEventos('todos',this)">Todos</button>
+      <button class="pill active" data-f="proximos" onclick="filtrarEventos('proximos',this)">Próximos</button>
       <button class="pill" data-f="pend" onclick="filtrarEventos('pend',this)">Pendientes</button>
       <button class="pill" data-f="listo" onclick="filtrarEventos('listo',this)">Listos</button>
+      <button class="pill" data-f="todos" onclick="filtrarEventos('todos',this)">Todos</button>
     </div>
     <div id="eventosList"></div>
   </div>
@@ -227,7 +231,8 @@ const db = firebase.firestore();
 
 let PRODUCTOS=[], EQUIPOS=[], GENERAL=[], EVENTOS=[], REPARACIONES=[];
 let CK_PRODUCTS=[], CK_RESERVATIONS=[]; // catálogo y reservas de CHISPEKAS (solo lectura)
-let currentEventoId=null, currentDetTab='compras', currentMainView='eventos', currentCatTab='productos', eventFilter='todos';
+const DIAG = {errores:{}};
+let currentEventoId=null, currentDetTab='compras', currentMainView='eventos', currentCatTab='productos', eventFilter='proximos';
 let _syncTimer=null;
 function scheduleSync(){ clearTimeout(_syncTimer); _syncTimer=setTimeout(syncReservasConfirmadas, 400); }
 
@@ -316,6 +321,7 @@ async function seedCatalogoSiVacio(){
 function initListeners(){
   const onErr = (nombre) => (err) => {
     console.error(`Error leyendo ${nombre}:`, err);
+    DIAG.errores[nombre] = err.code||err.message||'error';
     toast(`⚠️ No se pudo leer ${nombre} (${err.code||err.message||'error'})`);
   };
   db.collection('todolist_productos').orderBy('nombre').onSnapshot(s=>{
@@ -349,11 +355,11 @@ function initListeners(){
   db.collection('products').onSnapshot(s=>{
     CK_PRODUCTS = s.docs.map(d=>({id:d.id,...d.data()}));
     scheduleSync();
-  }, err=>{ console.warn('No se pudo leer products de CHISPEKAS', err); });
+  }, err=>{ console.warn('No se pudo leer products de CHISPEKAS', err); DIAG.errores['products (CHISPEKAS)']=err.code||err.message; });
   db.collection('reservations').onSnapshot(s=>{
     CK_RESERVATIONS = s.docs.map(d=>({id:d.id,...d.data()}));
     scheduleSync();
-  }, err=>{ console.warn('No se pudo leer reservations de CHISPEKAS', err); });
+  }, err=>{ console.warn('No se pudo leer reservations de CHISPEKAS', err); DIAG.errores['reservations (CHISPEKAS)']=err.code||err.message; });
 }
 
 /* ---------- Sincronización automática con reservas de CHISPEKAS ---------- */
@@ -548,16 +554,22 @@ function hoyISO(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMo
 function renderEventos(){
   const wrap = document.getElementById('eventosList');
   const hoy = hoyISO();
-  let list = EVENTOS.filter(e => e.fecha >= hoy); // solo hoy en adelante, los pasados no interesan
-  if(eventFilter==='pend') list = list.filter(e=>progresoEvento(e)<100);
-  if(eventFilter==='listo') list = list.filter(e=>progresoEvento(e)===100);
+  let list = [...EVENTOS];
+  if(eventFilter==='proximos') list = list.filter(e=>e.fecha>=hoy);
+  if(eventFilter==='pend') list = list.filter(e=>e.fecha>=hoy && progresoEvento(e)<100);
+  if(eventFilter==='listo') list = list.filter(e=>e.fecha>=hoy && progresoEvento(e)===100);
+  // eventFilter==='todos' → sin filtro, se ven pasados y futuros
   if(list.length===0){
-    wrap.innerHTML = `<div class="emptystate"><div class="big">🗓️</div><h3>Sin eventos aquí</h3><p>Crea un evento y se generan solos los checklists de compras, inspección y alistamiento.</p></div>`;
+    const hint = EVENTOS.length>0
+      ? `<p>Tienes ${EVENTOS.length} evento(s) guardado(s) en total, pero ninguno calza con este filtro. Prueba tocar "Todos" — si son de fechas viejas (ej. reservas de prueba), ahí los vas a ver.</p>`
+      : `<p>Crea un evento y se generan solos los checklists de compras, inspección y alistamiento.</p>`;
+    wrap.innerHTML = `<div class="emptystate"><div class="big">🗓️</div><h3>Sin eventos aquí</h3>${hint}</div>`;
     return;
   }
   wrap.innerHTML = list.map(ev=>{
     const p = progresoEvento(ev);
     let badge = p===100 ? `<span class="badge ok">Listo</span>` : `<span class="badge pend">${p}%</span>`;
+    if(ev.fecha && ev.fecha < hoy) badge = `<span class="badge" style="background:var(--line); color:var(--ink3)">Pasado</span>`;
     if(ev.origenReservaId && ev.reservaEstado && ev.reservaEstado!=='confirmado'){
       badge = `<span class="badge warn">⚠️ Reserva: ${esc(ev.reservaEstado)}</span>`;
     }
@@ -1037,6 +1049,45 @@ function imprimirEvento(){
     ${bloqueImprimibleCheck('📋 Alistamiento', ev.alistamiento, 'check')}
   `;
   setTimeout(()=> window.print(), 50);
+}
+
+/* ---------- Diagnóstico ---------- */
+function rangoFechas(arr, campo){
+  const fechas = arr.map(x=>x[campo]).filter(Boolean).sort();
+  if(fechas.length===0) return 'sin fechas';
+  return `${fechas[0]} → ${fechas[fechas.length-1]}`;
+}
+function abrirDiagnostico(){
+  const sheet = document.getElementById('sheet');
+  sheet.dataset.type='diagnostico';
+  const erroresHtml = Object.keys(DIAG.errores).length
+    ? Object.entries(DIAG.errores).map(([k,v])=>`<div class="ingr" style="color:var(--red)">⚠️ ${esc(k)}: ${esc(v)}</div>`).join('')
+    : `<div class="ingr" style="color:var(--teal)">Sin errores de lectura</div>`;
+  const confirmadas = CK_RESERVATIONS.filter(r=>r.status==='confirmado');
+  sheet.innerHTML = `
+    <div class="grabber"></div>
+    <h2>🔍 Diagnóstico</h2>
+    <label class="f">Reservas leídas de CHISPEKAS (colección "reservations")</label>
+    <div class="card">
+      <div class="ingr">Total: <b style="color:var(--ink)">${CK_RESERVATIONS.length}</b></div>
+      <div class="ingr">Confirmadas: <b style="color:var(--ink)">${confirmadas.length}</b></div>
+      <div class="ingr">Rango de fechas (todas): ${esc(rangoFechas(CK_RESERVATIONS,'date'))}</div>
+      <div class="ingr">Rango de fechas (confirmadas): ${esc(rangoFechas(confirmadas,'date'))}</div>
+    </div>
+    <label class="f">Productos leídos de CHISPEKAS (colección "products")</label>
+    <div class="card"><div class="ingr">Total: <b style="color:var(--ink)">${CK_PRODUCTS.length}</b></div></div>
+    <label class="f">Eventos guardados en el To Do List (colección "todolist_eventos")</label>
+    <div class="card">
+      <div class="ingr">Total: <b style="color:var(--ink)">${EVENTOS.length}</b></div>
+      <div class="ingr">Rango de fechas: ${esc(rangoFechas(EVENTOS,'fecha'))}</div>
+      <div class="ingr">Creados desde reserva: ${EVENTOS.filter(e=>e.origenReservaId).length} · Manuales: ${EVENTOS.filter(e=>!e.origenReservaId).length}</div>
+    </div>
+    <label class="f">Errores de lectura</label>
+    <div class="card">${erroresHtml}</div>
+    <div class="ingr" style="margin-top:6px">Si "Reservas leídas" ya muestra pocas o solo hasta cierta fecha, el problema está en tu Firestore (reservations), no en esta app — reviso desde ahí.</div>
+    <div class="btnrow"><button class="btn primary" onclick="closeSheet()">Cerrar</button></div>
+  `;
+  openSheet();
 }
 
 /* ---------- Sheet helpers ---------- */
