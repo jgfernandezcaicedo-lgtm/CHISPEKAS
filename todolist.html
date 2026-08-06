@@ -234,7 +234,7 @@ let CK_PRODUCTS=[], CK_RESERVATIONS=[]; // catálogo y reservas de CHISPEKAS (so
 const DIAG = {errores:{}};
 let currentEventoId=null, currentDetTab='compras', currentMainView='eventos', currentCatTab='productos', eventFilter='proximos';
 let _syncTimer=null;
-function scheduleSync(){ clearTimeout(_syncTimer); _syncTimer=setTimeout(syncReservasConfirmadas, 400); }
+function scheduleSync(){ clearTimeout(_syncTimer); _syncTimer=setTimeout(async()=>{ await autoVincularCatalogo(); await syncReservasConfirmadas(); }, 400); }
 
 function uid(){ return Math.random().toString(36).slice(2,10); }
 function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),1800); }
@@ -243,7 +243,7 @@ function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg
    Si la versión guardada es menor a CATALOGO_VERSION, se borra el catálogo
    viejo y se crea de nuevo con la info correcta. Así se corrige solo en tu
    app ya publicada, sin que tengas que borrar nada a mano. */
-const CATALOGO_VERSION = 2;
+const CATALOGO_VERSION = 3;
 
 async function borrarColeccion(nombre){
   const snap = await db.collection(nombre).get();
@@ -282,18 +282,19 @@ async function seedCatalogoSiVacio(){
   equipos.forEach(e=>{ const ref = db.collection('todolist_equipos').doc(); idsEquipo[e.nombre]=ref.id; batchE.set(ref,e); });
   await batchE.commit();
 
-  // ---- Productos (snacks): ingredientes sin cantidad + equipo(s) que requieren ----
+  // ---- Productos (snacks): ingredientes sin cantidad + equipo(s) que requieren + sinónimos
+  //      para vincularse solos con tus productos reales de CHISPEKAS por nombre ----
   const productos = [
-    {nombre:"Pop corn", categoria:"Salado", ingredientes:["Maíz pop corn","Sal","Aceite","Cono/envoltura para pop corn"], equiposRequeridos:[idsEquipo["Máquina de pop corn"]]},
-    {nombre:"Salchipapa", categoria:"Salado", ingredientes:["Papa","Aceite","Sal","Kétchup","Mayonesa","Mostaza","Empaque","Tenedor"], equiposRequeridos:[idsEquipo["Freidora"]]},
-    {nombre:"Pancho / hot dog", categoria:"Salado", ingredientes:["Salchicha para hot dog","Kétchup","Mostaza","Mayonesa","Servilleta","Palito"], equiposRequeridos:[idsEquipo["Plancha"]]},
-    {nombre:"Hamburguesa", categoria:"Salado", ingredientes:["Pan","Carne","Queso","Lechuga","Tomate","Papas al hilo","Kétchup","Mostaza","Mayonesa","Envoltura","Cajita"], equiposRequeridos:[idsEquipo["Plancha"]]},
-    {nombre:"Mini hamburguesa", categoria:"Salado", ingredientes:["Pan","Carne","Queso","Lechuga","Tomate","Papas al hilo","Kétchup","Mostaza","Mayonesa","Envoltura","Cajita"], equiposRequeridos:[idsEquipo["Plancha"]]},
-    {nombre:"Churros", categoria:"Dulce", ingredientes:["Churros (comprados)","Servilletas"], equiposRequeridos:[idsEquipo["Vitrina / exhibidor de churros"]]},
-    {nombre:"Helados", categoria:"Dulce", ingredientes:[], equiposRequeridos:[idsEquipo["Carrito de helados (con baterías)"]]},
-    {nombre:"Manzanas acarameladas", categoria:"Dulce", ingredientes:["Manzanas acarameladas (compradas)"], equiposRequeridos:[]},
-    {nombre:"Chicha morada", categoria:"Bebida", ingredientes:["Maíz morado","Canela","Piña","Azúcar (por si acaso)","Esencia/concentrado/pulpa de chicha morada","Vasos con tapa y sorbete, o botellas"], equiposRequeridos:[idsEquipo["Dispensador de chicha morada"]]},
-    {nombre:"Algodón de azúcar", categoria:"Dulce", ingredientes:["Azúcar","Colorante","Palitos"], equiposRequeridos:[idsEquipo["Máquina de algodón de azúcar"]]},
+    {nombre:"Pop corn", categoria:"Salado", ingredientes:["Maíz pop corn","Sal","Aceite","Cono/envoltura para pop corn"], equiposRequeridos:[idsEquipo["Máquina de pop corn"]], chispekasIds:[], sinonimos:["pop corn","popcorn","cancha","canchita"], excluir:[]},
+    {nombre:"Salchipapa", categoria:"Salado", ingredientes:["Papa","Aceite","Sal","Kétchup","Mayonesa","Mostaza","Empaque","Tenedor"], equiposRequeridos:[idsEquipo["Freidora"]], chispekasIds:[], sinonimos:["salchipapa","salchi papa"], excluir:[]},
+    {nombre:"Pancho / hot dog", categoria:"Salado", ingredientes:["Salchicha para hot dog","Kétchup","Mostaza","Mayonesa","Servilleta","Palito"], equiposRequeridos:[idsEquipo["Plancha"]], chispekasIds:[], sinonimos:["pancho","hot dog","hotdog"], excluir:[]},
+    {nombre:"Hamburguesa", categoria:"Salado", ingredientes:["Pan","Carne","Queso","Lechuga","Tomate","Papas al hilo","Kétchup","Mostaza","Mayonesa","Envoltura","Cajita"], equiposRequeridos:[idsEquipo["Plancha"]], chispekasIds:[], sinonimos:["hamburguesa","hamburguesas"], excluir:["mini"]},
+    {nombre:"Mini hamburguesa", categoria:"Salado", ingredientes:["Pan","Carne","Queso","Lechuga","Tomate","Papas al hilo","Kétchup","Mostaza","Mayonesa","Envoltura","Cajita"], equiposRequeridos:[idsEquipo["Plancha"]], chispekasIds:[], sinonimos:["mini hamburguesa","mini hamburguesas"], excluir:[]},
+    {nombre:"Churros", categoria:"Dulce", ingredientes:["Churros (comprados)","Servilletas"], equiposRequeridos:[idsEquipo["Vitrina / exhibidor de churros"]], chispekasIds:[], sinonimos:["churro","churros"], excluir:[]},
+    {nombre:"Helados", categoria:"Dulce", ingredientes:[], equiposRequeridos:[idsEquipo["Carrito de helados (con baterías)"]], chispekasIds:[], sinonimos:["helado","helados"], excluir:[]},
+    {nombre:"Manzanas acarameladas", categoria:"Dulce", ingredientes:["Manzanas acarameladas (compradas)"], equiposRequeridos:[], chispekasIds:[], sinonimos:["manzana acaramelada","manzanas acarameladas","manzana garapiñada","manzanas garapiñadas"], excluir:[]},
+    {nombre:"Chicha morada", categoria:"Bebida", ingredientes:["Maíz morado","Canela","Piña","Azúcar (por si acaso)","Esencia/concentrado/pulpa de chicha morada","Vasos con tapa y sorbete, o botellas"], equiposRequeridos:[idsEquipo["Dispensador de chicha morada"]], chispekasIds:[], sinonimos:["chicha morada","chicha"], excluir:[]},
+    {nombre:"Algodón de azúcar", categoria:"Dulce", ingredientes:["Azúcar","Colorante","Palitos"], equiposRequeridos:[idsEquipo["Máquina de algodón de azúcar"]], chispekasIds:[], sinonimos:["algodon de azucar","algodón de azúcar","algodon","algodón"], excluir:[]},
   ];
   const batchP = db.batch();
   productos.forEach(p=>{ const ref = db.collection('todolist_productos').doc(); batchP.set(ref,p); });
@@ -362,6 +363,34 @@ function initListeners(){
   }, err=>{ console.warn('No se pudo leer reservations de CHISPEKAS', err); DIAG.errores['reservations (CHISPEKAS)']=err.code||err.message; });
 }
 
+/* ---------- Auto-vínculo por nombre: conecta tu catálogo (Pop corn, Hamburguesa, etc)
+   con tus productos REALES de CHISPEKAS usando sinónimos editables por producto.
+   Nunca desvincula lo que ya esté vinculado, solo agrega coincidencias nuevas. ---------- */
+function normalizar(s){
+  return (s||'').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+}
+async function autoVincularCatalogo(){
+  if(!CK_PRODUCTS.length || !PRODUCTOS.length) return;
+  for(const p of PRODUCTOS){
+    const sinonimos = p.sinonimos||[];
+    if(sinonimos.length===0) continue;
+    const excluir = p.excluir||[];
+    const matches = CK_PRODUCTS.filter(ck=>{
+      const nombreN = normalizar(ck.name);
+      if(!nombreN) return false;
+      if(excluir.some(ex=>nombreN.includes(normalizar(ex)))) return false;
+      return sinonimos.some(kw=>nombreN.includes(normalizar(kw)));
+    }).map(ck=>ck.id);
+    const actual = new Set(p.chispekasIds||[]);
+    let cambiado=false;
+    matches.forEach(id=>{ if(!actual.has(id)){ actual.add(id); cambiado=true; } });
+    if(cambiado){
+      try{ await db.collection('todolist_productos').doc(p.id).update({chispekasIds:[...actual]}); }
+      catch(err){ console.error('No se pudo auto-vincular', p.nombre, err); DIAG.errores[`vincular ${p.nombre}`]=err.message; }
+    }
+  }
+}
+
 /* ---------- Sincronización automática con reservas de CHISPEKAS ---------- */
 const INSPECCION_GENERICA = {
   inflable:            ["Motor/soplador funciona","Limpio, sin manchas","Sin roturas, bien cosido"],
@@ -388,7 +417,7 @@ function computeDesiredCompras(prodIds){
   const out=[];
   prodIds.forEach(pid=>{
     const ck = CK_PRODUCTS.find(p=>p.id===pid); if(!ck) return;
-    const linked = PRODUCTOS.find(p=>p.chispekasId===pid);
+    const linked = PRODUCTOS.find(p=>(p.chispekasIds||[]).includes(pid));
     if(linked){
       (linked.ingredientes||[]).forEach(ing=> out.push({id:uid(), key:`${pid}::${ing}`, texto:ing, checked:false}));
     } else if(ck.category==='snack'){
@@ -403,7 +432,7 @@ function computeDesiredInspeccion(prodIds){
   prodIds.forEach(pid=>{
     const ck = CK_PRODUCTS.find(p=>p.id===pid); if(!ck) return;
     const linkedEquipo = EQUIPOS.find(e=>e.chispekasId===pid);
-    const linkedProducto = PRODUCTOS.find(p=>p.chispekasId===pid);
+    const linkedProducto = PRODUCTOS.find(p=>(p.chispekasIds||[]).includes(pid));
     if(linkedEquipo){
       (linkedEquipo.items||[]).forEach(it=> out.push({id:uid(), key:`${pid}::${it}`, equipo:ck.name||'Producto', texto:it, estado:null}));
     } else if(INSPECCION_GENERICA[ck.category]){
@@ -420,7 +449,7 @@ function categoriasPresentesCk(prodIds){
     const ck = CK_PRODUCTS.find(p=>p.id===pid); if(!ck) return;
     if(ck.category==='snack') hasSnack=true;
     if(ck.category==='inflable') hasInflable=true;
-    if(PRODUCTOS.find(p=>p.chispekasId===pid)) hasSnack=true;
+    if(PRODUCTOS.find(p=>(p.chispekasIds||[]).includes(pid))) hasSnack=true;
   });
   return {hasSnack, hasInflable};
 }
@@ -897,7 +926,9 @@ function renderCatalogo(){
         </div>
         <div class="ingr">${(p.ingredientes||[]).length? (p.ingredientes||[]).join(' · ') : 'Sin insumos (viene comprado/listo)'}</div>
         ${(p.equiposRequeridos||[]).length? `<div class="ingr" style="margin-top:4px">🔧 ${p.equiposRequeridos.map(eid=>esc((EQUIPOS.find(e=>e.id===eid)||{}).nombre||'')).filter(Boolean).join(', ')}</div>`:''}
-        ${p.chispekasId? `<div class="ingr" style="color:var(--teal); margin-top:4px">🔗 ${esc((CK_PRODUCTS.find(c=>c.id===p.chispekasId)||{}).name||'vinculado')}</div>`:''}
+        ${(p.chispekasIds||[]).length
+          ? `<div class="ingr" style="color:var(--teal); margin-top:4px">🔗 ${p.chispekasIds.map(cid=>esc((CK_PRODUCTS.find(c=>c.id===cid)||{}).name||'')).filter(Boolean).join(', ')}</div>`
+          : `<div class="ingr" style="color:var(--red); margin-top:4px">⚠️ Sin vincular a CHISPEKAS todavía</div>`}
       </div>`).join('');
   }
   if(currentCatTab==='equipos'){
@@ -943,20 +974,24 @@ function openProductoForm(id){
     <textarea id="pIngredientes" rows="6">${p?(p.ingredientes||[]).join('\n'):''}</textarea>
     <label class="f">Máquina(s) que requiere (opcional)</label>
     <div class="chiplist" id="chipsMaquinas"></div>
-    <label class="f">Vincular a producto real de CHISPEKAS (opcional)</label>
-    <select id="pChispekasId">
-      <option value="">— sin vincular —</option>
-      ${CK_PRODUCTS.map(ck=>`<option value="${ck.id}" ${p&&p.chispekasId===ck.id?'selected':''}>${esc(ck.emoji||'')} ${esc(ck.name)}</option>`).join('')}
-    </select>
-    <div class="ingr" style="margin-top:6px">Si lo vinculas, cada vez que ese producto aparezca en una reserva confirmada de CHISPEKAS, se generará solo esta lista de compras y su máquina.</div>
+    <label class="f">Producto(s) reales de CHISPEKAS que son este mismo (uno o varios)</label>
+    <div class="chiplist" id="chipsChispekas"></div>
+    <div class="ingr" style="margin-top:6px">Se vinculan solos por nombre (ver sinónimos abajo), pero puedes marcarlos/desmarcarlos aquí a mano.</div>
+    <label class="f">Sinónimos para el vínculo automático (uno por línea)</label>
+    <textarea id="pSinonimos" rows="3" placeholder="ej: hamburguesa">${p?(p.sinonimos||[]).join('\n'):''}</textarea>
+    <label class="f">Palabras que descartan el vínculo automático (opcional, uno por línea)</label>
+    <textarea id="pExcluir" rows="2" placeholder="ej: mini (para que 'Hamburguesa' no agarre 'Mini hamburguesa')">${p?(p.excluir||[]).join('\n'):''}</textarea>
     <div class="btnrow">
       <button class="btn ghost" onclick="closeSheet()">Cancelar</button>
       ${p?`<button class="btn danger" onclick="borrarDoc('todolist_productos','${id}');closeSheet()">Eliminar</button>`:''}
       <button class="btn primary" onclick="guardarProducto()">Guardar</button>
     </div>`;
-  const sel = new Set(p&&p.equiposRequeridos||[]);
-  document.getElementById('chipsMaquinas').innerHTML = EQUIPOS.map(e=>`<div class="chip ${sel.has(e.id)?'sel':''}" onclick="toggleChip('_selMaquinas','${e.id}',this)">${esc(e.nombre)}</div>`).join('') || `<span class="ingr">Agrega equipos/máquinas primero en la pestaña Equipos</span>`;
-  sheet._selMaquinas = sel;
+  const selM = new Set(p&&p.equiposRequeridos||[]);
+  document.getElementById('chipsMaquinas').innerHTML = EQUIPOS.map(e=>`<div class="chip ${selM.has(e.id)?'sel':''}" onclick="toggleChip('_selMaquinas','${e.id}',this)">${esc(e.nombre)}</div>`).join('') || `<span class="ingr">Agrega equipos/máquinas primero en la pestaña Equipos</span>`;
+  sheet._selMaquinas = selM;
+  const selC = new Set(p&&p.chispekasIds||[]);
+  document.getElementById('chipsChispekas').innerHTML = CK_PRODUCTS.map(ck=>`<div class="chip ${selC.has(ck.id)?'sel':''}" onclick="toggleChip('_selChispekas','${ck.id}',this)">${esc(ck.emoji||'')} ${esc(ck.name)}</div>`).join('') || `<span class="ingr">Todavía no leo productos de CHISPEKAS</span>`;
+  sheet._selChispekas = selC;
   openSheet();
 }
 async function guardarProducto(){
@@ -964,10 +999,12 @@ async function guardarProducto(){
   const nombre = document.getElementById('pNombre').value.trim();
   const categoria = document.getElementById('pCategoria').value;
   const ingredientes = document.getElementById('pIngredientes').value.split('\n').map(s=>s.trim()).filter(Boolean);
-  const chispekasId = document.getElementById('pChispekasId').value || null;
+  const sinonimos = document.getElementById('pSinonimos').value.split('\n').map(s=>s.trim().toLowerCase()).filter(Boolean);
+  const excluir = document.getElementById('pExcluir').value.split('\n').map(s=>s.trim().toLowerCase()).filter(Boolean);
   const equiposRequeridos = [...(document.getElementById('sheet')._selMaquinas||[])];
+  const chispekasIds = [...(document.getElementById('sheet')._selChispekas||[])];
   if(!nombre){ toast('Falta el nombre'); return; }
-  const data = {nombre, categoria, ingredientes, chispekasId, equiposRequeridos};
+  const data = {nombre, categoria, ingredientes, chispekasIds, equiposRequeridos, sinonimos, excluir};
   if(id) await db.collection('todolist_productos').doc(id).update(data);
   else await db.collection('todolist_productos').add(data);
   closeSheet(); toast('Guardado');
@@ -1088,6 +1125,10 @@ function abrirDiagnostico(){
     ? Object.entries(DIAG.errores).map(([k,v])=>`<div class="ingr" style="color:var(--red)">⚠️ ${esc(k)}: ${esc(v)}</div>`).join('')
     : `<div class="ingr" style="color:var(--teal)">Sin errores de lectura</div>`;
   const confirmadas = CK_RESERVATIONS.filter(r=>r.status==='confirmado');
+  const ckSnacks = CK_PRODUCTS.filter(ck=>ck.category==='snack');
+  const idsVinculados = new Set(PRODUCTOS.flatMap(p=>p.chispekasIds||[]));
+  const snacksSinVincular = ckSnacks.filter(ck=>!idsVinculados.has(ck.id));
+  const productosSinVincular = PRODUCTOS.filter(p=>(p.chispekasIds||[]).length===0);
   sheet.innerHTML = `
     <div class="grabber"></div>
     <h2>🔍 Diagnóstico</h2>
@@ -1099,7 +1140,14 @@ function abrirDiagnostico(){
       <div class="ingr">Rango de fechas (confirmadas): ${esc(rangoFechas(confirmadas,'date'))}</div>
     </div>
     <label class="f">Productos leídos de CHISPEKAS (colección "products")</label>
-    <div class="card"><div class="ingr">Total: <b style="color:var(--ink)">${CK_PRODUCTS.length}</b></div></div>
+    <div class="card"><div class="ingr">Total: <b style="color:var(--ink)">${CK_PRODUCTS.length}</b> · Snacks: <b style="color:var(--ink)">${ckSnacks.length}</b></div></div>
+    <label class="f">Vínculo de catálogo (tus productos ↔ productos reales de CHISPEKAS)</label>
+    <div class="card">
+      <div class="ingr">Tus productos sin ningún vínculo: <b style="color:${productosSinVincular.length?'var(--red)':'var(--teal)'}">${productosSinVincular.length}</b>${productosSinVincular.length?' — '+productosSinVincular.map(p=>esc(p.nombre)).join(', '):''}</div>
+      <div class="ingr" style="margin-top:6px">Snacks de CHISPEKAS que ningún producto tuyo reclama: <b style="color:${snacksSinVincular.length?'var(--red)':'var(--teal)'}">${snacksSinVincular.length}</b></div>
+      ${snacksSinVincular.length? `<div class="ingr" style="margin-top:2px">${snacksSinVincular.map(ck=>esc(ck.name||'(sin nombre)')).join(', ')}</div>`:''}
+      ${snacksSinVincular.length? `<div class="ingr" style="margin-top:6px">Ve a Catálogo → Productos, crea/edita el producto que le corresponda, y agrega su nombre en "Sinónimos" para que se vincule solo.</div>`:''}
+    </div>
     <label class="f">Eventos guardados en el To Do List (colección "todolist_eventos")</label>
     <div class="card">
       <div class="ingr">Total: <b style="color:var(--ink)">${EVENTOS.length}</b></div>
