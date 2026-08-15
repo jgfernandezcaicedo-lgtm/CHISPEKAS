@@ -548,7 +548,7 @@ window.addEventListener("unhandledrejection", function(e){
       <!-- VENTAS -->
       <div id="mr-sub-ventas" style="display:none">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-          <p style="font-size:12px;color:var(--t2)" id="mr-ventas-cnt"></p>
+          <p style="font-size:13.5px;font-weight:600;color:var(--t2)" id="mr-ventas-cnt"></p>
           <button class="btn btng sm" onclick="exportMRVentasCSV()">⬇ CSV</button>
           <button class="btn btng sm" onclick="openMRCotizacion()">📄 Cotización</button>
           <button class="btn btnd sm" onclick="openMRVenta()">＋ Nueva venta</button>
@@ -2675,7 +2675,7 @@ function compartirPlanMRDia(fecha){
   if(!items.length){toast("No hay despachos para esa fecha","warn");return;}
   const lineas=items.map((v,i)=>`${i+1}. ${v.cliente} — ${v.producto} ×${v.cantidad}${v.direccion?" — "+v.direccion:""}${v.telefono?" — "+v.telefono:""}`);
   const texto=`🚚 Plan de despachos ${fD(fecha)}\n\n`+lineas.join("\n");
-  window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`,"_blank");
+  abrirWA(`https://wa.me/?text=${encodeURIComponent(texto)}`);
 }
 
 function renderMRVentas(){
@@ -2695,19 +2695,27 @@ function renderMRVentas(){
         const saldo=Math.max(0,(v.total||0)-(v.pagado||0));
         const est=MR_ESTADOS[v.estado||"cotizado"];
         const necesitaConfirmar = v.estado==="cotizado"||v.estado==="falta_info";
-        return `<div style="border-bottom:1px solid var(--bg);padding:11px 6px">
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+        const detalles=[];
+        if(v.direccion) detalles.push("📍 "+esc(v.direccion));
+        if(v.telefono) detalles.push("📞 "+esc(v.telefono));
+        if(v.costoDelivery>0) detalles.push("🚚 Movilidad "+fM(v.costoDelivery));
+        return `<div style="border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:10px;background:var(--s2)">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
             <div style="min-width:0">
-              <p style="font-weight:700;font-size:12.5px">${esc(v.cliente)}</p>
-              <p style="font-size:10.5px;color:var(--t2)">${esc(v.producto)} × ${v.cantidad} · ${fD(v.fecha)}</p>
-              <span style="display:inline-block;margin-top:4px;font-size:9.5px;font-weight:700;padding:2px 8px;border-radius:20px;background:${est.bg};color:${est.c}">${est.l}${v.fechaDespacho?" · "+fD(v.fechaDespacho):""}</span>
+              <p style="font-weight:800;font-size:16.5px;line-height:1.25">${esc(v.cliente)}</p>
+              <p style="font-size:13.5px;color:var(--t2);margin-top:2px">${esc(v.producto)} × ${v.cantidad}</p>
+              <p style="font-size:11.5px;color:var(--t2);margin-top:1px">${fD(v.fecha)}</p>
             </div>
             <div style="text-align:right;flex-shrink:0">
-              <p style="font-weight:800;color:var(--amd);font-size:13px">${fM(v.total)}</p>
-              <p style="font-size:9.5px;font-weight:700;color:${saldo>0?"var(--rd)":"var(--gr)"}">${saldo>0?"Saldo "+fM(saldo):"Pagado"}</p>
+              <p style="font-weight:800;color:var(--amd);font-size:18px">${fM(v.total)}</p>
+              <p style="font-size:11.5px;font-weight:700;color:${saldo>0?"var(--rd)":"var(--gr)"}">${saldo>0?"Saldo "+fM(saldo):"Pagado"}</p>
             </div>
           </div>
-          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:9px">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-top:10px">
+            <span style="display:inline-block;font-size:11.5px;font-weight:700;padding:4px 11px;border-radius:20px;background:${est.bg};color:${est.c}">${est.l}${v.fechaDespacho?" · "+fD(v.fechaDespacho):""}</span>
+          </div>
+          ${detalles.length?`<div style="margin-top:9px;padding-top:9px;border-top:1px solid var(--bd);display:flex;flex-direction:column;gap:3px">${detalles.map(d=>`<p style="font-size:12.5px;color:var(--t2)">${d}</p>`).join("")}</div>`:""}
+          <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:11px">
             ${necesitaConfirmar?`<button class="ib" onclick="openMRConfirmarRapido('${v.id}')" title="Confirmar y programar" style="background:#eff6ff">✓</button>`:""}
             <button class="ib" onclick="genMRMensajeWA('${v.id}')" title="Mensaje de cotización/confirmación con emojis, para WhatsApp" style="background:#eef2ff">📝</button>
             ${v.fechaDespacho?`<button class="ib" onclick="addToGCalSTAK('${v.id}')" title="Agendar en Google Calendar" style="background:#eff6ff">🗓️</button>`:""}
@@ -2740,11 +2748,12 @@ function renderMRDespachos(){
   const cardFor=v=>{
     const cl=v.checklist||{};
     const necesitaConfirmar = v.estado==="cotizado"||v.estado==="falta_info";
-    return `<div style="border:1px solid var(--bd);border-radius:12px;padding:12px;margin-bottom:9px;background:var(--s2)">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+    return `<div style="border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:10px;background:var(--s2)">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
         <div style="min-width:0">
-          <p style="font-weight:700;font-size:13px">${esc(v.cliente)}</p>
-          <p style="font-size:10.5px;color:var(--t2)">${esc(v.producto)} × ${v.cantidad}${v.direccion?" · "+esc(v.direccion):""}</p>
+          <p style="font-weight:800;font-size:16px">${esc(v.cliente)}</p>
+          <p style="font-size:13px;color:var(--t2);margin-top:2px">${esc(v.producto)} × ${v.cantidad}</p>
+          ${v.direccion?`<p style="font-size:12px;color:var(--t2);margin-top:1px">📍 ${esc(v.direccion)}</p>`:""}
         </div>
         <div style="display:flex;gap:8px;flex-shrink:0">
           <button class="ib" onclick="genMRMensajeWA('${v.id}')" title="Enviar cotización/confirmación" style="background:#eef2ff">📝</button>
@@ -2752,12 +2761,12 @@ function renderMRDespachos(){
           ${v.telefono?`<a href="https://wa.me/${waPhone(v.telefono)}" target="_blank" class="ib" style="text-decoration:none;background:#e7fbe9" title="WhatsApp">💬</a>`:""}
         </div>
       </div>
-      ${necesitaConfirmar?`<button class="btn btnd sm" style="margin-top:9px;width:100%;justify-content:center" onclick="openMRConfirmarRapido('${v.id}')">✓ Confirmar y programar</button>`:`
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:9px">
-        ${MR_CHECK_ITEMS.map(([k,l])=>`<button class="btn stab ${cl[k]?"on":""}" style="font-size:10.5px;padding:5px 9px" onclick="toggleMRChecklist('${v.id}','${k}')">${cl[k]?"✅":"⬜"} ${l}</button>`).join("")}
+      ${necesitaConfirmar?`<button class="btn btnd sm" style="margin-top:11px;width:100%;justify-content:center;font-size:13px;padding:10px" onclick="openMRConfirmarRapido('${v.id}')">✓ Confirmar y programar</button>`:`
+      <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:11px">
+        ${MR_CHECK_ITEMS.map(([k,l])=>`<button class="btn stab ${cl[k]?"on":""}" style="font-size:11.5px;padding:6px 10px" onclick="toggleMRChecklist('${v.id}','${k}')">${cl[k]?"✅":"⬜"} ${l}</button>`).join("")}
       </div>
-      <div style="display:flex;gap:6px;margin-top:8px;align-items:center">
-        <select class="inp" style="font-size:11px;padding:5px 8px;width:auto" onchange="setMREstado('${v.id}',this.value)">
+      <div style="display:flex;gap:7px;margin-top:9px;align-items:center">
+        <select class="inp" style="font-size:12px;padding:6px 9px;width:auto" onchange="setMREstado('${v.id}',this.value)">
           ${Object.entries(MR_ESTADOS).map(([k,o])=>`<option value="${k}" ${v.estado===k?"selected":""}>${o.l}</option>`).join("")}
         </select>
         <button class="ib" onclick="openMRVenta('${v.id}')" title="Editar / cambiar fecha">✏️</button>
@@ -2769,7 +2778,7 @@ function renderMRDespachos(){
   Object.keys(groups).sort().forEach(d=>{
     html+=`<div style="margin-bottom:14px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px">
-        <p style="font-size:12px;font-weight:800;color:var(--t2);text-transform:uppercase;letter-spacing:.03em">${dayLabel(d)} · ${groups[d].length} despacho${groups[d].length!==1?"s":""}</p>
+        <p style="font-size:13.5px;font-weight:800;color:var(--t2);text-transform:uppercase;letter-spacing:.03em">${dayLabel(d)} · ${groups[d].length} despacho${groups[d].length!==1?"s":""}</p>
         <div style="display:flex;gap:5px">
           <button class="ib" title="Ver ruta en Maps" onclick="abrirRutaMRDia('${d}')">🗺️</button>
           <button class="ib" title="Compartir plan por WhatsApp" onclick="compartirPlanMRDia('${d}')">📤</button>
@@ -2779,7 +2788,7 @@ function renderMRDespachos(){
     </div>`;
   });
   if(sinFecha.length){
-    html+=`<div><p style="font-size:12px;font-weight:800;color:var(--t2);margin-bottom:7px;text-transform:uppercase;letter-spacing:.03em">⏳ Sin fecha de despacho</p>${sinFecha.map(cardFor).join("")}</div>`;
+    html+=`<div><p style="font-size:13.5px;font-weight:800;color:var(--t2);margin-bottom:7px;text-transform:uppercase;letter-spacing:.03em">⏳ Sin fecha de despacho</p>${sinFecha.map(cardFor).join("")}</div>`;
   }
   document.getElementById("mr-ventas-tbl").innerHTML = html || `<div class="empty"><div class="ei">📅</div><div class="et">No hay pedidos pendientes de despacho</div></div>`;
 }
@@ -3469,12 +3478,20 @@ function downloadFullBackup(){
 }
 
 /* ── RECORDATORIO DE COBRANZA ── */
+/** Abre un link de WhatsApp navegando en la misma pestaña (location.href) en vez de window.open().
+ *  En iPhone, cuando la app está agregada a la pantalla de inicio (modo PWA), window.open() a veces
+ *  corrompe los emojis al saltar a la app de WhatsApp y los cambia por un signo de interrogación.
+ *  Navegar en la misma pestaña evita ese salto y conserva los emojis intactos. */
+function abrirWA(url){
+  try{ window.location.href=url; }
+  catch(e){ window.open(url,"_blank"); }
+}
 function mrCobranzaWA(id){
   const v=mrSales.find(x=>x.id===id);
   if(!v||!v.telefono){toast("Esta venta no tiene teléfono guardado","warn");return;}
   const saldo=Math.max(0,(v.total||0)-(v.pagado||0));
   const msg=`Hola ${v.cliente}, te escribo de STAK para recordarte el saldo pendiente de ${v.producto} por S/ ${saldo.toFixed(2)}. ¿Cuándo podríamos coordinar el pago? Gracias 🙌`;
-  window.open("https://wa.me/"+waPhone(v.telefono)+"?text="+encodeURIComponent(msg),"_blank");
+  abrirWA("https://wa.me/"+waPhone(v.telefono)+"?text="+encodeURIComponent(msg));
 }
 /** Arma el mensaje de cotización/confirmación en el formato que ya usas por WhatsApp, y lo abre listo para enviar.
  *  El encabezado y los datos de despacho cambian según el estado del pedido. */
@@ -3506,7 +3523,7 @@ function genMRMensajeWA(id){
   lineas.push("• La venta se realiza sin emisión de factura.");
   const msg=lineas.join("\n");
   const url = v.telefono ? "https://wa.me/"+waPhone(v.telefono)+"?text="+encodeURIComponent(msg) : "https://wa.me/?text="+encodeURIComponent(msg);
-  window.open(url,"_blank");
+  abrirWA(url);
 }
 /** Agenda el despacho en Google Calendar — mismo patrón que ya usas en CHISPEKAS (link precargado,
  *  sin necesidad de conectar cuenta). Si tienes un calendario STAK aparte, pega su Calendar ID abajo en calId
