@@ -2590,6 +2590,10 @@ function mrStock(pid){
 }
 
 /* ── VENTAS ── */
+/** 👉 Pega aquí el ID del calendario "STAK" de Google (Ajustes de Google Calendar > tu calendario
+ *  > "Integrar calendario" > ID de calendario, se ve como algo@group.calendar.google.com).
+ *  Mientras esté vacío, los despachos se agendan en tu calendario principal (tú eliges igual). */
+const STAK_CAL_ID = "2200fc21d6fb9c4c6abf696bd959d025e9fa23cdfc5a30665fd21c660e511124@group.calendar.google.com";
 const MR_ESTADOS = {
   cotizado:    {l:"Cotizado",     c:"#5B6069", bg:"#F1F2F4"},
   falta_info:  {l:"Falta info",   c:"#B45309", bg:"#FFFBEC"},
@@ -2621,6 +2625,8 @@ function setMREstado(id,estado){
   renderMRVentas();
   renderMRPipeline();
   toast("Estado actualizado: "+(MR_ESTADOS[estado]?.l||estado));
+  // Al pasar a "programado" (con fecha de despacho) → abrir Google Calendar automáticamente, igual que en Chispekas
+  if(estado==="programado" && v.fechaDespacho){ setTimeout(()=>addToGCalSTAK(id),400); }
 }
 /** Confirmación rápida: solo pide dirección + fecha de despacho y pasa a "programado" en un paso, sin abrir el formulario completo */
 function openMRConfirmarRapido(id){
@@ -2651,6 +2657,8 @@ function confirmarMRRapido(id){
   closeOv("ov-mr-confirmar");
   renderMRVentas(); renderMRPipeline();
   toast("✅ Pedido programado para "+fD(fecha));
+  setTimeout(()=>addToGCalSTAK(id),400);
+  if(v.telefono && confirm("¿Enviar mensaje de confirmación por WhatsApp?")) genMRMensajeWA(id);
 }
 /** Abre Google Maps con la ruta de todos los despachos de un día */
 function abrirRutaMRDia(fecha){
@@ -2698,6 +2706,8 @@ function renderMRVentas(){
           </td>
           <td style="padding:9px 6px;text-align:right;white-space:nowrap">
             ${(v.estado==="cotizado"||v.estado==="falta_info")?`<button class="ib" onclick="openMRConfirmarRapido('${v.id}')" title="Confirmar y programar" style="background:#eff6ff">✓</button>`:""}
+            <button class="ib" onclick="genMRMensajeWA('${v.id}')" title="Enviar cotización/confirmación por WhatsApp" style="background:#eef2ff">📝</button>
+            ${v.fechaDespacho?`<button class="ib" onclick="addToGCalSTAK('${v.id}')" title="Agendar en Google Calendar" style="background:#eff6ff">🗓️</button>`:""}
             ${saldo>0&&v.telefono?`<button class="ib" onclick="mrCobranzaWA('${v.id}')" title="Recordar cobro por WhatsApp" style="background:#fff3e0">💰</button>`:""}
             ${v.telefono?`<a href="https://wa.me/${waPhone(v.telefono)}" target="_blank" class="ib" style="text-decoration:none;background:#e7fbe9" title="WhatsApp">💬</a>`:""}
             <button class="ib" onclick="openMRVenta('${v.id}')" title="Editar">✏️</button>
@@ -2733,7 +2743,11 @@ function renderMRDespachos(){
           <p style="font-weight:700;font-size:13px">${esc(v.cliente)}</p>
           <p style="font-size:10.5px;color:var(--t2)">${esc(v.producto)} × ${v.cantidad}${v.direccion?" · "+esc(v.direccion):""}</p>
         </div>
-        ${v.telefono?`<a href="https://wa.me/${waPhone(v.telefono)}" target="_blank" class="ib" style="text-decoration:none;background:#e7fbe9;flex-shrink:0" title="WhatsApp">💬</a>`:""}
+        <div style="display:flex;gap:8px;flex-shrink:0">
+          <button class="ib" onclick="genMRMensajeWA('${v.id}')" title="Enviar cotización/confirmación" style="background:#eef2ff">📝</button>
+          ${v.fechaDespacho?`<button class="ib" onclick="addToGCalSTAK('${v.id}')" title="Agendar en Google Calendar" style="background:#eff6ff">🗓️</button>`:""}
+          ${v.telefono?`<a href="https://wa.me/${waPhone(v.telefono)}" target="_blank" class="ib" style="text-decoration:none;background:#e7fbe9" title="WhatsApp">💬</a>`:""}
+        </div>
       </div>
       ${necesitaConfirmar?`<button class="btn btnd sm" style="margin-top:9px;width:100%;justify-content:center" onclick="openMRConfirmarRapido('${v.id}')">✓ Confirmar y programar</button>`:`
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:9px">
@@ -2905,6 +2919,8 @@ function saveMRVenta(id){
   renderMRVentas();
   renderMRPipeline();
   toast(existing?"✅ Venta actualizada":"✅ Venta registrada");
+  if(venta.estado==="programado" && venta.fechaDespacho) setTimeout(()=>addToGCalSTAK(venta.id),400);
+  if(venta.telefono && (venta.estado==="cotizado"||venta.estado==="falta_info"||venta.estado==="confirmado"||venta.estado==="programado") && confirm("¿Enviar mensaje por WhatsApp ahora?")) genMRMensajeWA(venta.id);
 }
 function delMRVenta(id){
   if(!confirm("¿Eliminar esta venta? Esto también libera el stock."))return;
@@ -3278,17 +3294,21 @@ function openMRCotizacion(){
         <div class="fld"><label class="flbl">Cantidad *</label><input class="inp" id="mrq-cant" type="number" min="1" value="1"></div>
         <div class="fld"><label class="flbl">Precio unitario (S/) *</label><input class="inp" id="mrq-precio" type="number" min="0" value="0"></div>
       </div>
-      <div class="fld"><label class="flbl">Válida por (días)</label><input class="inp" id="mrq-validez" type="number" min="1" value="7"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
+        <div class="fld"><label class="flbl">Movilidad (S/)</label><input class="inp" id="mrq-delivery" type="number" min="0" value="0"></div>
+        <div class="fld"><label class="flbl">Válida por (días)</label><input class="inp" id="mrq-validez" type="number" min="1" value="7"></div>
+      </div>
     </div>
     <div style="display:flex;gap:8px;margin-top:16px">
-      <button class="btn btnd" style="flex:1;justify-content:center" onclick="genMRCotizacion()">📄 Generar cotización</button>
+      <button class="btn btnd" style="flex:1;justify-content:center" onclick="genMRCotizacion('wa')">📝 Enviar por WhatsApp</button>
+      <button class="btn btng" onclick="genMRCotizacion('pdf')" title="Generar como PDF">📄</button>
       <button class="btn btng" onclick="closeOv('ov-mr-cotizacion')">Cancelar</button>
     </div>`;
   document.getElementById("mrq-body").innerHTML=html;
   openOv("ov-mr-cotizacion");
   setTimeout(()=>{const s=document.getElementById("mrq-prod");if(s&&s.selectedOptions[0])document.getElementById("mrq-precio").value=s.selectedOptions[0].dataset.precio||0;},0);
 }
-function genMRCotizacion(){
+function genMRCotizacion(modo){
   const cliente=(document.getElementById("mrq-cli")?.value||"").trim();
   const prodSel=document.getElementById("mrq-prod");
   const productId=prodSel?.value||"";
@@ -3302,6 +3322,7 @@ function genMRCotizacion(){
   const validezDias=parseInt(document.getElementById("mrq-validez")?.value)||7;
   const telefono=(document.getElementById("mrq-tel")?.value||"").trim();
   const dniRuc=(document.getElementById("mrq-dniruc")?.value||"").trim();
+  const costoDelivery=parseFloat(document.getElementById("mrq-delivery")?.value)||0;
   const total=cantidad*precio;
 
   // Guarda el pedido en el pipeline de ventas apenas se cotiza — así no se pierde,
@@ -3310,7 +3331,7 @@ function genMRCotizacion(){
     id:"mrv"+uid(), cliente, telefono, dniRuc,
     productId, producto, codigo:prodObj?.codigo||"", descripcion:prodObj?.descripcion||"",
     cantidad, precioUnitario:precio, total,
-    direccion:"", costoDelivery:0, pagado:0, fecha:todayLocal(),
+    direccion:"", costoDelivery, pagado:0, fecha:todayLocal(),
     estado:"cotizado", fechaDespacho:"",
     checklist:{ubicacion:false,pago:false,racks:false}
   };
@@ -3320,6 +3341,9 @@ function genMRCotizacion(){
   if(!cli){ cli={id:"mrcli"+uid(),name:cliente,phone:telefono}; mrClients.push(cli); Store.one("mr_clients",cli); }
   renderMRVentas();
   renderMRPipeline();
+  closeOv("ov-mr-cotizacion");
+
+  if(modo==="wa"){ genMRMensajeWA(venta.id); return; }
 
   const today=new Date();
   const validoHasta=new Date(today.getTime()+validezDias*86400000);
@@ -3385,7 +3409,6 @@ function genMRCotizacion(){
   const w=window.open("","_blank");
   if(!w){toast("⚠️ Permite ventanas emergentes para ver el PDF","warn");return;}
   w.document.open();w.document.write(html);w.document.close();
-  closeOv("ov-mr-cotizacion");
 }
 
 /* ── EXPORTAR CSV ── */
@@ -3449,6 +3472,55 @@ function mrCobranzaWA(id){
   const saldo=Math.max(0,(v.total||0)-(v.pagado||0));
   const msg=`Hola ${v.cliente}, te escribo de STAK para recordarte el saldo pendiente de ${v.producto} por S/ ${saldo.toFixed(2)}. ¿Cuándo podríamos coordinar el pago? Gracias 🙌`;
   window.open("https://wa.me/"+waPhone(v.telefono)+"?text="+encodeURIComponent(msg),"_blank");
+}
+/** Arma el mensaje de cotización/confirmación en el formato que ya usas por WhatsApp, y lo abre listo para enviar.
+ *  El encabezado y los datos de despacho cambian según el estado del pedido. */
+function genMRMensajeWA(id){
+  const v=mrSales.find(x=>x.id===id);
+  if(!v)return;
+  const nf=n=>Number(n||0).toLocaleString("es-PE",{minimumFractionDigits:0,maximumFractionDigits:2});
+  const subtotal=(v.cantidad||0)*(v.precioUnitario||0);
+  const delivery=v.costoDelivery||0;
+  const total=subtotal+delivery;
+  const esConfirmado = v.estado==="confirmado"||v.estado==="programado"||v.estado==="entregado";
+  const lineas=[];
+  lineas.push(esConfirmado ? "✅ PEDIDO CONFIRMADO" : "📋 COTIZACIÓN");
+  lineas.push("");
+  lineas.push(`✅ ${v.producto}: S/ ${nf(v.precioUnitario)} c/u`);
+  lineas.push(`✅ Cantidad: ${v.cantidad} unidad${v.cantidad!==1?"es":""}`);
+  lineas.push(`💰 Subtotal: S/ ${nf(subtotal)}`);
+  lineas.push("");
+  if(delivery>0){ lineas.push(`🚚 Movilidad: S/ ${nf(delivery)}`); lineas.push(""); }
+  lineas.push(`💰 Total: S/ ${nf(total)}`);
+  if(esConfirmado){
+    lineas.push("");
+    if(v.direccion) lineas.push(`📍 Dirección: ${v.direccion}`);
+    if(v.fechaDespacho) lineas.push(`📅 Fecha de despacho: ${fD(v.fechaDespacho)}`);
+  }
+  lineas.push("");
+  lineas.push("Observaciones:");
+  lineas.push("• Los precios no incluyen IGV.");
+  lineas.push("• La venta se realiza sin emisión de factura.");
+  const msg=lineas.join("\n");
+  const url = v.telefono ? "https://wa.me/"+waPhone(v.telefono)+"?text="+encodeURIComponent(msg) : "https://wa.me/?text="+encodeURIComponent(msg);
+  window.open(url,"_blank");
+}
+/** Agenda el despacho en Google Calendar — mismo patrón que ya usas en CHISPEKAS (link precargado,
+ *  sin necesidad de conectar cuenta). Si tienes un calendario STAK aparte, pega su Calendar ID abajo en calId
+ *  (Ajustes de Google Calendar > tu calendario > "Integrar calendario" > ID de calendario) y se agendará ahí directo. */
+function addToGCalSTAK(id){
+  const v=mrSales.find(x=>x.id===id);
+  if(!v)return;
+  if(!v.fechaDespacho){toast("⚠️ Este pedido no tiene fecha de despacho todavía","warn");return;}
+  const dtStart=new Date(v.fechaDespacho+"T09:00:00");
+  const dtEnd=new Date(dtStart.getTime()+2*3600000);
+  const fmt=d=>d.toISOString().replace(/[-:]/g,"").split(".")[0]+"Z";
+  const subtotal=(v.cantidad||0)*(v.precioUnitario||0);
+  const total=subtotal+(v.costoDelivery||0);
+  const details=["Cliente: "+v.cliente,"Tel: "+(v.telefono||"—"),"Producto: "+v.producto+" ×"+v.cantidad,"Total: "+fM(total),"Estado: "+(MR_ESTADOS[v.estado]?.l||v.estado)].filter(Boolean).join("\n");
+  const url="https://calendar.google.com/calendar/render?action=TEMPLATE"+"&text="+encodeURIComponent("🚚 Despacho STAK — "+v.cliente)+"&dates="+fmt(dtStart)+"/"+fmt(dtEnd)+"&details="+encodeURIComponent(details)+"&location="+encodeURIComponent(v.direccion?v.direccion+", Lima":"Lima, Perú")+(STAK_CAL_ID?"&cid="+encodeURIComponent(STAK_CAL_ID):"");
+  window.open(url,"_blank");
+  toast("📅 Agendado: "+v.cliente+" · Google Calendar");
 }
 
 /** Devuelve el último precio unitario que le cobraste a este cliente por este producto, o null si es la primera vez */
