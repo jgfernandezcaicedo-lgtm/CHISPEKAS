@@ -2691,30 +2691,33 @@ function renderMRVentas(){
     + (totalPorCobrar>0 ? ` · <span style="color:var(--rd);font-weight:700">${fM(totalPorCobrar)} por cobrar</span>` : "");
 
   document.getElementById("mr-ventas-tbl").innerHTML = rows.length
-    ? `<table style="width:100%"><tbody>${rows.map(v=>{
+    ? rows.map(v=>{
         const saldo=Math.max(0,(v.total||0)-(v.pagado||0));
         const est=MR_ESTADOS[v.estado||"cotizado"];
-        return `<tr style="border-bottom:1px solid var(--bg)">
-          <td style="padding:9px 6px">
-            <p style="font-weight:700;font-size:12.5px">${esc(v.cliente)}</p>
-            <p style="font-size:10.5px;color:var(--t2)">${esc(v.producto)} × ${v.cantidad} · ${fD(v.fecha)}</p>
-            <span style="display:inline-block;margin-top:4px;font-size:9.5px;font-weight:700;padding:2px 8px;border-radius:20px;background:${est.bg};color:${est.c}">${est.l}${v.fechaDespacho?" · "+fD(v.fechaDespacho):""}</span>
-          </td>
-          <td style="padding:9px 6px;text-align:right;white-space:nowrap">
-            <p style="font-weight:800;color:var(--amd);font-size:13px">${fM(v.total)}</p>
-            <p style="font-size:9.5px;font-weight:700;color:${saldo>0?"var(--rd)":"var(--gr)"}">${saldo>0?"Saldo "+fM(saldo):"Pagado"}</p>
-          </td>
-          <td style="padding:9px 6px;text-align:right;white-space:nowrap">
-            ${(v.estado==="cotizado"||v.estado==="falta_info")?`<button class="ib" onclick="openMRConfirmarRapido('${v.id}')" title="Confirmar y programar" style="background:#eff6ff">✓</button>`:""}
-            <button class="ib" onclick="genMRMensajeWA('${v.id}')" title="Enviar cotización/confirmación por WhatsApp" style="background:#eef2ff">📝</button>
+        const necesitaConfirmar = v.estado==="cotizado"||v.estado==="falta_info";
+        return `<div style="border-bottom:1px solid var(--bg);padding:11px 6px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+            <div style="min-width:0">
+              <p style="font-weight:700;font-size:12.5px">${esc(v.cliente)}</p>
+              <p style="font-size:10.5px;color:var(--t2)">${esc(v.producto)} × ${v.cantidad} · ${fD(v.fecha)}</p>
+              <span style="display:inline-block;margin-top:4px;font-size:9.5px;font-weight:700;padding:2px 8px;border-radius:20px;background:${est.bg};color:${est.c}">${est.l}${v.fechaDespacho?" · "+fD(v.fechaDespacho):""}</span>
+            </div>
+            <div style="text-align:right;flex-shrink:0">
+              <p style="font-weight:800;color:var(--amd);font-size:13px">${fM(v.total)}</p>
+              <p style="font-size:9.5px;font-weight:700;color:${saldo>0?"var(--rd)":"var(--gr)"}">${saldo>0?"Saldo "+fM(saldo):"Pagado"}</p>
+            </div>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:9px">
+            ${necesitaConfirmar?`<button class="ib" onclick="openMRConfirmarRapido('${v.id}')" title="Confirmar y programar" style="background:#eff6ff">✓</button>`:""}
+            <button class="ib" onclick="genMRMensajeWA('${v.id}')" title="Mensaje de cotización/confirmación con emojis, para WhatsApp" style="background:#eef2ff">📝</button>
             ${v.fechaDespacho?`<button class="ib" onclick="addToGCalSTAK('${v.id}')" title="Agendar en Google Calendar" style="background:#eff6ff">🗓️</button>`:""}
             ${saldo>0&&v.telefono?`<button class="ib" onclick="mrCobranzaWA('${v.id}')" title="Recordar cobro por WhatsApp" style="background:#fff3e0">💰</button>`:""}
-            ${v.telefono?`<a href="https://wa.me/${waPhone(v.telefono)}" target="_blank" class="ib" style="text-decoration:none;background:#e7fbe9" title="WhatsApp">💬</a>`:""}
+            ${v.telefono?`<a href="https://wa.me/${waPhone(v.telefono)}" target="_blank" class="ib" style="text-decoration:none;background:#e7fbe9" title="Abrir chat de WhatsApp">💬</a>`:""}
             <button class="ib" onclick="openMRVenta('${v.id}')" title="Editar">✏️</button>
-            <button class="ib" onclick="genMRNotaVenta('${v.id}')" title="Nota de venta">🧾</button>
+            <button class="ib" onclick="genMRNotaVenta('${v.id}')" title="Nota de venta en PDF (sin emojis, para imprimir)">🧾</button>
             <button class="ib" onclick="delMRVenta('${v.id}')" title="Eliminar" style="background:#fff5f5">🗑</button>
-          </td>
-        </tr>`;}).join("")}</tbody></table>`
+          </div>
+        </div>`;}).join("")
     : `<div class="empty"><div class="ei">🛠️</div><div class="et">Sin ventas${mrVentaFilter!=="todas"?" en este filtro":" todavía"}</div></div>`;
 }
 
