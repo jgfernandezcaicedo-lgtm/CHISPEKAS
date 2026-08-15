@@ -557,6 +557,7 @@ window.addEventListener("unhandledrejection", function(e){
           <button class="btn stab on" id="mrv-f-todas" onclick="setMRVentaFilter('todas')">Todas</button>
           <button class="btn stab" id="mrv-f-pagado" onclick="setMRVentaFilter('pagado')">✓ Pagadas</button>
           <button class="btn stab" id="mrv-f-pendiente" onclick="setMRVentaFilter('pendiente')">⏳ Pendientes</button>
+          <button class="btn stab" id="mrv-f-despachos" onclick="setMRVentaFilter('despachos')">📅 Despachos</button>
         </div>
         <div class="card cp"><div class="tw" id="mr-ventas-tbl"></div></div>
       </div>
@@ -591,6 +592,11 @@ window.addEventListener("unhandledrejection", function(e){
 
       <!-- RESUMEN -->
       <div id="mr-sub-analisis">
+        <div class="card cp" style="margin-bottom:14px;border:1.5px solid var(--bl)" id="mr-pipeline-card">
+          <div class="ch"><div class="ct">🚚 Pipeline de pedidos</div></div>
+          <div class="kg" id="mr-pipeline-kpis"></div>
+          <div id="mr-pipeline-alertas" style="padding:0 14px 14px"></div>
+        </div>
         <div class="card cp" style="margin-bottom:14px;border:1.5px solid var(--am)">
           <div class="ch"><div class="ct">📅 Resumen del mes — <span id="mr-mes-actual"></span></div></div>
           <div class="kg" id="mr-mes-kpis"></div>
@@ -704,6 +710,10 @@ window.addEventListener("unhandledrejection", function(e){
 
 <div class="ov" id="ov-mr-cotizacion"><div class="sheet"><div class="shh"></div><div class="shd"><span class="sht">📄 Nueva cotización — STAK</span><button class="xb" onclick="closeOv('ov-mr-cotizacion')">×</button></div>
   <div class="shb" id="mrq-body"></div>
+</div></div>
+
+<div class="ov" id="ov-mr-confirmar"><div class="sheet"><div class="shh"></div><div class="shd"><span class="sht">✓ Confirmar pedido — STAK</span><button class="xb" onclick="closeOv('ov-mr-confirmar')">×</button></div>
+  <div class="shb" id="mrqc-body"></div>
 </div></div>
 
 <div class="ov" id="ov-mr-compra"><div class="sheet"><div class="shh"></div><div class="shd"><span class="sht">📦 Registrar compra de stock</span><button class="xb" onclick="closeOv('ov-mr-compra')">×</button></div>
@@ -2008,6 +2018,8 @@ function openSheetsSync(){
 
 /* ══ NOTIF MEJORADAS ══ */
 function scheduleSmartNotifs(){if(!("Notification" in window)||Notification.permission!=="granted")return;const today2=new Date();const checkDate=(d)=>{const t=new Date(today2);t.setDate(today2.getDate()+d);return t.toISOString().split("T")[0];};const d0=checkDate(0),d1=checkDate(1),d2=checkDate(2);const evs0=reservations.filter(r=>r.date===d0&&r.status==="confirmado");const evs1=reservations.filter(r=>r.date===d1&&r.status==="confirmado");const evs2=reservations.filter(r=>r.date===d2&&r.status==="confirmado");setTimeout(()=>{if(evs0.length)new Notification("🎉 CHISPEKAS — ¡Evento HOY!",{body:evs0.map(r=>r.client+" · "+r.event+(r.horaInicio?" · "+r.horaInicio:"")).join("\n"),tag:"ck-hoy"});if(evs1.length)new Notification("🎈 CHISPEKAS — Mañana",{body:evs1.map(r=>r.client+" · "+r.event).join("\n"),tag:"ck-manana"});if(evs2.length)new Notification("📅 CHISPEKAS — En 2 días",{body:evs2.map(r=>r.client+" · "+r.event).join("\n"),tag:"ck-2d"});},2500);}
+/** Notificaciones de despachos STAK — mismo patrón que CHISPEKAS, pero usando fechaDespacho de mrSales */
+function scheduleSTAKNotifs(){if(!("Notification" in window)||Notification.permission!=="granted")return;const d0=todayLocal();const d1=new Date(Date.now()+86400000).toLocaleDateString("en-CA");const desp0=mrSales.filter(v=>v.fechaDespacho===d0&&v.estado!=="entregado");const desp1=mrSales.filter(v=>v.fechaDespacho===d1&&v.estado!=="entregado");setTimeout(()=>{if(desp0.length)new Notification("🚚 STAK — Despachos HOY",{body:desp0.map(v=>v.cliente+" · "+v.producto).join("\n"),tag:"stak-hoy"});if(desp1.length)new Notification("🚚 STAK — Despachos mañana",{body:desp1.map(v=>v.cliente+" · "+v.producto).join("\n"),tag:"stak-manana"});},2700);}
 
 /** Alertas proactivas de negocio — stock crítico (STAK) + cobros vencidos (ambos negocios). Una vez al día como máximo. */
 function scheduleBusinessAlerts(){
@@ -2535,7 +2547,40 @@ function setMRSub(s){
   if(s==="financiero")renderMRFinanzas();
 }
 
-function renderMR(){ renderMRVentas(); renderMRAnalisis(); }
+function renderMR(){ renderMRVentas(); renderMRAnalisis(); renderMRPipeline(); }
+
+/** Tarjeta de Resumen: cuántos pedidos van en cada etapa + alerta de cotizaciones sin seguimiento */
+function renderMRPipeline(){
+  const el=document.getElementById("mr-pipeline-kpis");
+  if(!el)return;
+  const activos=mrSales.filter(v=>v.estado&&v.estado!=="entregado");
+  const porConfirmar=activos.filter(v=>v.estado==="cotizado"||v.estado==="falta_info").length;
+  const hoy_=todayLocal();
+  const en7=new Date(Date.now()+7*86400000).toLocaleDateString("en-CA");
+  const progSemana=activos.filter(v=>v.fechaDespacho&&v.fechaDespacho>=hoy_&&v.fechaDespacho<=en7).length;
+  const sinFecha=activos.filter(v=>v.estado==="confirmado"&&!v.fechaDespacho).length;
+
+  el.innerHTML=`
+    <div class="kpi"><div class="kv" style="color:var(--rd)">${porConfirmar}</div><div class="kl">Por confirmar</div></div>
+    <div class="kpi"><div class="kv" style="color:var(--bl)">${progSemana}</div><div class="kl">Programados 7 días</div></div>
+    <div class="kpi"><div class="kv" style="color:var(--am)">${sinFecha}</div><div class="kl">Confirmados sin fecha</div></div>`;
+
+  // Alerta: cotizaciones con 3+ días sin moverse de estado "cotizado"
+  const limite=new Date(Date.now()-3*86400000).toLocaleDateString("en-CA");
+  const viejas=mrSales.filter(v=>v.estado==="cotizado"&&(v.fecha||"")<=limite);
+  const alertEl=document.getElementById("mr-pipeline-alertas");
+  if(alertEl){
+    alertEl.innerHTML = viejas.length
+      ? `<div style="background:#fff5f5;border:1px solid #ffc9c9;border-radius:10px;padding:10px 12px">
+          <p style="font-size:11.5px;font-weight:700;color:var(--rd);margin-bottom:6px">⚠️ ${viejas.length} cotización${viejas.length!==1?"es":""} sin seguimiento hace 3+ días</p>
+          ${viejas.slice(0,5).map(v=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:12px">
+            <span>${esc(v.cliente)} · ${fD(v.fecha)}</span>
+            ${v.telefono?`<a href="https://wa.me/${waPhone(v.telefono)}" target="_blank" class="ib" style="text-decoration:none;background:#e7fbe9" title="WhatsApp">💬</a>`:""}
+          </div>`).join("")}
+        </div>`
+      : "";
+  }
+}
 
 /** Stock actual = todo lo comprado − todo lo vendido, para ese producto */
 function mrStock(pid){
@@ -2545,14 +2590,88 @@ function mrStock(pid){
 }
 
 /* ── VENTAS ── */
+const MR_ESTADOS = {
+  cotizado:    {l:"Cotizado",     c:"#5B6069", bg:"#F1F2F4"},
+  falta_info:  {l:"Falta info",   c:"#B45309", bg:"#FFFBEC"},
+  confirmado:  {l:"Confirmado",   c:"#1D5FE0", bg:"#EAF1FF"},
+  programado:  {l:"Programado",   c:"#7C3AED", bg:"#F5F0FF"},
+  entregado:   {l:"Entregado",    c:"#1D8A44", bg:"#E9F9EE"}
+};
+const MR_CHECK_ITEMS = [["ubicacion","📍 Ubicación confirmada"],["pago","💳 Pago confirmado"],["racks","📦 Racks listos"]];
 let mrVentaFilter = "todas";
 function setMRVentaFilter(f){
   mrVentaFilter = f;
-  ["todas","pagado","pendiente"].forEach(k=>document.getElementById("mrv-f-"+k).classList.toggle("on",k===f));
+  ["todas","pagado","pendiente","despachos"].forEach(k=>document.getElementById("mrv-f-"+k).classList.toggle("on",k===f));
   renderMRVentas();
+}
+function toggleMRChecklist(id,key){
+  const v=mrSales.find(x=>x.id===id);
+  if(!v)return;
+  v.checklist=v.checklist||{ubicacion:false,pago:false,racks:false};
+  v.checklist[key]=!v.checklist[key];
+  Store.one("mr_sales",v);
+  renderMRVentas();
+  renderMRPipeline();
+}
+function setMREstado(id,estado){
+  const v=mrSales.find(x=>x.id===id);
+  if(!v)return;
+  v.estado=estado;
+  Store.one("mr_sales",v);
+  renderMRVentas();
+  renderMRPipeline();
+  toast("Estado actualizado: "+(MR_ESTADOS[estado]?.l||estado));
+}
+/** Confirmación rápida: solo pide dirección + fecha de despacho y pasa a "programado" en un paso, sin abrir el formulario completo */
+function openMRConfirmarRapido(id){
+  const v=mrSales.find(x=>x.id===id);
+  if(!v)return;
+  const html=`
+    <div style="display:flex;flex-direction:column;gap:11px">
+      <p style="font-size:12.5px;color:var(--t2)">Confirmando pedido de <b>${esc(v.cliente)}</b></p>
+      <div class="fld"><label class="flbl">Dirección de entrega *</label><input class="inp" id="mrqc-dir" value="${esc(v.direccion||"")}" placeholder="Distrito, referencia..."></div>
+      <div class="fld"><label class="flbl">Fecha de despacho *</label><input class="inp" id="mrqc-fecha" type="date" value="${v.fechaDespacho||""}"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="btn btnd" style="flex:1;justify-content:center" onclick="confirmarMRRapido('${id}')">✓ Confirmar y programar</button>
+      <button class="btn btng" onclick="closeOv('ov-mr-confirmar')">Cancelar</button>
+    </div>`;
+  document.getElementById("mrqc-body").innerHTML=html;
+  openOv("ov-mr-confirmar");
+}
+function confirmarMRRapido(id){
+  const v=mrSales.find(x=>x.id===id);
+  if(!v)return;
+  const dir=(document.getElementById("mrqc-dir")?.value||"").trim();
+  const fecha=document.getElementById("mrqc-fecha")?.value||"";
+  if(!dir){toast("⚠️ Falta la dirección","warn");return;}
+  if(!fecha){toast("⚠️ Falta la fecha de despacho","warn");return;}
+  v.direccion=dir; v.fechaDespacho=fecha; v.estado="programado";
+  Store.one("mr_sales",v);
+  closeOv("ov-mr-confirmar");
+  renderMRVentas(); renderMRPipeline();
+  toast("✅ Pedido programado para "+fD(fecha));
+}
+/** Abre Google Maps con la ruta de todos los despachos de un día */
+function abrirRutaMRDia(fecha){
+  const items=mrSales.filter(v=>v.fechaDespacho===fecha&&v.direccion&&v.estado!=="entregado");
+  if(!items.length){toast("No hay direcciones para esa fecha","warn");return;}
+  const dirs=items.map(v=>encodeURIComponent(v.direccion));
+  const destino=dirs.pop();
+  const waypoints=dirs.length?"&waypoints="+dirs.join("|"):"";
+  window.open(`https://www.google.com/maps/dir/?api=1&destination=${destino}${waypoints}&travelmode=driving`,"_blank");
+}
+/** Arma un mensaje de texto con el plan de despachos del día, listo para compartir por WhatsApp */
+function compartirPlanMRDia(fecha){
+  const items=mrSales.filter(v=>v.fechaDespacho===fecha&&v.estado!=="entregado");
+  if(!items.length){toast("No hay despachos para esa fecha","warn");return;}
+  const lineas=items.map((v,i)=>`${i+1}. ${v.cliente} — ${v.producto} ×${v.cantidad}${v.direccion?" — "+v.direccion:""}${v.telefono?" — "+v.telefono:""}`);
+  const texto=`🚚 Plan de despachos ${fD(fecha)}\n\n`+lineas.join("\n");
+  window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`,"_blank");
 }
 
 function renderMRVentas(){
+  if(mrVentaFilter==="despachos"){ renderMRDespachos(); return; }
   let rows=[...mrSales].sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
   if(mrVentaFilter==="pagado")    rows=rows.filter(v=>((v.total||0)-(v.pagado||0))<=0);
   if(mrVentaFilter==="pendiente") rows=rows.filter(v=>((v.total||0)-(v.pagado||0))>0);
@@ -2566,16 +2685,19 @@ function renderMRVentas(){
   document.getElementById("mr-ventas-tbl").innerHTML = rows.length
     ? `<table style="width:100%"><tbody>${rows.map(v=>{
         const saldo=Math.max(0,(v.total||0)-(v.pagado||0));
+        const est=MR_ESTADOS[v.estado||"cotizado"];
         return `<tr style="border-bottom:1px solid var(--bg)">
           <td style="padding:9px 6px">
             <p style="font-weight:700;font-size:12.5px">${esc(v.cliente)}</p>
             <p style="font-size:10.5px;color:var(--t2)">${esc(v.producto)} × ${v.cantidad} · ${fD(v.fecha)}</p>
+            <span style="display:inline-block;margin-top:4px;font-size:9.5px;font-weight:700;padding:2px 8px;border-radius:20px;background:${est.bg};color:${est.c}">${est.l}${v.fechaDespacho?" · "+fD(v.fechaDespacho):""}</span>
           </td>
           <td style="padding:9px 6px;text-align:right;white-space:nowrap">
             <p style="font-weight:800;color:var(--amd);font-size:13px">${fM(v.total)}</p>
             <p style="font-size:9.5px;font-weight:700;color:${saldo>0?"var(--rd)":"var(--gr)"}">${saldo>0?"Saldo "+fM(saldo):"Pagado"}</p>
           </td>
           <td style="padding:9px 6px;text-align:right;white-space:nowrap">
+            ${(v.estado==="cotizado"||v.estado==="falta_info")?`<button class="ib" onclick="openMRConfirmarRapido('${v.id}')" title="Confirmar y programar" style="background:#eff6ff">✓</button>`:""}
             ${saldo>0&&v.telefono?`<button class="ib" onclick="mrCobranzaWA('${v.id}')" title="Recordar cobro por WhatsApp" style="background:#fff3e0">💰</button>`:""}
             ${v.telefono?`<a href="https://wa.me/${waPhone(v.telefono)}" target="_blank" class="ib" style="text-decoration:none;background:#e7fbe9" title="WhatsApp">💬</a>`:""}
             <button class="ib" onclick="openMRVenta('${v.id}')" title="Editar">✏️</button>
@@ -2584,6 +2706,65 @@ function renderMRVentas(){
           </td>
         </tr>`;}).join("")}</tbody></table>`
     : `<div class="empty"><div class="ei">🛠️</div><div class="et">Sin ventas${mrVentaFilter!=="todas"?" en este filtro":" todavía"}</div></div>`;
+}
+
+/* ── DESPACHOS: agrupado por fecha de despacho, con checklist ── */
+function renderMRDespachos(){
+  const pendientes = mrSales.filter(v=>v.estado&&v.estado!=="entregado");
+  const conFecha = pendientes.filter(v=>v.fechaDespacho).sort((a,b)=>(a.fechaDespacho||"").localeCompare(b.fechaDespacho||""));
+  const sinFecha = pendientes.filter(v=>!v.fechaDespacho);
+
+  const cnt=document.getElementById("mr-ventas-cnt");
+  if(cnt)cnt.innerHTML = conFecha.length+" programado"+(conFecha.length!==1?"s":"")+(sinFecha.length?" · "+sinFecha.length+" sin fecha aún":"");
+
+  const groups={};
+  conFecha.forEach(v=>{ (groups[v.fechaDespacho]=groups[v.fechaDespacho]||[]).push(v); });
+
+  const todayStr=todayLocal();
+  const tomorrowStr=new Date(Date.now()+86400000).toLocaleDateString("en-CA");
+  const dayLabel=d=>d===todayStr?"🔴 HOY":d===tomorrowStr?"🟠 MAÑANA":fD(d);
+
+  const cardFor=v=>{
+    const cl=v.checklist||{};
+    const necesitaConfirmar = v.estado==="cotizado"||v.estado==="falta_info";
+    return `<div style="border:1px solid var(--bd);border-radius:12px;padding:12px;margin-bottom:9px;background:var(--s2)">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+        <div style="min-width:0">
+          <p style="font-weight:700;font-size:13px">${esc(v.cliente)}</p>
+          <p style="font-size:10.5px;color:var(--t2)">${esc(v.producto)} × ${v.cantidad}${v.direccion?" · "+esc(v.direccion):""}</p>
+        </div>
+        ${v.telefono?`<a href="https://wa.me/${waPhone(v.telefono)}" target="_blank" class="ib" style="text-decoration:none;background:#e7fbe9;flex-shrink:0" title="WhatsApp">💬</a>`:""}
+      </div>
+      ${necesitaConfirmar?`<button class="btn btnd sm" style="margin-top:9px;width:100%;justify-content:center" onclick="openMRConfirmarRapido('${v.id}')">✓ Confirmar y programar</button>`:`
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:9px">
+        ${MR_CHECK_ITEMS.map(([k,l])=>`<button class="btn stab ${cl[k]?"on":""}" style="font-size:10.5px;padding:5px 9px" onclick="toggleMRChecklist('${v.id}','${k}')">${cl[k]?"✅":"⬜"} ${l}</button>`).join("")}
+      </div>
+      <div style="display:flex;gap:6px;margin-top:8px;align-items:center">
+        <select class="inp" style="font-size:11px;padding:5px 8px;width:auto" onchange="setMREstado('${v.id}',this.value)">
+          ${Object.entries(MR_ESTADOS).map(([k,o])=>`<option value="${k}" ${v.estado===k?"selected":""}>${o.l}</option>`).join("")}
+        </select>
+        <button class="ib" onclick="openMRVenta('${v.id}')" title="Editar / cambiar fecha">✏️</button>
+      </div>`}
+    </div>`;
+  };
+
+  let html="";
+  Object.keys(groups).sort().forEach(d=>{
+    html+=`<div style="margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px">
+        <p style="font-size:12px;font-weight:800;color:var(--t2);text-transform:uppercase;letter-spacing:.03em">${dayLabel(d)} · ${groups[d].length} despacho${groups[d].length!==1?"s":""}</p>
+        <div style="display:flex;gap:5px">
+          <button class="ib" title="Ver ruta en Maps" onclick="abrirRutaMRDia('${d}')">🗺️</button>
+          <button class="ib" title="Compartir plan por WhatsApp" onclick="compartirPlanMRDia('${d}')">📤</button>
+        </div>
+      </div>
+      ${groups[d].map(cardFor).join("")}
+    </div>`;
+  });
+  if(sinFecha.length){
+    html+=`<div><p style="font-size:12px;font-weight:800;color:var(--t2);margin-bottom:7px;text-transform:uppercase;letter-spacing:.03em">⏳ Sin fecha de despacho</p>${sinFecha.map(cardFor).join("")}</div>`;
+  }
+  document.getElementById("mr-ventas-tbl").innerHTML = html || `<div class="empty"><div class="ei">📅</div><div class="et">No hay pedidos pendientes de despacho</div></div>`;
 }
 
 function openMRVenta(id){
@@ -2608,6 +2789,16 @@ function openMRVenta(id){
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
         <div class="fld"><label class="flbl">Costo de delivery (S/)</label><input class="inp" id="mrv-delivery" type="number" min="0" value="${v?v.costoDelivery||0:0}"></div>
         <div class="fld"><label class="flbl">Fecha</label><input class="inp" id="mrv-fecha" type="date" value="${v?v.fecha:todayLocal()}"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
+        <div class="fld"><label class="flbl">Estado del pedido</label><select class="inp" id="mrv-estado">${Object.entries(MR_ESTADOS).map(([k,o])=>`<option value="${k}" ${(v?.estado||"cotizado")===k?"selected":""}>${o.l}</option>`).join("")}</select></div>
+        <div class="fld"><label class="flbl">Fecha de despacho</label><input class="inp" id="mrv-fecha-despacho" type="date" value="${v?.fechaDespacho||""}"></div>
+      </div>
+      <div class="fld">
+        <label class="flbl">Checklist de despacho</label>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          ${MR_CHECK_ITEMS.map(([k,l])=>`<label style="display:flex;align-items:center;gap:5px;font-size:11.5px;background:var(--s2);border:1px solid var(--bd);border-radius:9px;padding:6px 10px;cursor:pointer"><input type="checkbox" id="mrv-check-${k}" ${v?.checklist?.[k]?"checked":""} style="width:15px;height:15px">${l}</label>`).join("")}
+        </div>
       </div>
       <div class="fld">
         <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;cursor:pointer;background:var(--s2);border:1px solid var(--bd);border-radius:10px;padding:10px 12px">
@@ -2688,6 +2879,13 @@ function saveMRVenta(id){
     costoDelivery:parseFloat(document.getElementById("mrv-delivery")?.value)||0,
     pagado:parseFloat(document.getElementById("mrv-pagado")?.value)||0,
     fecha:document.getElementById("mrv-fecha")?.value||todayLocal(),
+    estado:document.getElementById("mrv-estado")?.value||"cotizado",
+    fechaDespacho:document.getElementById("mrv-fecha-despacho")?.value||"",
+    checklist:{
+      ubicacion:!!document.getElementById("mrv-check-ubicacion")?.checked,
+      pago:!!document.getElementById("mrv-check-pago")?.checked,
+      racks:!!document.getElementById("mrv-check-racks")?.checked
+    },
   };
   if(existing){ mrSales=mrSales.map(x=>x.id===existing.id?venta:x); }
   else { mrSales.push(venta); }
@@ -2705,6 +2903,7 @@ function saveMRVenta(id){
 
   closeOv("ov-mr-venta");
   renderMRVentas();
+  renderMRPipeline();
   toast(existing?"✅ Venta actualizada":"✅ Venta registrada");
 }
 function delMRVenta(id){
@@ -2712,6 +2911,7 @@ function delMRVenta(id){
   mrSales=mrSales.filter(v=>v.id!==id);
   Store.del("mr_sales",id);
   renderMRVentas();
+  renderMRPipeline();
   toast("Venta eliminada");
 }
 
@@ -3104,6 +3304,23 @@ function genMRCotizacion(){
   const dniRuc=(document.getElementById("mrq-dniruc")?.value||"").trim();
   const total=cantidad*precio;
 
+  // Guarda el pedido en el pipeline de ventas apenas se cotiza — así no se pierde,
+  // aunque el cliente todavía no haya confirmado nada.
+  const venta={
+    id:"mrv"+uid(), cliente, telefono, dniRuc,
+    productId, producto, codigo:prodObj?.codigo||"", descripcion:prodObj?.descripcion||"",
+    cantidad, precioUnitario:precio, total,
+    direccion:"", costoDelivery:0, pagado:0, fecha:todayLocal(),
+    estado:"cotizado", fechaDespacho:"",
+    checklist:{ubicacion:false,pago:false,racks:false}
+  };
+  mrSales.push(venta);
+  Store.one("mr_sales",venta);
+  let cli=mrClients.find(c=>c.name.toLowerCase()===cliente.toLowerCase());
+  if(!cli){ cli={id:"mrcli"+uid(),name:cliente,phone:telefono}; mrClients.push(cli); Store.one("mr_clients",cli); }
+  renderMRVentas();
+  renderMRPipeline();
+
   const today=new Date();
   const validoHasta=new Date(today.getTime()+validezDias*86400000);
   const fmtFecha=d=>d.toLocaleDateString("es-PE",{day:"2-digit",month:"long",year:"numeric"});
@@ -3414,7 +3631,7 @@ async function init(){
   await new Promise(r=>{if(window._fbReady!==undefined)r();else{const h=()=>{window.removeEventListener("fb-ready",h);r();};window.addEventListener("fb-ready",h);setTimeout(r,4500);}});
   await Store.loadAll();
   window.reservations=reservations;
-  reqNotif().then(()=>{scheduleSmartNotifs();scheduleBusinessAlerts();}).catch(()=>{});
+  reqNotif().then(()=>{scheduleSmartNotifs();scheduleSTAKNotifs();scheduleBusinessAlerts();}).catch(()=>{});
   goStak("analisis");  // STAK es la pantalla de entrada en este archivo
   document.getElementById("boot-loader")?.remove();
   // Vuelve a dibujar tras el primer layout — evita pantalla en blanco al abrir la app
