@@ -577,7 +577,7 @@ window.addEventListener("unhandledrejection", function(e){
         </div>
         <div class="card cp"><div class="tw" id="mr-stock-tbl"></div></div>
         <div class="card cp" style="margin-top:13px">
-          <div class="ch"><div class="ct">Historial de compras</div><button class="btn btng sm" onclick="exportMRComprasCSV()">⬇ CSV</button></div>
+          <div class="ch"><div class="ct">Historial de compras <span id="mr-compras-cnt" style="font-size:11px;font-weight:700;color:var(--am)"></span></div><button class="btn btng sm" onclick="exportMRComprasCSV()">⬇ CSV</button></div>
           <div class="tw" id="mr-compras-tbl"></div>
         </div>
       </div>
@@ -1568,7 +1568,7 @@ let jfhExplain={};
 function stakStockValueAt(dateStr){
   let total=0;
   mrProducts.forEach(p=>{
-    const comprado=mrPurchases.filter(c=>c.productId===p.id&&(c.fecha||"")<=dateStr).reduce((s,c)=>s+(c.cantidad||0),0);
+    const comprado=mrPurchases.filter(c=>c.productId===p.id&&(c.estado||"recogido")==="recogido"&&(c.fecha||"")<=dateStr).reduce((s,c)=>s+(c.cantidad||0),0);
     const vendido=mrSales.filter(v=>v.productId===p.id&&(v.fecha||"")<=dateStr).reduce((s,v)=>s+(v.cantidad||0),0);
     total+=Math.max(0,comprado-vendido)*(p.costoUnitario||0);
   });
@@ -2553,12 +2553,13 @@ function renderMR(){ renderMRVentas(); renderMRAnalisis(); renderMRPipeline(); }
 function renderMRPipeline(){
   const el=document.getElementById("mr-pipeline-kpis");
   if(!el)return;
-  const activos=mrSales.filter(v=>v.estado&&v.estado!=="entregado");
-  const porConfirmar=activos.filter(v=>v.estado==="cotizado"||v.estado==="falta_info").length;
+  const grupos=mrAllGroups();
+  const activos=grupos.filter(g=>g.estado&&g.estado!=="entregado");
+  const porConfirmar=activos.filter(g=>g.estado==="cotizado"||g.estado==="falta_info").length;
   const hoy_=todayLocal();
   const en7=new Date(Date.now()+7*86400000).toLocaleDateString("en-CA");
-  const progSemana=activos.filter(v=>v.fechaDespacho&&v.fechaDespacho>=hoy_&&v.fechaDespacho<=en7).length;
-  const sinFecha=activos.filter(v=>v.estado==="confirmado"&&!v.fechaDespacho).length;
+  const progSemana=activos.filter(g=>g.fechaDespacho&&g.fechaDespacho>=hoy_&&g.fechaDespacho<=en7).length;
+  const sinFecha=activos.filter(g=>g.estado==="confirmado"&&!g.fechaDespacho).length;
 
   el.innerHTML=`
     <div class="kpi"><div class="kv" style="color:var(--rd)">${porConfirmar}</div><div class="kl">Por confirmar</div></div>
@@ -2567,27 +2568,71 @@ function renderMRPipeline(){
 
   // Alerta: cotizaciones con 3+ días sin moverse de estado "cotizado"
   const limite=new Date(Date.now()-3*86400000).toLocaleDateString("en-CA");
-  const viejas=mrSales.filter(v=>v.estado==="cotizado"&&(v.fecha||"")<=limite);
+  const viejas=grupos.filter(g=>g.estado==="cotizado"&&(g.fecha||"")<=limite);
   const alertEl=document.getElementById("mr-pipeline-alertas");
   if(alertEl){
     alertEl.innerHTML = viejas.length
       ? `<div style="background:#fff5f5;border:1px solid #ffc9c9;border-radius:10px;padding:10px 12px">
           <p style="font-size:11.5px;font-weight:700;color:var(--rd);margin-bottom:6px">⚠️ ${viejas.length} cotización${viejas.length!==1?"es":""} sin seguimiento hace 3+ días</p>
-          ${viejas.slice(0,5).map(v=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:12px">
-            <span>${esc(v.cliente)} · ${fD(v.fecha)}</span>
-            ${v.telefono?`<a href="https://wa.me/${waPhone(v.telefono)}" target="_blank" class="ib" style="text-decoration:none;background:#e7fbe9" title="WhatsApp">💬</a>`:""}
+          ${viejas.slice(0,5).map(g=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:12px">
+            <span>${esc(g.cliente)} · ${fD(g.fecha)}</span>
+            ${g.telefono?`<a href="https://wa.me/${waPhone(g.telefono)}" target="_blank" class="ib" style="text-decoration:none;background:#e7fbe9" title="WhatsApp">💬</a>`:""}
           </div>`).join("")}
         </div>`
       : "";
   }
 }
 
-/** Stock actual = todo lo comprado − todo lo vendido, para ese producto */
+/** Stock actual = todo lo comprado y YA RECOGIDO (en tu almacén) − todo lo vendido.
+ *  Las compras marcadas "por recoger" todavía no suman al stock disponible. */
 function mrStock(pid){
-  const in_ = mrPurchases.filter(c=>c.productId===pid).reduce((s,c)=>s+(c.cantidad||0),0);
+  const in_ = mrPurchases.filter(c=>c.productId===pid&&(c.estado||"recogido")==="recogido").reduce((s,c)=>s+(c.cantidad||0),0);
   const out = mrSales.filter(v=>v.productId===pid).reduce((s,v)=>s+(v.cantidad||0),0);
   return in_-out;
 }
+
+/* ── AGRUPACIÓN DE PEDIDOS ──
+ * Cada producto de una venta se guarda como su propio registro en mr_sales (así el stock y las
+ * finanzas por producto siguen exactos), pero varios productos vendidos juntos a un mismo cliente
+ * comparten un "grupoId" — así se muestran, cotizan, agendan y confirman como un solo pedido. */
+function mrGid(v){ return v.grupoId || v.id; }
+function mrGroupItems(gid){ return mrSales.filter(v=>mrGid(v)===gid); }
+function mrGroupAgg(items){
+  if(!items||!items.length) return null;
+  const first=items[0];
+  const total=items.reduce((s,v)=>s+(v.total||0),0);
+  const costoDelivery=items.reduce((s,v)=>s+(v.costoDelivery||0),0);
+  const pagado=items.reduce((s,v)=>s+(v.pagado||0),0);
+  const saldo=Math.max(0,total-pagado);
+  const resumenProducto=items.map(v=>`${v.producto} ×${v.cantidad}`).join(", ");
+  return {gid:mrGid(first),items,cliente:first.cliente,telefono:first.telefono,dniRuc:first.dniRuc,
+    direccion:first.direccion,fecha:first.fecha,estado:first.estado,fechaDespacho:first.fechaDespacho,
+    checklist:first.checklist||{},total,costoDelivery,pagado,saldo,resumenProducto};
+}
+function mrAllGroups(){
+  const seen={},order=[];
+  mrSales.forEach(v=>{const g=mrGid(v);if(!seen[g]){seen[g]=true;order.push(g);}});
+  return order.map(g=>mrGroupAgg(mrGroupItems(g))).filter(Boolean);
+}
+function mrGroupByGid(gid){ return mrGroupAgg(mrGroupItems(gid)); }
+
+/* ── AGRUPACIÓN DE COMPRAS (mismo patrón: varios productos en una sola compra, un grupoId) ── */
+function mrPGid(c){ return c.grupoId || c.id; }
+function mrPGroupItems(gid){ return mrPurchases.filter(c=>mrPGid(c)===gid); }
+function mrPGroupAgg(items){
+  if(!items||!items.length) return null;
+  const first=items[0];
+  const totalCosto=items.reduce((s,c)=>s+(c.cantidad||0)*(c.costoUnitario||0),0);
+  const resumenProducto=items.map(c=>`${c.producto} ×${c.cantidad}`).join(", ");
+  return {gid:mrPGid(first),items,proveedor:first.proveedor,fecha:first.fecha,
+    estado:first.estado||"recogido",totalCosto,resumenProducto};
+}
+function mrAllPGroups(){
+  const seen={},order=[];
+  mrPurchases.forEach(c=>{const g=mrPGid(c);if(!seen[g]){seen[g]=true;order.push(g);}});
+  return order.map(g=>mrPGroupAgg(mrPGroupItems(g))).filter(Boolean);
+}
+function mrPGroupByGid(gid){ return mrPGroupAgg(mrPGroupItems(gid)); }
 
 /* ── VENTAS ── */
 /** 👉 Pega aquí el ID del calendario "STAK" de Google (Ajustes de Google Calendar > tu calendario
@@ -2608,122 +2653,122 @@ function setMRVentaFilter(f){
   ["todas","pagado","pendiente","despachos"].forEach(k=>document.getElementById("mrv-f-"+k).classList.toggle("on",k===f));
   renderMRVentas();
 }
-function toggleMRChecklist(id,key){
-  const v=mrSales.find(x=>x.id===id);
-  if(!v)return;
-  v.checklist=v.checklist||{ubicacion:false,pago:false,racks:false};
-  v.checklist[key]=!v.checklist[key];
-  Store.one("mr_sales",v);
+function toggleMRChecklist(gid,key){
+  const items=mrGroupItems(gid);
+  if(!items.length)return;
+  const nuevoValor=!(items[0].checklist?.[key]);
+  items.forEach(v=>{
+    v.checklist=v.checklist||{ubicacion:false,pago:false,racks:false};
+    v.checklist[key]=nuevoValor;
+    Store.one("mr_sales",v);
+  });
   renderMRVentas();
   renderMRPipeline();
 }
-function setMREstado(id,estado){
-  const v=mrSales.find(x=>x.id===id);
-  if(!v)return;
-  v.estado=estado;
-  Store.one("mr_sales",v);
+function setMREstado(gid,estado){
+  const items=mrGroupItems(gid);
+  if(!items.length)return;
+  items.forEach(v=>{ v.estado=estado; Store.one("mr_sales",v); });
   renderMRVentas();
   renderMRPipeline();
   toast("Estado actualizado: "+(MR_ESTADOS[estado]?.l||estado));
   // Al pasar a "programado" (con fecha de despacho) → abrir Google Calendar automáticamente, igual que en Chispekas
-  if(estado==="programado" && v.fechaDespacho){ setTimeout(()=>addToGCalSTAK(id),400); }
+  if(estado==="programado" && items[0].fechaDespacho){ setTimeout(()=>addToGCalSTAK(gid),400); }
 }
 /** Confirmación rápida: solo pide dirección + fecha de despacho y pasa a "programado" en un paso, sin abrir el formulario completo */
-function openMRConfirmarRapido(id){
-  const v=mrSales.find(x=>x.id===id);
-  if(!v)return;
+function openMRConfirmarRapido(gid){
+  const g=mrGroupByGid(gid);
+  if(!g)return;
   const html=`
     <div style="display:flex;flex-direction:column;gap:11px">
-      <p style="font-size:12.5px;color:var(--t2)">Confirmando pedido de <b>${esc(v.cliente)}</b></p>
-      <div class="fld"><label class="flbl">Dirección de entrega *</label><input class="inp" id="mrqc-dir" value="${esc(v.direccion||"")}" placeholder="Distrito, referencia..."></div>
-      <div class="fld"><label class="flbl">Fecha de despacho *</label><input class="inp" id="mrqc-fecha" type="date" value="${v.fechaDespacho||""}"></div>
+      <p style="font-size:12.5px;color:var(--t2)">Confirmando pedido de <b>${esc(g.cliente)}</b> — ${esc(g.resumenProducto)}</p>
+      <div class="fld"><label class="flbl">Dirección de entrega *</label><input class="inp" id="mrqc-dir" value="${esc(g.direccion||"")}" placeholder="Distrito, referencia..."></div>
+      <div class="fld"><label class="flbl">Fecha de despacho *</label><input class="inp" id="mrqc-fecha" type="date" value="${g.fechaDespacho||""}"></div>
     </div>
     <div style="display:flex;gap:8px;margin-top:16px">
-      <button class="btn btnd" style="flex:1;justify-content:center" onclick="confirmarMRRapido('${id}')">✓ Confirmar y programar</button>
+      <button class="btn btnd" style="flex:1;justify-content:center" onclick="confirmarMRRapido('${gid}')">✓ Confirmar y programar</button>
       <button class="btn btng" onclick="closeOv('ov-mr-confirmar')">Cancelar</button>
     </div>`;
   document.getElementById("mrqc-body").innerHTML=html;
   openOv("ov-mr-confirmar");
 }
-function confirmarMRRapido(id){
-  const v=mrSales.find(x=>x.id===id);
-  if(!v)return;
+function confirmarMRRapido(gid){
+  const items=mrGroupItems(gid);
+  if(!items.length)return;
   const dir=(document.getElementById("mrqc-dir")?.value||"").trim();
   const fecha=document.getElementById("mrqc-fecha")?.value||"";
   if(!dir){toast("⚠️ Falta la dirección","warn");return;}
   if(!fecha){toast("⚠️ Falta la fecha de despacho","warn");return;}
-  v.direccion=dir; v.fechaDespacho=fecha; v.estado="programado";
-  Store.one("mr_sales",v);
+  items.forEach(v=>{ v.direccion=dir; v.fechaDespacho=fecha; v.estado="programado"; Store.one("mr_sales",v); });
   closeOv("ov-mr-confirmar");
   renderMRVentas(); renderMRPipeline();
   toast("✅ Pedido programado para "+fD(fecha));
-  setTimeout(()=>addToGCalSTAK(id),400);
-  if(v.telefono && confirm("¿Enviar mensaje de confirmación por WhatsApp?")) genMRMensajeWA(id);
+  setTimeout(()=>addToGCalSTAK(gid),400);
+  if(items[0].telefono && confirm("¿Enviar mensaje de confirmación por WhatsApp?")) genMRMensajeWA(gid);
 }
-/** Abre Google Maps con la ruta de todos los despachos de un día */
+/** Abre Google Maps con la ruta de todos los despachos de un día (un punto por pedido, no por producto) */
 function abrirRutaMRDia(fecha){
-  const items=mrSales.filter(v=>v.fechaDespacho===fecha&&v.direccion&&v.estado!=="entregado");
-  if(!items.length){toast("No hay direcciones para esa fecha","warn");return;}
-  const dirs=items.map(v=>encodeURIComponent(v.direccion));
+  const groups=mrAllGroups().filter(g=>g.fechaDespacho===fecha&&g.direccion&&g.estado!=="entregado");
+  if(!groups.length){toast("No hay direcciones para esa fecha","warn");return;}
+  const dirs=groups.map(g=>encodeURIComponent(g.direccion));
   const destino=dirs.pop();
   const waypoints=dirs.length?"&waypoints="+dirs.join("|"):"";
   window.open(`https://www.google.com/maps/dir/?api=1&destination=${destino}${waypoints}&travelmode=driving`,"_blank");
 }
 /** Arma un mensaje de texto con el plan de despachos del día, listo para compartir por WhatsApp */
 function compartirPlanMRDia(fecha){
-  const items=mrSales.filter(v=>v.fechaDespacho===fecha&&v.estado!=="entregado");
-  if(!items.length){toast("No hay despachos para esa fecha","warn");return;}
-  const lineas=items.map((v,i)=>`${i+1}. ${v.cliente} — ${v.producto} ×${v.cantidad}${v.direccion?" — "+v.direccion:""}${v.telefono?" — "+v.telefono:""}`);
+  const groups=mrAllGroups().filter(g=>g.fechaDespacho===fecha&&g.estado!=="entregado");
+  if(!groups.length){toast("No hay despachos para esa fecha","warn");return;}
+  const lineas=groups.map((g,i)=>`${i+1}. ${g.cliente} — ${g.resumenProducto}${g.direccion?" — "+g.direccion:""}${g.telefono?" — "+g.telefono:""}`);
   const texto=`🚚 Plan de despachos ${fD(fecha)}\n\n`+lineas.join("\n");
   abrirWA(texto,null);
 }
 
 function renderMRVentas(){
   if(mrVentaFilter==="despachos"){ renderMRDespachos(); return; }
-  let rows=[...mrSales].sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
-  if(mrVentaFilter==="pagado")    rows=rows.filter(v=>((v.total||0)-(v.pagado||0))<=0);
-  if(mrVentaFilter==="pendiente") rows=rows.filter(v=>((v.total||0)-(v.pagado||0))>0);
+  let groups=mrAllGroups().sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
+  if(mrVentaFilter==="pagado")    groups=groups.filter(g=>g.saldo<=0);
+  if(mrVentaFilter==="pendiente") groups=groups.filter(g=>g.saldo>0);
 
-  const totalPorCobrar = mrSales.reduce((s,v)=>s+Math.max(0,(v.total||0)-(v.pagado||0)),0);
-  const unidadesEnLista = rows.reduce((s,v)=>s+(v.cantidad||0),0);
+  const totalPorCobrar = mrAllGroups().reduce((s,g)=>s+g.saldo,0);
+  const unidadesEnLista = groups.reduce((s,g)=>s+g.items.reduce((s2,v)=>s2+(v.cantidad||0),0),0);
   const cnt=document.getElementById("mr-ventas-cnt");
-  if(cnt)cnt.innerHTML = rows.length+" venta"+(rows.length!==1?"s":"")+" · "+unidadesEnLista+" unidad"+(unidadesEnLista!==1?"es":"")
+  if(cnt)cnt.innerHTML = groups.length+" pedido"+(groups.length!==1?"s":"")+" · "+unidadesEnLista+" unidad"+(unidadesEnLista!==1?"es":"")
     + (totalPorCobrar>0 ? ` · <span style="color:var(--rd);font-weight:700">${fM(totalPorCobrar)} por cobrar</span>` : "");
 
-  document.getElementById("mr-ventas-tbl").innerHTML = rows.length
-    ? rows.map(v=>{
-        const saldo=Math.max(0,(v.total||0)-(v.pagado||0));
-        const est=MR_ESTADOS[v.estado||"cotizado"];
-        const necesitaConfirmar = v.estado==="cotizado"||v.estado==="falta_info";
+  document.getElementById("mr-ventas-tbl").innerHTML = groups.length
+    ? groups.map(g=>{
+        const est=MR_ESTADOS[g.estado||"cotizado"];
+        const necesitaConfirmar = g.estado==="cotizado"||g.estado==="falta_info";
         const detalles=[];
-        if(v.direccion) detalles.push("📍 "+esc(v.direccion));
-        if(v.telefono) detalles.push("📞 "+esc(v.telefono));
-        if(v.costoDelivery>0) detalles.push("🚚 Movilidad "+fM(v.costoDelivery));
+        if(g.direccion) detalles.push("📍 "+esc(g.direccion));
+        if(g.telefono) detalles.push("📞 "+esc(g.telefono));
+        if(g.costoDelivery>0) detalles.push("🚚 Movilidad "+fM(g.costoDelivery));
         return `<div style="border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:10px;background:var(--s2)">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
             <div style="min-width:0">
-              <p style="font-weight:800;font-size:16.5px;line-height:1.25">${esc(v.cliente)}</p>
-              <p style="font-size:13.5px;color:var(--t2);margin-top:2px">${esc(v.producto)} × ${v.cantidad}</p>
-              <p style="font-size:11.5px;color:var(--t2);margin-top:1px">${fD(v.fecha)}</p>
+              <p style="font-weight:800;font-size:16.5px;line-height:1.25">${esc(g.cliente)}</p>
+              <p style="font-size:13.5px;color:var(--t2);margin-top:2px">${esc(g.resumenProducto)}</p>
+              <p style="font-size:11.5px;color:var(--t2);margin-top:1px">${fD(g.fecha)}</p>
             </div>
             <div style="text-align:right;flex-shrink:0">
-              <p style="font-weight:800;color:var(--amd);font-size:18px">${fM(v.total)}</p>
-              <p style="font-size:11.5px;font-weight:700;color:${saldo>0?"var(--rd)":"var(--gr)"}">${saldo>0?"Saldo "+fM(saldo):"Pagado"}</p>
+              <p style="font-weight:800;color:var(--amd);font-size:18px">${fM(g.total+g.costoDelivery)}</p>
+              <p style="font-size:11.5px;font-weight:700;color:${g.saldo>0?"var(--rd)":"var(--gr)"}">${g.saldo>0?"Saldo "+fM(g.saldo):"Pagado"}</p>
             </div>
           </div>
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-top:10px">
-            <span style="display:inline-block;font-size:11.5px;font-weight:700;padding:4px 11px;border-radius:20px;background:${est.bg};color:${est.c}">${est.l}${v.fechaDespacho?" · "+fD(v.fechaDespacho):""}</span>
+            <span style="display:inline-block;font-size:11.5px;font-weight:700;padding:4px 11px;border-radius:20px;background:${est.bg};color:${est.c}">${est.l}${g.fechaDespacho?" · "+fD(g.fechaDespacho):""}</span>
           </div>
           ${detalles.length?`<div style="margin-top:9px;padding-top:9px;border-top:1px solid var(--bd);display:flex;flex-direction:column;gap:3px">${detalles.map(d=>`<p style="font-size:12.5px;color:var(--t2)">${d}</p>`).join("")}</div>`:""}
           <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:11px">
-            ${necesitaConfirmar?`<button class="ib" onclick="openMRConfirmarRapido('${v.id}')" title="Confirmar y programar" style="background:#eff6ff">✓</button>`:""}
-            <button class="ib" onclick="genMRMensajeWA('${v.id}')" title="Mensaje de cotización/confirmación con emojis, para WhatsApp" style="background:#eef2ff">📝</button>
-            ${v.fechaDespacho?`<button class="ib" onclick="addToGCalSTAK('${v.id}')" title="Agendar en Google Calendar" style="background:#eff6ff">🗓️</button>`:""}
-            ${saldo>0&&v.telefono?`<button class="ib" onclick="mrCobranzaWA('${v.id}')" title="Recordar cobro por WhatsApp" style="background:#fff3e0">💰</button>`:""}
-            ${v.telefono?`<a href="https://wa.me/${waPhone(v.telefono)}" target="_blank" class="ib" style="text-decoration:none;background:#e7fbe9" title="Abrir chat de WhatsApp">💬</a>`:""}
-            <button class="ib" onclick="openMRVenta('${v.id}')" title="Editar">✏️</button>
-            <button class="ib" onclick="genMRNotaVenta('${v.id}')" title="Nota de venta en PDF (sin emojis, para imprimir)">🧾</button>
-            <button class="ib" onclick="delMRVenta('${v.id}')" title="Eliminar" style="background:#fff5f5">🗑</button>
+            ${necesitaConfirmar?`<button class="ib" onclick="openMRConfirmarRapido('${g.gid}')" title="Confirmar y programar" style="background:#eff6ff">✓</button>`:""}
+            <button class="ib" onclick="genMRMensajeWA('${g.gid}')" title="Mensaje de cotización/confirmación con emojis, para WhatsApp" style="background:#eef2ff">📝</button>
+            ${g.fechaDespacho?`<button class="ib" onclick="addToGCalSTAK('${g.gid}')" title="Agendar en Google Calendar" style="background:#eff6ff">🗓️</button>`:""}
+            ${g.saldo>0&&g.telefono?`<button class="ib" onclick="mrCobranzaWA('${g.gid}')" title="Recordar cobro por WhatsApp" style="background:#fff3e0">💰</button>`:""}
+            ${g.telefono?`<a href="https://wa.me/${waPhone(g.telefono)}" target="_blank" class="ib" style="text-decoration:none;background:#e7fbe9" title="Abrir chat de WhatsApp">💬</a>`:""}
+            <button class="ib" onclick="openMRVenta('${g.gid}')" title="Editar">✏️</button>
+            <button class="ib" onclick="genMRNotaVenta('${g.gid}')" title="Nota de venta en PDF (sin emojis, para imprimir)">🧾</button>
+            <button class="ib" onclick="delMRVenta('${g.gid}')" title="Eliminar" style="background:#fff5f5">🗑</button>
           </div>
         </div>`;}).join("")
     : `<div class="empty"><div class="ei">🛠️</div><div class="et">Sin ventas${mrVentaFilter!=="todas"?" en este filtro":" todavía"}</div></div>`;
@@ -2731,45 +2776,45 @@ function renderMRVentas(){
 
 /* ── DESPACHOS: agrupado por fecha de despacho, con checklist ── */
 function renderMRDespachos(){
-  const pendientes = mrSales.filter(v=>v.estado&&v.estado!=="entregado");
-  const conFecha = pendientes.filter(v=>v.fechaDespacho).sort((a,b)=>(a.fechaDespacho||"").localeCompare(b.fechaDespacho||""));
-  const sinFecha = pendientes.filter(v=>!v.fechaDespacho);
+  const pendientes = mrAllGroups().filter(g=>g.estado&&g.estado!=="entregado");
+  const conFecha = pendientes.filter(g=>g.fechaDespacho).sort((a,b)=>(a.fechaDespacho||"").localeCompare(b.fechaDespacho||""));
+  const sinFecha = pendientes.filter(g=>!g.fechaDespacho);
 
   const cnt=document.getElementById("mr-ventas-cnt");
   if(cnt)cnt.innerHTML = conFecha.length+" programado"+(conFecha.length!==1?"s":"")+(sinFecha.length?" · "+sinFecha.length+" sin fecha aún":"");
 
   const groups={};
-  conFecha.forEach(v=>{ (groups[v.fechaDespacho]=groups[v.fechaDespacho]||[]).push(v); });
+  conFecha.forEach(g=>{ (groups[g.fechaDespacho]=groups[g.fechaDespacho]||[]).push(g); });
 
   const todayStr=todayLocal();
   const tomorrowStr=new Date(Date.now()+86400000).toLocaleDateString("en-CA");
   const dayLabel=d=>d===todayStr?"🔴 HOY":d===tomorrowStr?"🟠 MAÑANA":fD(d);
 
-  const cardFor=v=>{
-    const cl=v.checklist||{};
-    const necesitaConfirmar = v.estado==="cotizado"||v.estado==="falta_info";
+  const cardFor=g=>{
+    const cl=g.checklist||{};
+    const necesitaConfirmar = g.estado==="cotizado"||g.estado==="falta_info";
     return `<div style="border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:10px;background:var(--s2)">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
         <div style="min-width:0">
-          <p style="font-weight:800;font-size:16px">${esc(v.cliente)}</p>
-          <p style="font-size:13px;color:var(--t2);margin-top:2px">${esc(v.producto)} × ${v.cantidad}</p>
-          ${v.direccion?`<p style="font-size:12px;color:var(--t2);margin-top:1px">📍 ${esc(v.direccion)}</p>`:""}
+          <p style="font-weight:800;font-size:16px">${esc(g.cliente)}</p>
+          <p style="font-size:13px;color:var(--t2);margin-top:2px">${esc(g.resumenProducto)}</p>
+          ${g.direccion?`<p style="font-size:12px;color:var(--t2);margin-top:1px">📍 ${esc(g.direccion)}</p>`:""}
         </div>
         <div style="display:flex;gap:8px;flex-shrink:0">
-          <button class="ib" onclick="genMRMensajeWA('${v.id}')" title="Enviar cotización/confirmación" style="background:#eef2ff">📝</button>
-          ${v.fechaDespacho?`<button class="ib" onclick="addToGCalSTAK('${v.id}')" title="Agendar en Google Calendar" style="background:#eff6ff">🗓️</button>`:""}
-          ${v.telefono?`<a href="https://wa.me/${waPhone(v.telefono)}" target="_blank" class="ib" style="text-decoration:none;background:#e7fbe9" title="WhatsApp">💬</a>`:""}
+          <button class="ib" onclick="genMRMensajeWA('${g.gid}')" title="Enviar cotización/confirmación" style="background:#eef2ff">📝</button>
+          ${g.fechaDespacho?`<button class="ib" onclick="addToGCalSTAK('${g.gid}')" title="Agendar en Google Calendar" style="background:#eff6ff">🗓️</button>`:""}
+          ${g.telefono?`<a href="https://wa.me/${waPhone(g.telefono)}" target="_blank" class="ib" style="text-decoration:none;background:#e7fbe9" title="WhatsApp">💬</a>`:""}
         </div>
       </div>
-      ${necesitaConfirmar?`<button class="btn btnd sm" style="margin-top:11px;width:100%;justify-content:center;font-size:13px;padding:10px" onclick="openMRConfirmarRapido('${v.id}')">✓ Confirmar y programar</button>`:`
+      ${necesitaConfirmar?`<button class="btn btnd sm" style="margin-top:11px;width:100%;justify-content:center;font-size:13px;padding:10px" onclick="openMRConfirmarRapido('${g.gid}')">✓ Confirmar y programar</button>`:`
       <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:11px">
-        ${MR_CHECK_ITEMS.map(([k,l])=>`<button class="btn stab ${cl[k]?"on":""}" style="font-size:11.5px;padding:6px 10px" onclick="toggleMRChecklist('${v.id}','${k}')">${cl[k]?"✅":"⬜"} ${l}</button>`).join("")}
+        ${MR_CHECK_ITEMS.map(([k,l])=>`<button class="btn stab ${cl[k]?"on":""}" style="font-size:11.5px;padding:6px 10px" onclick="toggleMRChecklist('${g.gid}','${k}')">${cl[k]?"✅":"⬜"} ${l}</button>`).join("")}
       </div>
       <div style="display:flex;gap:7px;margin-top:9px;align-items:center">
-        <select class="inp" style="font-size:12px;padding:6px 9px;width:auto" onchange="setMREstado('${v.id}',this.value)">
-          ${Object.entries(MR_ESTADOS).map(([k,o])=>`<option value="${k}" ${v.estado===k?"selected":""}>${o.l}</option>`).join("")}
+        <select class="inp" style="font-size:12px;padding:6px 9px;width:auto" onchange="setMREstado('${g.gid}',this.value)">
+          ${Object.entries(MR_ESTADOS).map(([k,o])=>`<option value="${k}" ${g.estado===k?"selected":""}>${o.l}</option>`).join("")}
         </select>
-        <button class="ib" onclick="openMRVenta('${v.id}')" title="Editar / cambiar fecha">✏️</button>
+        <button class="ib" onclick="openMRVenta('${g.gid}')" title="Editar / cambiar fecha">✏️</button>
       </div>`}
     </div>`;
   };
@@ -2793,45 +2838,58 @@ function renderMRDespachos(){
   document.getElementById("mr-ventas-tbl").innerHTML = html || `<div class="empty"><div class="ei">📅</div><div class="et">No hay pedidos pendientes de despacho</div></div>`;
 }
 
-function openMRVenta(id){
-  const v=id?mrSales.find(x=>x.id===id):null;
-  const prodOpts=mrProducts.map(p=>{const st=mrStock(p.id)+(v&&v.productId===p.id?v.cantidad:0);const warn=st<=0?"⚠️ AGOTADO — ":st<=2?"⚠️ ":"";return `<option value="${p.id}" data-precio="${p.precioVenta||0}" ${v&&v.productId===p.id?"selected":""}>${warn}${esc(p.name)} (stock: ${st})</option>`;}).join("");
+/** Filas de producto en memoria mientras el formulario de venta está abierto. Cada fila es un producto
+ *  distinto del mismo pedido; al guardar, cada una se convierte en su propio registro (para que el
+ *  stock y los reportes financieros por producto sigan exactos), pero todas comparten el mismo grupoId
+ *  para tratarse como un solo pedido en la lista, el mensaje de WhatsApp, el calendario, etc. */
+let mrvItems=[];
+let mrvGid=null;
+let mrvReserved={}; // stock ya "usado" por este mismo pedido (para no descontarlo dos veces al recalcular disponible)
+
+function openMRVenta(gid){
+  const group=gid?mrGroupByGid(gid):null;
+  mrvGid=gid||null;
+  mrvReserved={};
+  if(group){ group.items.forEach(it=>{ mrvReserved[it.productId]=(mrvReserved[it.productId]||0)+(it.cantidad||0); }); }
+  mrvItems = group ? group.items.map(it=>({productId:it.productId,cantidad:it.cantidad,precioUnitario:it.precioUnitario}))
+                    : [{productId:mrProducts[0]?.id||"",cantidad:1,precioUnitario:mrProducts[0]?.precioVenta||0}];
+
   const cliOpts=`<option value="">— Nuevo cliente —</option>`+mrClients.map(c=>`<option value="${esc(c.name)}">${esc(c.name)}</option>`).join("");
   const html=`
     <div style="display:flex;flex-direction:column;gap:11px">
-      ${!v?`<div class="fld"><label class="flbl">Cliente existente</label><select class="inp" id="mrv-cli-sel" onchange="document.getElementById('mrv-cli').value=this.value;mrvShowPrecioAnterior()">${cliOpts}</select></div>`:""}
-      <div class="fld"><label class="flbl">Nombre del cliente *</label><input class="inp" id="mrv-cli" value="${v?esc(v.cliente):""}" placeholder="Nombre completo" oninput="mrvShowPrecioAnterior()"></div>
+      ${!group?`<div class="fld"><label class="flbl">Cliente existente</label><select class="inp" id="mrv-cli-sel" onchange="document.getElementById('mrv-cli').value=this.value;mrvShowPrecioAnterior()">${cliOpts}</select></div>`:""}
+      <div class="fld"><label class="flbl">Nombre del cliente *</label><input class="inp" id="mrv-cli" value="${group?esc(group.cliente):""}" placeholder="Nombre completo" oninput="mrvShowPrecioAnterior()"></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
-        <div class="fld"><label class="flbl">Teléfono</label><input class="inp" id="mrv-tel" value="${v?esc(v.telefono||""):""}" placeholder="999 999 999"></div>
-        <div class="fld"><label class="flbl">DNI / RUC</label><input class="inp" id="mrv-dniruc" value="${v?esc(v.dniRuc||""):""}" placeholder="12345678"></div>
+        <div class="fld"><label class="flbl">Teléfono</label><input class="inp" id="mrv-tel" value="${group?esc(group.telefono||""):""}" placeholder="999 999 999"></div>
+        <div class="fld"><label class="flbl">DNI / RUC</label><input class="inp" id="mrv-dniruc" value="${group?esc(group.dniRuc||""):""}" placeholder="12345678"></div>
       </div>
-      <div class="fld"><label class="flbl">Producto *</label><select class="inp" id="mrv-prod" onchange="const o=this.selectedOptions[0];document.getElementById('mrv-precio').value=o?o.dataset.precio:0;mrvShowPrecioAnterior()">${prodOpts||"<option value=''>— Crea un producto primero en Stock —</option>"}</select></div>
-      <div id="mrv-precio-hint" style="display:none;font-size:11px;color:var(--amd);background:var(--aml);border-radius:8px;padding:6px 10px;margin-top:-4px"></div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
-        <div class="fld"><label class="flbl">Cantidad *</label><input class="inp" id="mrv-cant" type="number" min="1" value="${v?v.cantidad:1}" oninput="mrvCalc()"></div>
-        <div class="fld"><label class="flbl">Precio unitario (S/) *</label><input class="inp" id="mrv-precio" type="number" min="0" value="${v?v.precioUnitario:0}" oninput="mrvCalc()"></div>
+      <div class="fld">
+        <label class="flbl">Productos *</label>
+        <div id="mrv-items-list"></div>
+        <button type="button" class="btn stab" style="margin-top:7px;width:100%;justify-content:center" onclick="mrvAddItem()">+ Agregar otro producto</button>
       </div>
-      <div class="fld"><label class="flbl">Dirección de entrega</label><input class="inp" id="mrv-dir" value="${v?esc(v.direccion||""):""}" placeholder="Distrito, referencia..."></div>
+      <div id="mrv-precio-hint" style="display:none;font-size:11px;color:var(--amd);background:var(--aml);border-radius:8px;padding:6px 10px"></div>
+      <div class="fld"><label class="flbl">Dirección de entrega</label><input class="inp" id="mrv-dir" value="${group?esc(group.direccion||""):""}" placeholder="Distrito, referencia..."></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
-        <div class="fld"><label class="flbl">Costo de delivery (S/)</label><input class="inp" id="mrv-delivery" type="number" min="0" value="${v?v.costoDelivery||0:0}"></div>
-        <div class="fld"><label class="flbl">Fecha</label><input class="inp" id="mrv-fecha" type="date" value="${v?v.fecha:todayLocal()}"></div>
+        <div class="fld"><label class="flbl">Costo de delivery (S/)</label><input class="inp" id="mrv-delivery" type="number" min="0" value="${group?group.costoDelivery||0:0}" oninput="mrvCalc()"></div>
+        <div class="fld"><label class="flbl">Fecha</label><input class="inp" id="mrv-fecha" type="date" value="${group?group.fecha:todayLocal()}"></div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
-        <div class="fld"><label class="flbl">Estado del pedido</label><select class="inp" id="mrv-estado">${Object.entries(MR_ESTADOS).map(([k,o])=>`<option value="${k}" ${(v?.estado||"cotizado")===k?"selected":""}>${o.l}</option>`).join("")}</select></div>
-        <div class="fld"><label class="flbl">Fecha de despacho</label><input class="inp" id="mrv-fecha-despacho" type="date" value="${v?.fechaDespacho||""}"></div>
+        <div class="fld"><label class="flbl">Estado del pedido</label><select class="inp" id="mrv-estado">${Object.entries(MR_ESTADOS).map(([k,o])=>`<option value="${k}" ${(group?.estado||"cotizado")===k?"selected":""}>${o.l}</option>`).join("")}</select></div>
+        <div class="fld"><label class="flbl">Fecha de despacho</label><input class="inp" id="mrv-fecha-despacho" type="date" value="${group?.fechaDespacho||""}"></div>
       </div>
       <div class="fld">
         <label class="flbl">Checklist de despacho</label>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
-          ${MR_CHECK_ITEMS.map(([k,l])=>`<label style="display:flex;align-items:center;gap:5px;font-size:11.5px;background:var(--s2);border:1px solid var(--bd);border-radius:9px;padding:6px 10px;cursor:pointer"><input type="checkbox" id="mrv-check-${k}" ${v?.checklist?.[k]?"checked":""} style="width:15px;height:15px">${l}</label>`).join("")}
+          ${MR_CHECK_ITEMS.map(([k,l])=>`<label style="display:flex;align-items:center;gap:5px;font-size:11.5px;background:var(--s2);border:1px solid var(--bd);border-radius:9px;padding:6px 10px;cursor:pointer"><input type="checkbox" id="mrv-check-${k}" ${group?.checklist?.[k]?"checked":""} style="width:15px;height:15px">${l}</label>`).join("")}
         </div>
       </div>
       <div class="fld">
         <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;cursor:pointer;background:var(--s2);border:1px solid var(--bd);border-radius:10px;padding:10px 12px">
-          <input type="checkbox" id="mrv-pagado-full" ${(!v || v.pagado>=v.total) ? "checked" : ""} onchange="mrvTogglePagado()" style="width:17px;height:17px">
+          <input type="checkbox" id="mrv-pagado-full" ${(!group || group.pagado>=group.total) ? "checked" : ""} onchange="mrvTogglePagado()" style="width:17px;height:17px">
           ✓ Pagado al contado (contra-entrega)
         </label>
-        <input class="inp" id="mrv-pagado" type="number" min="0" value="${v?v.pagado||0:0}" style="margin-top:7px;display:${(!v || v.pagado>=v.total)?"none":"block"}" oninput="mrvCalc()">
+        <input class="inp" id="mrv-pagado" type="number" min="0" value="${group?group.pagado||0:0}" style="margin-top:7px;display:${(!group || group.pagado>=group.total)?"none":"block"}" oninput="mrvCalc()">
       </div>
       <div style="background:var(--aml);border-radius:10px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center">
         <span style="font-size:11.5px;font-weight:600;color:var(--amd)">TOTAL</span>
@@ -2839,16 +2897,64 @@ function openMRVenta(id){
       </div>
     </div>
     <div style="display:flex;gap:8px;margin-top:16px">
-      <button class="btn btnd" style="flex:1;justify-content:center" onclick="saveMRVenta('${id||""}')">✓ ${v?"Guardar cambios":"Guardar venta"}</button>
+      <button class="btn btnd" style="flex:1;justify-content:center" onclick="saveMRVenta()">✓ ${group?"Guardar cambios":"Guardar venta"}</button>
       <button class="btn btng" onclick="closeOv('ov-mr-venta')">Cancelar</button>
     </div>`;
   document.getElementById("mrv-body").innerHTML=html;
   openOv("ov-mr-venta");
-  setTimeout(()=>{const s=document.getElementById("mrv-prod");if(s&&!v&&s.selectedOptions[0])document.getElementById("mrv-precio").value=s.selectedOptions[0].dataset.precio||0;mrvCalc();},0);
+  mrvRenderItems();
+  mrvCalc();
+}
+/** Redibuja las filas de producto según mrvItems, recalculando stock disponible por fila
+ *  (sumando de vuelta lo que este mismo pedido ya tenía reservado, si se está editando). */
+function mrvRenderItems(){
+  const el=document.getElementById("mrv-items-list");
+  if(!el)return;
+  if(!mrProducts.length){ el.innerHTML=`<p style="font-size:12px;color:var(--t2)">— Crea un producto primero en Stock —</p>`; return; }
+  el.innerHTML = mrvItems.map((it,idx)=>{
+    const opts=mrProducts.map(p=>{
+      const st=mrStock(p.id)+(mrvReserved[p.id]||0);
+      const warn=st<=0?"⚠️ AGOTADO — ":st<=2?"⚠️ ":"";
+      return `<option value="${p.id}" data-precio="${p.precioVenta||0}" ${it.productId===p.id?"selected":""}>${warn}${esc(p.name)} (stock: ${st})</option>`;
+    }).join("");
+    return `<div style="display:grid;grid-template-columns:1fr auto;gap:7px;align-items:start;margin-bottom:7px;padding-bottom:7px;border-bottom:1px solid var(--bd)">
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <select class="inp" onchange="mrvUpdateItem(${idx},'productId',this.value)">${opts}</select>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+          <input class="inp" type="number" min="1" placeholder="Cantidad" value="${it.cantidad}" oninput="mrvUpdateItem(${idx},'cantidad',this.value)">
+          <input class="inp" type="number" min="0" placeholder="Precio c/u" value="${it.precioUnitario}" oninput="mrvUpdateItem(${idx},'precioUnitario',this.value)">
+        </div>
+      </div>
+      ${mrvItems.length>1?`<button type="button" class="ib" style="background:#fff5f5" onclick="mrvRemoveItem(${idx})" title="Quitar producto">🗑</button>`:""}
+    </div>`;
+  }).join("");
+}
+function mrvAddItem(){
+  mrvItems.push({productId:mrProducts[0]?.id||"",cantidad:1,precioUnitario:mrProducts[0]?.precioVenta||0});
+  mrvRenderItems(); mrvCalc();
+}
+function mrvRemoveItem(idx){
+  mrvItems.splice(idx,1);
+  if(!mrvItems.length) mrvItems.push({productId:mrProducts[0]?.id||"",cantidad:1,precioUnitario:mrProducts[0]?.precioVenta||0});
+  mrvRenderItems(); mrvCalc();
+}
+function mrvUpdateItem(idx,field,value){
+  if(!mrvItems[idx])return;
+  if(field==="productId"){
+    mrvItems[idx].productId=value;
+    const p=mrProducts.find(x=>x.id===value);
+    mrvItems[idx].precioUnitario=p?.precioVenta||0;
+    mrvRenderItems();
+  } else if(field==="cantidad"){
+    mrvItems[idx].cantidad=parseFloat(value)||0;
+  } else if(field==="precioUnitario"){
+    mrvItems[idx].precioUnitario=parseFloat(value)||0;
+  }
+  mrvCalc();
 }
 function mrvShowPrecioAnterior(){
   const cliente=document.getElementById("mrv-cli")?.value||"";
-  const productId=document.getElementById("mrv-prod")?.value||"";
+  const productId=mrvItems[0]?.productId||"";
   const hint=document.getElementById("mrv-precio-hint");
   if(!hint)return;
   const prev=mrPrecioAnterior(cliente,productId);
@@ -2860,9 +2966,7 @@ function mrvShowPrecioAnterior(){
   }
 }
 function mrvCalc(){
-  const cant=parseFloat(document.getElementById("mrv-cant")?.value)||0;
-  const precio=parseFloat(document.getElementById("mrv-precio")?.value)||0;
-  const total=cant*precio;
+  const total=mrvItems.reduce((s,it)=>s+(it.cantidad||0)*(it.precioUnitario||0),0);
   const el=document.getElementById("mrv-total-preview");
   if(el)el.textContent=fM(total);
   const full=document.getElementById("mrv-pagado-full");
@@ -2878,66 +2982,87 @@ function mrvTogglePagado(){
   pagadoInput.style.display=full?"none":"block";
   if(full)mrvCalc();
 }
-function saveMRVenta(id){
+function saveMRVenta(){
   const cliente=(document.getElementById("mrv-cli")?.value||"").trim();
-  const prodSel=document.getElementById("mrv-prod");
-  const productId=prodSel?.value||"";
-  const producto=(prodSel?.selectedOptions[0]?.textContent||"").replace(/⚠️\s*(AGOTADO\s*—\s*)?/,"").replace(/\s*\(stock.*\)/,"")||"";
-  const prodObj=mrProducts.find(x=>x.id===productId);
-  const codigo=prodObj?.codigo||"";
-  const descripcion=prodObj?.descripcion||"";
-  const cantidad=parseFloat(document.getElementById("mrv-cant")?.value)||0;
-  const precio=parseFloat(document.getElementById("mrv-precio")?.value)||0;
   if(!cliente){toast("⚠️ Falta el nombre del cliente","warn");return;}
-  if(!productId){toast("⚠️ Selecciona un producto","warn");return;}
-  if(cantidad<=0||precio<=0){toast("⚠️ Revisa cantidad y precio","warn");return;}
+  if(!mrvItems.length){toast("⚠️ Agrega al menos un producto","warn");return;}
+  for(const it of mrvItems){
+    if(!it.productId){toast("⚠️ Selecciona un producto en cada fila","warn");return;}
+    if((it.cantidad||0)<=0||(it.precioUnitario||0)<=0){toast("⚠️ Revisa cantidad y precio de cada producto","warn");return;}
+  }
+  // valida stock por producto, sumando cantidades si el mismo producto aparece en más de una fila
+  const pedidoPorProducto={};
+  mrvItems.forEach(it=>{ pedidoPorProducto[it.productId]=(pedidoPorProducto[it.productId]||0)+it.cantidad; });
+  for(const pid in pedidoPorProducto){
+    const stockDisp=mrStock(pid)+(mrvReserved[pid]||0);
+    if(pedidoPorProducto[pid]>stockDisp){
+      const nombre=mrProducts.find(p=>p.id===pid)?.name||"producto";
+      if(!confirm(`Solo tienes ${stockDisp} de "${nombre}" en stock. ¿Guardar de todos modos?`))return;
+    }
+  }
 
-  const existing=id?mrSales.find(x=>x.id===id):null;
-  const stockDisp=mrStock(productId)+(existing&&existing.productId===productId?existing.cantidad:0);
-  if(cantidad>stockDisp){ if(!confirm(`Solo tienes ${stockDisp} en stock. ¿Guardar de todos modos?`))return; }
-
-  const total=cantidad*precio;
-  const venta={
-    id: existing?existing.id:"mrv"+uid(), cliente, telefono:(document.getElementById("mrv-tel")?.value||"").trim(),
-    dniRuc:(document.getElementById("mrv-dniruc")?.value||"").trim(),
-    productId, producto, codigo, descripcion, cantidad, precioUnitario:precio, total,
-    direccion:(document.getElementById("mrv-dir")?.value||"").trim(),
-    costoDelivery:parseFloat(document.getElementById("mrv-delivery")?.value)||0,
-    pagado:parseFloat(document.getElementById("mrv-pagado")?.value)||0,
-    fecha:document.getElementById("mrv-fecha")?.value||todayLocal(),
-    estado:document.getElementById("mrv-estado")?.value||"cotizado",
-    fechaDespacho:document.getElementById("mrv-fecha-despacho")?.value||"",
-    checklist:{
-      ubicacion:!!document.getElementById("mrv-check-ubicacion")?.checked,
-      pago:!!document.getElementById("mrv-check-pago")?.checked,
-      racks:!!document.getElementById("mrv-check-racks")?.checked
-    },
+  const telefono=(document.getElementById("mrv-tel")?.value||"").trim();
+  const dniRuc=(document.getElementById("mrv-dniruc")?.value||"").trim();
+  const direccion=(document.getElementById("mrv-dir")?.value||"").trim();
+  const costoDelivery=parseFloat(document.getElementById("mrv-delivery")?.value)||0;
+  const pagadoTotal=parseFloat(document.getElementById("mrv-pagado")?.value)||0;
+  const fecha=document.getElementById("mrv-fecha")?.value||todayLocal();
+  const estado=document.getElementById("mrv-estado")?.value||"cotizado";
+  const fechaDespacho=document.getElementById("mrv-fecha-despacho")?.value||"";
+  const checklist={
+    ubicacion:!!document.getElementById("mrv-check-ubicacion")?.checked,
+    pago:!!document.getElementById("mrv-check-pago")?.checked,
+    racks:!!document.getElementById("mrv-check-racks")?.checked
   };
-  if(existing){ mrSales=mrSales.map(x=>x.id===existing.id?venta:x); }
-  else { mrSales.push(venta); }
-  Store.one("mr_sales",venta);
+
+  const gid = mrvGid || ("grp"+uid());
+  const totalGrupo = mrvItems.reduce((s,it)=>s+it.cantidad*it.precioUnitario,0);
+  const existingIds = mrvGid ? mrGroupItems(gid).map(x=>x.id) : [];
+  const nuevosIds=[];
+
+  mrvItems.forEach((it,idx)=>{
+    const prodObj=mrProducts.find(x=>x.id===it.productId);
+    const producto=prodObj?.name||"";
+    const subtotal=it.cantidad*it.precioUnitario;
+    const share = totalGrupo>0 ? subtotal/totalGrupo : (1/mrvItems.length);
+    const usedId = existingIds[idx]; // reutiliza registros existentes en orden, si los hay
+    const rid = usedId || ("mrv"+uid());
+    nuevosIds.push(rid);
+    const venta={
+      id:rid, grupoId:gid, cliente, telefono, dniRuc,
+      productId:it.productId, producto, codigo:prodObj?.codigo||"", descripcion:prodObj?.descripcion||"",
+      cantidad:it.cantidad, precioUnitario:it.precioUnitario, total:subtotal,
+      direccion, costoDelivery: idx===0?costoDelivery:0, pagado: Math.round(pagadoTotal*share*100)/100,
+      fecha, estado, fechaDespacho, checklist
+    };
+    if(usedId){ mrSales=mrSales.map(x=>x.id===usedId?venta:x); }
+    else { mrSales.push(venta); }
+    Store.one("mr_sales",venta);
+  });
+  // si se quitaron filas al editar, borra los registros sobrantes del grupo
+  existingIds.slice(mrvItems.length).forEach(rid=>{ mrSales=mrSales.filter(x=>x.id!==rid); Store.del("mr_sales",rid); });
 
   // upsert cliente
   let cli=mrClients.find(c=>c.name.toLowerCase()===cliente.toLowerCase());
   if(!cli){
-    cli={id:"mrcli"+uid(),name:cliente,phone:venta.telefono};
+    cli={id:"mrcli"+uid(),name:cliente,phone:telefono};
     mrClients.push(cli);
-  } else if(venta.telefono && !cli.phone){
-    cli.phone=venta.telefono;
+  } else if(telefono && !cli.phone){
+    cli.phone=telefono;
   }
   Store.one("mr_clients",cli);
 
   closeOv("ov-mr-venta");
   renderMRVentas();
   renderMRPipeline();
-  toast(existing?"✅ Venta actualizada":"✅ Venta registrada");
-  if(venta.estado==="programado" && venta.fechaDespacho) setTimeout(()=>addToGCalSTAK(venta.id),400);
-  if(venta.telefono && (venta.estado==="cotizado"||venta.estado==="falta_info"||venta.estado==="confirmado"||venta.estado==="programado") && confirm("¿Enviar mensaje por WhatsApp ahora?")) genMRMensajeWA(venta.id);
+  toast(mrvGid?"✅ Venta actualizada":"✅ Venta registrada");
+  if(estado==="programado" && fechaDespacho) setTimeout(()=>addToGCalSTAK(gid),400);
+  if(telefono && (estado==="cotizado"||estado==="falta_info"||estado==="confirmado"||estado==="programado") && confirm("¿Enviar mensaje por WhatsApp ahora?")) genMRMensajeWA(gid);
 }
-function delMRVenta(id){
-  if(!confirm("¿Eliminar esta venta? Esto también libera el stock."))return;
-  mrSales=mrSales.filter(v=>v.id!==id);
-  Store.del("mr_sales",id);
+function delMRVenta(gid){
+  if(!confirm("¿Eliminar este pedido? Esto también libera el stock de todos sus productos."))return;
+  mrGroupItems(gid).forEach(v=>Store.del("mr_sales",v.id));
+  mrSales=mrSales.filter(v=>mrGid(v)!==gid);
   renderMRVentas();
   renderMRPipeline();
   toast("Venta eliminada");
@@ -2981,13 +3106,34 @@ function renderMRStock(){
         </tr>`;}).join("")}</tbody></table>`
     : `<div class="empty"><div class="ei">📦</div><div class="et">Sin productos — crea uno para empezar</div></div>`;
 
-  const compras=[...mrPurchases].sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
-  document.getElementById("mr-compras-tbl").innerHTML = compras.length
-    ? `<table style="width:100%"><tbody>${compras.map(c=>`<tr style="border-bottom:1px solid var(--bg)">
-        <td style="padding:8px 6px"><p style="font-weight:600;font-size:12px">${esc(c.producto)} × ${c.cantidad}</p><p style="font-size:10px;color:var(--t2)">${esc(c.proveedor||"—")} · ${fD(c.fecha)}</p></td>
-        <td style="padding:8px 6px;text-align:right;font-size:12px;font-weight:700">${fM((c.cantidad||0)*(c.costoUnitario||0))}</td>
-      </tr>`).join("")}</tbody></table>`
+  const gruposCompra=mrAllPGroups().sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
+  const pendientes=gruposCompra.filter(g=>g.estado==="pendiente").length;
+  const cntCompras=document.getElementById("mr-compras-cnt");
+  if(cntCompras)cntCompras.textContent = pendientes ? `${pendientes} por recoger` : "";
+  document.getElementById("mr-compras-tbl").innerHTML = gruposCompra.length
+    ? gruposCompra.map(g=>{
+        const pend=g.estado==="pendiente";
+        return `<div style="border:1px solid var(--bd);border-radius:12px;padding:11px;margin-bottom:8px;background:${pend?"#FFFBEC":"var(--s2)"}">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+            <div style="min-width:0">
+              <p style="font-weight:700;font-size:12.5px">${esc(g.resumenProducto)}</p>
+              <p style="font-size:10.5px;color:var(--t2)">${esc(g.proveedor||"—")} · ${fD(g.fecha)}</p>
+            </div>
+            <p style="font-weight:800;font-size:13px;color:var(--amd);flex-shrink:0">${fM(g.totalCosto)}</p>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+            <span style="font-size:10.5px;font-weight:700;padding:3px 10px;border-radius:20px;background:${pend?"#FFF3CD":"#E9F9EE"};color:${pend?"#B45309":"#1D8A44"}">${pend?"📥 Por recoger":"✓ En almacén"}</span>
+            ${pend?`<button class="btn btnd sm" style="font-size:11px;padding:6px 12px" onclick="mrMarcarRecogido('${g.gid}')">✓ Marcar recogido</button>`:""}
+          </div>
+        </div>`;
+      }).join("")
     : `<p style="font-size:12px;color:var(--t3);padding:6px">Sin compras registradas todavía</p>`;
+}
+function mrMarcarRecogido(gid){
+  const items=mrPGroupItems(gid);
+  items.forEach(c=>{ c.estado="recogido"; Store.one("mr_purchases",c); });
+  renderMRStock();
+  toast("✅ Marcado como recogido — stock actualizado");
 }
 
 function openMRProd(id){
@@ -3025,17 +3171,26 @@ function saveMRProd(id){
   toast("✅ Producto guardado");
 }
 
+/** Filas de producto en memoria mientras el formulario de compra está abierto (mismo patrón que en ventas) */
+let mrcItems=[];
 function openMRCompra(){
-  const prodOpts=mrProducts.map(p=>`<option value="${p.id}" data-costo="${p.costoUnitario||0}">${esc(p.name)}</option>`).join("");
+  mrcItems=[{productId:mrProducts[0]?.id||"",cantidad:1,costoUnitario:mrProducts[0]?.costoUnitario||0}];
   const html=`
     <div style="display:flex;flex-direction:column;gap:11px">
-      <div class="fld"><label class="flbl">Producto *</label><select class="inp" id="mrc-prod" onchange="const o=this.selectedOptions[0];document.getElementById('mrc-costo').value=o?o.dataset.costo:0">${prodOpts||"<option value=''>— Crea un producto primero —</option>"}</select></div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
-        <div class="fld"><label class="flbl">Cantidad *</label><input class="inp" id="mrc-cant" type="number" min="1" value="1"></div>
-        <div class="fld"><label class="flbl">Costo unitario (S/) *</label><input class="inp" id="mrc-costo" type="number" min="0" value="0"></div>
+      <div class="fld">
+        <label class="flbl">Productos *</label>
+        <div id="mrc-items-list"></div>
+        <button type="button" class="btn stab" style="margin-top:7px;width:100%;justify-content:center" onclick="mrcAddItem()">+ Agregar otro producto</button>
       </div>
       <div class="fld"><label class="flbl">Proveedor</label><input class="inp" id="mrc-prov" placeholder="Nombre del proveedor"></div>
-      <div class="fld"><label class="flbl">Fecha</label><input class="inp" id="mrc-fecha" type="date" value="${todayLocal()}"></div>
+      <div class="fld"><label class="flbl">Fecha de compra</label><input class="inp" id="mrc-fecha" type="date" value="${todayLocal()}"></div>
+      <div class="fld">
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;cursor:pointer;background:var(--s2);border:1px solid var(--bd);border-radius:10px;padding:10px 12px">
+          <input type="checkbox" id="mrc-recogido" checked style="width:17px;height:17px">
+          ✓ Ya lo recogiste (está en tu almacén)
+        </label>
+        <p style="font-size:11px;color:var(--t2);margin-top:5px">Si lo destapas, la compra queda como "por recoger" y no sumará al stock disponible hasta que la marques como recogida.</p>
+      </div>
     </div>
     <div style="display:flex;gap:8px;margin-top:16px">
       <button class="btn btnd" style="flex:1;justify-content:center" onclick="saveMRCompra()">✓ Registrar compra</button>
@@ -3043,24 +3198,71 @@ function openMRCompra(){
     </div>`;
   document.getElementById("mrc-body").innerHTML=html;
   openOv("ov-mr-compra");
+  mrcRenderItems();
+}
+function mrcRenderItems(){
+  const el=document.getElementById("mrc-items-list");
+  if(!el)return;
+  if(!mrProducts.length){ el.innerHTML=`<p style="font-size:12px;color:var(--t2)">— Crea un producto primero —</p>`; return; }
+  el.innerHTML = mrcItems.map((it,idx)=>{
+    const opts=mrProducts.map(p=>`<option value="${p.id}" data-costo="${p.costoUnitario||0}" ${it.productId===p.id?"selected":""}>${esc(p.name)}</option>`).join("");
+    return `<div style="display:grid;grid-template-columns:1fr auto;gap:7px;align-items:start;margin-bottom:7px;padding-bottom:7px;border-bottom:1px solid var(--bd)">
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <select class="inp" onchange="mrcUpdateItem(${idx},'productId',this.value)">${opts}</select>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+          <input class="inp" type="number" min="1" placeholder="Cantidad" value="${it.cantidad}" oninput="mrcUpdateItem(${idx},'cantidad',this.value)">
+          <input class="inp" type="number" min="0" placeholder="Costo c/u" value="${it.costoUnitario}" oninput="mrcUpdateItem(${idx},'costoUnitario',this.value)">
+        </div>
+      </div>
+      ${mrcItems.length>1?`<button type="button" class="ib" style="background:#fff5f5" onclick="mrcRemoveItem(${idx})" title="Quitar producto">🗑</button>`:""}
+    </div>`;
+  }).join("");
+}
+function mrcAddItem(){
+  mrcItems.push({productId:mrProducts[0]?.id||"",cantidad:1,costoUnitario:mrProducts[0]?.costoUnitario||0});
+  mrcRenderItems();
+}
+function mrcRemoveItem(idx){
+  mrcItems.splice(idx,1);
+  if(!mrcItems.length) mrcItems.push({productId:mrProducts[0]?.id||"",cantidad:1,costoUnitario:mrProducts[0]?.costoUnitario||0});
+  mrcRenderItems();
+}
+function mrcUpdateItem(idx,field,value){
+  if(!mrcItems[idx])return;
+  if(field==="productId"){
+    mrcItems[idx].productId=value;
+    const p=mrProducts.find(x=>x.id===value);
+    mrcItems[idx].costoUnitario=p?.costoUnitario||0;
+    mrcRenderItems();
+  } else if(field==="cantidad"){
+    mrcItems[idx].cantidad=parseFloat(value)||0;
+  } else if(field==="costoUnitario"){
+    mrcItems[idx].costoUnitario=parseFloat(value)||0;
+  }
 }
 function saveMRCompra(){
-  const prodSel=document.getElementById("mrc-prod");
-  const productId=prodSel?.value||"";
-  if(!productId){toast("⚠️ Selecciona o crea un producto primero","warn");return;}
-  const producto=prodSel.selectedOptions[0]?.textContent||"";
-  const cantidad=parseFloat(document.getElementById("mrc-cant")?.value)||0;
-  const costoUnitario=parseFloat(document.getElementById("mrc-costo")?.value)||0;
-  if(cantidad<=0){toast("⚠️ Revisa la cantidad","warn");return;}
-  const compra={id:"mrc"+uid(),productId,producto,cantidad,costoUnitario,proveedor:(document.getElementById("mrc-prov")?.value||"").trim(),fecha:document.getElementById("mrc-fecha")?.value||todayLocal()};
-  mrPurchases.push(compra);
-  Store.one("mr_purchases",compra);
-  // actualiza el costo de referencia del producto con el último costo de compra
-  const p=mrProducts.find(x=>x.id===productId);
-  if(p){ p.costoUnitario=costoUnitario; Store.one("mr_products",p); }
+  if(!mrcItems.length){toast("⚠️ Agrega al menos un producto","warn");return;}
+  for(const it of mrcItems){
+    if(!it.productId){toast("⚠️ Selecciona un producto en cada fila","warn");return;}
+    if((it.cantidad||0)<=0){toast("⚠️ Revisa la cantidad de cada producto","warn");return;}
+  }
+  const proveedor=(document.getElementById("mrc-prov")?.value||"").trim();
+  const fecha=document.getElementById("mrc-fecha")?.value||todayLocal();
+  const estado=document.getElementById("mrc-recogido")?.checked ? "recogido" : "pendiente";
+  const gid="grp"+uid();
+
+  mrcItems.forEach(it=>{
+    const p=mrProducts.find(x=>x.id===it.productId);
+    const producto=p?.name||"";
+    const compra={id:"mrc"+uid(),grupoId:gid,productId:it.productId,producto,cantidad:it.cantidad,costoUnitario:it.costoUnitario,proveedor,fecha,estado};
+    mrPurchases.push(compra);
+    Store.one("mr_purchases",compra);
+    // actualiza el costo de referencia del producto con el último costo de compra
+    if(p){ p.costoUnitario=it.costoUnitario; Store.one("mr_products",p); }
+  });
   closeOv("ov-mr-compra");
   renderMRStock();
-  toast("📦 Compra registrada — stock actualizado");
+  toast(estado==="recogido"?"📦 Compra registrada — stock actualizado":"📥 Compra registrada como \"por recoger\"");
 }
 
 /* ── CLIENTES (auto-agregados desde ventas) ── */
@@ -3216,12 +3418,11 @@ function mrDocCSS(){
     @media print{.actions{display:none}body{background:#fff;padding:0}.doc{box-shadow:none;border-radius:0;max-width:100%}}
   `;
 }
-function genMRNotaVenta(saleId){
-  const v=mrSales.find(x=>x.id===saleId);
-  if(!v){toast("No se encontró la venta","warn");return;}
-  const saldo=Math.max(0,(v.total||0)-(v.pagado||0));
-  const today=new Date(v.fecha+"T12:00:00").toLocaleDateString("es-PE",{day:"2-digit",month:"long",year:"numeric"});
-  const docNum="NV-"+new Date(v.fecha).getFullYear().toString().slice(-2)+v.id.slice(-6).toUpperCase();
+function genMRNotaVenta(gid){
+  const g=mrGroupByGid(gid);
+  if(!g){toast("No se encontró la venta","warn");return;}
+  const today=new Date(g.fecha+"T12:00:00").toLocaleDateString("es-PE",{day:"2-digit",month:"long",year:"numeric"});
+  const docNum="NV-"+new Date(g.fecha).getFullYear().toString().slice(-2)+g.gid.slice(-6).toUpperCase();
 
   const html=`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Nota de Venta ${docNum}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -3249,38 +3450,38 @@ function genMRNotaVenta(saleId){
       <div class="row2">
         <div class="blk">
           <div class="lbl">Cliente</div>
-          <div class="v1">${esc(v.cliente.toUpperCase())}</div>
-          <div class="v2">${[v.dniRuc?`DNI/RUC: ${esc(v.dniRuc)}`:"",v.telefono?esc(v.telefono):""].filter(Boolean).join(" · ")}</div>
-          ${v.direccion?`<div class="v2">📦 Entrega: ${esc(v.direccion)}</div>`:""}
+          <div class="v1">${esc(g.cliente.toUpperCase())}</div>
+          <div class="v2">${[g.dniRuc?`DNI/RUC: ${esc(g.dniRuc)}`:"",g.telefono?esc(g.telefono):""].filter(Boolean).join(" · ")}</div>
+          ${g.direccion?`<div class="v2">📦 Entrega: ${esc(g.direccion)}</div>`:""}
         </div>
         <div class="blk" style="flex:0 0 auto;text-align:right">
           <div class="lbl">Vendedor</div>
           <div class="v1">Junior Fernández Caicedo</div>
           <div class="v2">923 912 992</div>
-          <span class="status ${saldo>0?"pend":"ok"}">${saldo>0?"SALDO PENDIENTE":"PAGADO"}</span>
+          <span class="status ${g.saldo>0?"pend":"ok"}">${g.saldo>0?"SALDO PENDIENTE":"PAGADO"}</span>
         </div>
       </div>
 
       <table>
         <thead><tr><th style="width:70px">Código</th><th>Descripción</th><th class="c" style="width:50px">Cant.</th><th class="r" style="width:90px">P. Unit.</th><th class="r" style="width:100px">Total</th></tr></thead>
         <tbody>
-          <tr>
+          ${g.items.map(v=>`<tr>
             <td style="font-weight:600;color:#5B6069">${esc(v.codigo||"—")}</td>
             <td class="desc"><strong>${esc(v.producto)}</strong>${v.descripcion?`<small>${esc(v.descripcion).replace(/\n/g,"<br>")}</small>`:""}</td>
             <td class="c">${v.cantidad}</td>
             <td class="r">${fM(v.precioUnitario)}</td>
             <td class="r" style="font-weight:700">${fM(v.total)}</td>
-          </tr>
+          </tr>`).join("")}
         </tbody>
       </table>
     </div>
     <div class="sumwrap">
       <div class="sum">
-        <div class="ln"><span>Subtotal</span><span>${fM(v.total)}</span></div>
-        ${v.costoDelivery>0?`<div class="ln"><span>Delivery</span><span>${fM(v.costoDelivery)}</span></div>`:""}
-        <div class="tot"><span>Total</span><span>${fM(v.total+(v.costoDelivery||0))}</span></div>
-        <div class="ln" style="margin-top:8px"><span>Pagado</span><span>${fM(v.pagado||0)}</span></div>
-        ${saldo>0?`<div class="saldo"><span>Saldo pendiente</span><span>${fM(saldo)}</span></div>`:`<div class="pagadocompleto">✓ Pagado por completo</div>`}
+        <div class="ln"><span>Subtotal</span><span>${fM(g.total)}</span></div>
+        ${g.costoDelivery>0?`<div class="ln"><span>Delivery</span><span>${fM(g.costoDelivery)}</span></div>`:""}
+        <div class="tot"><span>Total</span><span>${fM(g.total+g.costoDelivery)}</span></div>
+        <div class="ln" style="margin-top:8px"><span>Pagado</span><span>${fM(g.pagado||0)}</span></div>
+        ${g.saldo>0?`<div class="saldo"><span>Saldo pendiente</span><span>${fM(g.saldo)}</span></div>`:`<div class="pagadocompleto">✓ Pagado por completo</div>`}
       </div>
     </div>
     <div class="ftr">STAK · San Juan de Lurigancho, Lima · 923 912 992 · jg.fernandez15@gmail.com</div>
@@ -3438,8 +3639,8 @@ function exportMRVentasCSV(){
 function exportMRComprasCSV(){
   if(!mrPurchases.length){toast("No hay compras para exportar","warn");return;}
   const data=[...mrPurchases].sort((a,b)=>(a.fecha||"").localeCompare(b.fecha||""));
-  const headers=["Fecha","Producto","Cantidad","Costo Unit. (S/)","Total (S/)","Proveedor"];
-  const rows=data.map(c=>[c.fecha||"",c.producto||"",c.cantidad||0,c.costoUnitario||0,(c.cantidad||0)*(c.costoUnitario||0),c.proveedor||""]
+  const headers=["Fecha","Producto","Cantidad","Costo Unit. (S/)","Total (S/)","Proveedor","Estado"];
+  const rows=data.map(c=>[c.fecha||"",c.producto||"",c.cantidad||0,c.costoUnitario||0,(c.cantidad||0)*(c.costoUnitario||0),c.proveedor||"",(c.estado||"recogido")==="recogido"?"En almacén":"Por recoger"]
     .map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(","));
   downloadCSV("MiniRacks_Compras",headers,rows,data.length+" compras");
 }
@@ -3492,60 +3693,57 @@ function abrirWA(msg,telefono){
   try{ window.location.href=url; }
   catch(e){ window.open(url,"_blank"); }
 }
-function mrCobranzaWA(id){
-  const v=mrSales.find(x=>x.id===id);
-  if(!v||!v.telefono){toast("Esta venta no tiene teléfono guardado","warn");return;}
-  const saldo=Math.max(0,(v.total||0)-(v.pagado||0));
-  const msg=`Hola ${v.cliente}, te escribo de STAK para recordarte el saldo pendiente de ${v.producto} por S/ ${saldo.toFixed(2)}. ¿Cuándo podríamos coordinar el pago? Gracias 🙌`;
-  abrirWA(msg,v.telefono);
+function mrCobranzaWA(gid){
+  const g=mrGroupByGid(gid);
+  if(!g||!g.telefono){toast("Este pedido no tiene teléfono guardado","warn");return;}
+  const msg=`Hola ${g.cliente}, te escribo de STAK para recordarte el saldo pendiente de ${g.resumenProducto} por S/ ${g.saldo.toFixed(2)}. ¿Cuándo podríamos coordinar el pago? Gracias 🙌`;
+  abrirWA(msg,g.telefono);
 }
 /** Arma el mensaje de cotización/confirmación en el formato que ya usas por WhatsApp, y lo abre listo para enviar.
- *  El encabezado y los datos de despacho cambian según el estado del pedido. */
-function genMRMensajeWA(id){
-  const v=mrSales.find(x=>x.id===id);
-  if(!v)return;
+ *  Si el pedido tiene varios productos, cada uno sale como su propio bloque, y al final va la movilidad y el total. */
+function genMRMensajeWA(gid){
+  const g=mrGroupByGid(gid);
+  if(!g)return;
   const nf=n=>Number(n||0).toLocaleString("es-PE",{minimumFractionDigits:0,maximumFractionDigits:2});
-  const subtotal=(v.cantidad||0)*(v.precioUnitario||0);
-  const delivery=v.costoDelivery||0;
-  const total=subtotal+delivery;
-  const esConfirmado = v.estado==="confirmado"||v.estado==="programado"||v.estado==="entregado";
+  const totalConDelivery=g.total+g.costoDelivery;
+  const esConfirmado = g.estado==="confirmado"||g.estado==="programado"||g.estado==="entregado";
   const lineas=[];
   lineas.push(esConfirmado ? "✅ PEDIDO CONFIRMADO" : "📋 COTIZACIÓN");
   lineas.push("");
-  lineas.push(`✅ ${v.producto}: S/ ${nf(v.precioUnitario)} c/u`);
-  lineas.push(`✅ Cantidad: ${v.cantidad} unidad${v.cantidad!==1?"es":""}`);
-  lineas.push(`💰 Subtotal: S/ ${nf(subtotal)}`);
-  lineas.push("");
-  if(delivery>0){ lineas.push(`🚚 Movilidad: S/ ${nf(delivery)}`); lineas.push(""); }
-  lineas.push(`💰 Total: S/ ${nf(total)}`);
+  g.items.forEach(it=>{
+    lineas.push(`✅ ${it.producto}: S/ ${nf(it.precioUnitario)} c/u`);
+    lineas.push(`✅ Cantidad: ${it.cantidad} unidad${it.cantidad!==1?"es":""}`);
+    lineas.push(`💰 Subtotal: S/ ${nf(it.total)}`);
+    lineas.push("");
+  });
+  if(g.costoDelivery>0){ lineas.push(`🚚 Movilidad: S/ ${nf(g.costoDelivery)}`); lineas.push(""); }
+  lineas.push(`💰 Total: S/ ${nf(totalConDelivery)}`);
   if(esConfirmado){
     lineas.push("");
-    if(v.direccion) lineas.push(`📍 Dirección: ${v.direccion}`);
-    if(v.fechaDespacho) lineas.push(`📅 Fecha de despacho: ${fD(v.fechaDespacho)}`);
+    if(g.direccion) lineas.push(`📍 Dirección: ${g.direccion}`);
+    if(g.fechaDespacho) lineas.push(`📅 Fecha de despacho: ${fD(g.fechaDespacho)}`);
   }
   lineas.push("");
   lineas.push("Observaciones:");
   lineas.push("• Los precios no incluyen IGV.");
   lineas.push("• La venta se realiza sin emisión de factura.");
   const msg=lineas.join("\n");
-  abrirWA(msg,v.telefono);
+  abrirWA(msg,g.telefono);
 }
 /** Agenda el despacho en Google Calendar — mismo patrón que ya usas en CHISPEKAS (link precargado,
  *  sin necesidad de conectar cuenta). Si tienes un calendario STAK aparte, pega su Calendar ID abajo en calId
  *  (Ajustes de Google Calendar > tu calendario > "Integrar calendario" > ID de calendario) y se agendará ahí directo. */
-function addToGCalSTAK(id){
-  const v=mrSales.find(x=>x.id===id);
-  if(!v)return;
-  if(!v.fechaDespacho){toast("⚠️ Este pedido no tiene fecha de despacho todavía","warn");return;}
-  const dtStart=new Date(v.fechaDespacho+"T09:00:00");
+function addToGCalSTAK(gid){
+  const g=mrGroupByGid(gid);
+  if(!g)return;
+  if(!g.fechaDespacho){toast("⚠️ Este pedido no tiene fecha de despacho todavía","warn");return;}
+  const dtStart=new Date(g.fechaDespacho+"T09:00:00");
   const dtEnd=new Date(dtStart.getTime()+2*3600000);
   const fmt=d=>d.toISOString().replace(/[-:]/g,"").split(".")[0]+"Z";
-  const subtotal=(v.cantidad||0)*(v.precioUnitario||0);
-  const total=subtotal+(v.costoDelivery||0);
-  const details=["Cliente: "+v.cliente,"Tel: "+(v.telefono||"—"),"Producto: "+v.producto+" ×"+v.cantidad,"Total: "+fM(total),"Estado: "+(MR_ESTADOS[v.estado]?.l||v.estado)].filter(Boolean).join("\n");
-  const url="https://calendar.google.com/calendar/render?action=TEMPLATE"+"&text="+encodeURIComponent("🚚 Despacho STAK — "+v.cliente)+"&dates="+fmt(dtStart)+"/"+fmt(dtEnd)+"&details="+encodeURIComponent(details)+"&location="+encodeURIComponent(v.direccion?v.direccion+", Lima":"Lima, Perú")+(STAK_CAL_ID?"&cid="+encodeURIComponent(STAK_CAL_ID):"");
+  const details=["Cliente: "+g.cliente,"Tel: "+(g.telefono||"—"),"Productos: "+g.resumenProducto,"Total: "+fM(g.total+g.costoDelivery),"Estado: "+(MR_ESTADOS[g.estado]?.l||g.estado)].filter(Boolean).join("\n");
+  const url="https://calendar.google.com/calendar/render?action=TEMPLATE"+"&text="+encodeURIComponent("🚚 Despacho STAK — "+g.cliente)+"&dates="+fmt(dtStart)+"/"+fmt(dtEnd)+"&details="+encodeURIComponent(details)+"&location="+encodeURIComponent(g.direccion?g.direccion+", Lima":"Lima, Perú")+(STAK_CAL_ID?"&cid="+encodeURIComponent(STAK_CAL_ID):"");
   window.open(url,"_blank");
-  toast("📅 Agendado: "+v.cliente+" · Google Calendar");
+  toast("📅 Agendado: "+g.cliente+" · Google Calendar");
 }
 
 /** Devuelve el último precio unitario que le cobraste a este cliente por este producto, o null si es la primera vez */
@@ -3584,7 +3782,7 @@ function openClientProfile(name){
 
   const timeline=[
     ...resR.map(r=>({ts:r.date||"",icon:"🎪",biz:"Chispekas",text:esc(r.event)+" — "+fD(r.date),amount:r.total||0,color:"var(--amd)",onclick:`window.location.href='chispekas.html'`})),
-    ...ventasR.map(v=>({ts:v.fecha||"",icon:"🛠️",biz:"STAK",text:esc(v.producto)+" ×"+v.cantidad,amount:v.total||0,color:"var(--bl)",onclick:`closeOv('ov-client-profile');openMRVenta('${v.id}')`})),
+    ...ventasR.map(v=>({ts:v.fecha||"",icon:"🛠️",biz:"STAK",text:esc(v.producto)+" ×"+v.cantidad,amount:v.total||0,color:"var(--bl)",onclick:`closeOv('ov-client-profile');openMRVenta('${mrGid(v)}')`})),
   ].sort((a,b)=>b.ts.localeCompare(a.ts));
 
   document.getElementById("cp-body").innerHTML=`
@@ -3627,7 +3825,7 @@ function renderGlobalSearch(){
   });
   mrSales.forEach(v=>{
     const hay=((v.cliente||"")+" "+(v.producto||"")).toLowerCase();
-    if(!q||hay.includes(q))results.push({kind:"stak",id:v.id,icon:"🛠️",title:v.cliente,sub:esc(v.producto)+" · "+fD(v.fecha),amount:v.total||0,ts:v.fecha||""});
+    if(!q||hay.includes(q))results.push({kind:"stak",id:mrGid(v),icon:"🛠️",title:v.cliente,sub:esc(v.producto)+" · "+fD(v.fecha),amount:v.total||0,ts:v.fecha||""});
   });
   results.sort((a,b)=>b.ts.localeCompare(a.ts));
   const limited=results.slice(0,q?40:12);
