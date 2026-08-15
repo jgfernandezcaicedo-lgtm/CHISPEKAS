@@ -2675,7 +2675,7 @@ function compartirPlanMRDia(fecha){
   if(!items.length){toast("No hay despachos para esa fecha","warn");return;}
   const lineas=items.map((v,i)=>`${i+1}. ${v.cliente} — ${v.producto} ×${v.cantidad}${v.direccion?" — "+v.direccion:""}${v.telefono?" — "+v.telefono:""}`);
   const texto=`🚚 Plan de despachos ${fD(fecha)}\n\n`+lineas.join("\n");
-  abrirWA(`https://wa.me/?text=${encodeURIComponent(texto)}`);
+  abrirWA(texto,null);
 }
 
 function renderMRVentas(){
@@ -3478,11 +3478,17 @@ function downloadFullBackup(){
 }
 
 /* ── RECORDATORIO DE COBRANZA ── */
-/** Abre un link de WhatsApp navegando en la misma pestaña (location.href) en vez de window.open().
- *  En iPhone, cuando la app está agregada a la pantalla de inicio (modo PWA), window.open() a veces
- *  corrompe los emojis al saltar a la app de WhatsApp y los cambia por un signo de interrogación.
- *  Navegar en la misma pestaña evita ese salto y conserva los emojis intactos. */
-function abrirWA(url){
+/** Envía el mensaje a WhatsApp usando el "Compartir" nativo del iPhone (Web Share API) cuando está
+ *  disponible. Esto evita el link "wa.me/?text=..." por completo, que es lo que corrompe los emojis
+ *  al pasarle el texto a WhatsApp en iPhone. Con "Compartir" eliges WhatsApp del menú y el texto
+ *  llega intacto. Si el teléfono ya está guardado, igual conviene abrir antes su chat para que
+ *  quede seleccionado; si no hay Compartir disponible, cae de regreso al link de siempre. */
+function abrirWA(msg,telefono){
+  const url = telefono ? "https://wa.me/"+waPhone(telefono)+"?text="+encodeURIComponent(msg) : "https://wa.me/?text="+encodeURIComponent(msg);
+  if(navigator.share){
+    navigator.share({text:msg}).catch(()=>{});
+    return;
+  }
   try{ window.location.href=url; }
   catch(e){ window.open(url,"_blank"); }
 }
@@ -3491,7 +3497,7 @@ function mrCobranzaWA(id){
   if(!v||!v.telefono){toast("Esta venta no tiene teléfono guardado","warn");return;}
   const saldo=Math.max(0,(v.total||0)-(v.pagado||0));
   const msg=`Hola ${v.cliente}, te escribo de STAK para recordarte el saldo pendiente de ${v.producto} por S/ ${saldo.toFixed(2)}. ¿Cuándo podríamos coordinar el pago? Gracias 🙌`;
-  abrirWA("https://wa.me/"+waPhone(v.telefono)+"?text="+encodeURIComponent(msg));
+  abrirWA(msg,v.telefono);
 }
 /** Arma el mensaje de cotización/confirmación en el formato que ya usas por WhatsApp, y lo abre listo para enviar.
  *  El encabezado y los datos de despacho cambian según el estado del pedido. */
@@ -3522,8 +3528,7 @@ function genMRMensajeWA(id){
   lineas.push("• Los precios no incluyen IGV.");
   lineas.push("• La venta se realiza sin emisión de factura.");
   const msg=lineas.join("\n");
-  const url = v.telefono ? "https://wa.me/"+waPhone(v.telefono)+"?text="+encodeURIComponent(msg) : "https://wa.me/?text="+encodeURIComponent(msg);
-  abrirWA(url);
+  abrirWA(msg,v.telefono);
 }
 /** Agenda el despacho en Google Calendar — mismo patrón que ya usas en CHISPEKAS (link precargado,
  *  sin necesidad de conectar cuenta). Si tienes un calendario STAK aparte, pega su Calendar ID abajo en calId
