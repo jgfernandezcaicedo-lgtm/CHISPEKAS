@@ -619,6 +619,7 @@ window.addEventListener("unhandledrejection", function(e){
           <div class="g2" style="margin-bottom:13px">
             <div class="card cp"><div class="ch"><div class="ct">Ventas por mes</div></div><div style="position:relative;height:170px"><canvas id="ch-mr-ventas"></canvas></div></div>
             <div class="card cp"><div class="ch"><div class="ct">Margen por producto</div></div><div id="mr-an-margen"></div></div>
+            <div class="card cp" style="margin-top:13px"><div class="ch"><div class="ct">🚚 Utilidad por movilidad</div></div><div id="mr-fin-movilidad" style="padding:0 14px 14px"></div></div>
           </div>
           <div class="card cp"><div class="ch"><div><div class="ct">💳 Por cobrar</div><div class="cs">Ventas con saldo pendiente</div></div></div><div id="mr-fin-cobros"></div></div>
         </div>
@@ -714,6 +715,10 @@ window.addEventListener("unhandledrejection", function(e){
 
 <div class="ov" id="ov-mr-confirmar"><div class="sheet"><div class="shh"></div><div class="shd"><span class="sht">✓ Confirmar pedido — STAK</span><button class="xb" onclick="closeOv('ov-mr-confirmar')">×</button></div>
   <div class="shb" id="mrqc-body"></div>
+</div></div>
+
+<div class="ov" id="ov-mr-entrega"><div class="sheet"><div class="shh"></div><div class="shd"><span class="sht">🚕 ¿Quién entregó? — STAK</span><button class="xb" onclick="closeOv('ov-mr-entrega')">×</button></div>
+  <div class="shb" id="mrqe-body"></div>
 </div></div>
 
 <div class="ov" id="ov-mr-compra"><div class="sheet"><div class="shh"></div><div class="shd"><span class="sht">📦 Registrar compra de stock</span><button class="xb" onclick="closeOv('ov-mr-compra')">×</button></div>
@@ -2602,12 +2607,15 @@ function mrGroupAgg(items){
   const first=items[0];
   const total=items.reduce((s,v)=>s+(v.total||0),0);
   const costoDelivery=items.reduce((s,v)=>s+(v.costoDelivery||0),0);
+  const costoTransporte=items.reduce((s,v)=>s+(v.costoTransporte||0),0);
+  const entregaPor=first.entregaPor||"yo";
+  const utilidadMovilidad=costoDelivery-costoTransporte;
   const pagado=items.reduce((s,v)=>s+(v.pagado||0),0);
   const saldo=Math.max(0,total-pagado);
   const resumenProducto=items.map(v=>`${v.producto} ×${v.cantidad}`).join(", ");
   return {gid:mrGid(first),items,cliente:first.cliente,telefono:first.telefono,dniRuc:first.dniRuc,
     direccion:first.direccion,fecha:first.fecha,estado:first.estado,fechaDespacho:first.fechaDespacho,
-    checklist:first.checklist||{},total,costoDelivery,pagado,saldo,resumenProducto};
+    checklist:first.checklist||{},total,costoDelivery,entregaPor,costoTransporte,utilidadMovilidad,pagado,saldo,resumenProducto};
 }
 function mrAllGroups(){
   const seen={},order=[];
@@ -2706,6 +2714,52 @@ function confirmarMRRapido(gid){
   setTimeout(()=>addToGCalSTAK(gid),400);
   if(items[0].telefono && confirm("¿Enviar mensaje de confirmación por WhatsApp?")) genMRMensajeWA(gid);
 }
+/** ⚡ Acceso rápido: marca el pedido como pagado por completo, sin abrir el formulario */
+function marcarPagadoCompleto(gid){
+  const items=mrGroupItems(gid);
+  if(!items.length)return;
+  if(!confirm("¿Marcar este pedido como pagado por completo?"))return;
+  items.forEach(v=>{ v.pagado=v.total||0; Store.one("mr_sales",v); });
+  renderMRVentas(); renderMRPipeline();
+  toast("💵 Pedido marcado como pagado");
+}
+/** ⚡ Acceso rápido: quién hizo la entrega y cuánto le pagaste al transportista (si aplica), sin abrir el formulario completo */
+function openMRQuienEntrego(gid){
+  const g=mrGroupByGid(gid);
+  if(!g)return;
+  const html=`
+    <div style="display:flex;flex-direction:column;gap:11px">
+      <p style="font-size:12.5px;color:var(--t2)">Pedido de <b>${esc(g.cliente)}</b> — movilidad cobrada: <b>${fM(g.costoDelivery)}</b></p>
+      <div class="fld">
+        <label class="flbl">¿Quién hizo la entrega?</label>
+        <select class="inp" id="mrqe-entrega" onchange="document.getElementById('mrqe-costo').style.display=this.value==='tercero'?'block':'none'">
+          <option value="yo" ${(g.entregaPor||"yo")==="yo"?"selected":""}>🚗 Yo mismo (la movilidad queda como ganancia)</option>
+          <option value="tercero" ${g.entregaPor==="tercero"?"selected":""}>🚕 Un tercero / taxi (le pago aparte)</option>
+        </select>
+      </div>
+      <div class="fld"><label class="flbl">¿Cuánto le pagaste al transportista? (S/)</label><input class="inp" id="mrqe-costo" type="number" min="0" value="${g.costoTransporte||0}" style="display:${g.entregaPor==="tercero"?"block":"none"}"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="btn btnd" style="flex:1;justify-content:center" onclick="guardarMRQuienEntrego('${gid}')">✓ Guardar</button>
+      <button class="btn btng" onclick="closeOv('ov-mr-entrega')">Cancelar</button>
+    </div>`;
+  document.getElementById("mrqe-body").innerHTML=html;
+  openOv("ov-mr-entrega");
+}
+function guardarMRQuienEntrego(gid){
+  const items=mrGroupItems(gid);
+  if(!items.length)return;
+  const entregaPor=document.getElementById("mrqe-entrega")?.value||"yo";
+  const costoTransporte = entregaPor==="tercero" ? (parseFloat(document.getElementById("mrqe-costo")?.value)||0) : 0;
+  // se guarda una sola vez, en el primer producto del pedido (igual que costoDelivery)
+  items[0].entregaPor=entregaPor;
+  items[0].costoTransporte=costoTransporte;
+  Store.one("mr_sales",items[0]);
+  closeOv("ov-mr-entrega");
+  renderMRVentas();
+  if(document.getElementById("mr-fin-movilidad")) renderMRFinanzas();
+  toast("✅ Actualizado");
+}
 /** Abre Google Maps con la ruta de todos los despachos de un día (un punto por pedido, no por producto) */
 function abrirRutaMRDia(fecha){
   const groups=mrAllGroups().filter(g=>g.fechaDespacho===fecha&&g.direccion&&g.estado!=="entregado");
@@ -2764,6 +2818,8 @@ function renderMRVentas(){
             ${necesitaConfirmar?`<button class="ib" onclick="openMRConfirmarRapido('${g.gid}')" title="Confirmar y programar" style="background:#eff6ff">✓</button>`:""}
             <button class="ib" onclick="genMRMensajeWA('${g.gid}')" title="Mensaje de cotización/confirmación con emojis, para WhatsApp" style="background:#eef2ff">📝</button>
             ${g.fechaDespacho?`<button class="ib" onclick="addToGCalSTAK('${g.gid}')" title="Agendar en Google Calendar" style="background:#eff6ff">🗓️</button>`:""}
+            ${g.costoDelivery>0?`<button class="ib" onclick="openMRQuienEntrego('${g.gid}')" title="¿Quién hizo la entrega?" style="background:#f3e8ff">🚕</button>`:""}
+            ${g.saldo>0?`<button class="ib" onclick="marcarPagadoCompleto('${g.gid}')" title="Marcar pagado por completo" style="background:#e9f9ee">💵</button>`:""}
             ${g.saldo>0&&g.telefono?`<button class="ib" onclick="mrCobranzaWA('${g.gid}')" title="Recordar cobro por WhatsApp" style="background:#fff3e0">💰</button>`:""}
             ${g.telefono?`<a href="https://wa.me/${waPhone(g.telefono)}" target="_blank" class="ib" style="text-decoration:none;background:#e7fbe9" title="Abrir chat de WhatsApp">💬</a>`:""}
             <button class="ib" onclick="openMRVenta('${g.gid}')" title="Editar">✏️</button>
@@ -2803,6 +2859,8 @@ function renderMRDespachos(){
         <div style="display:flex;gap:8px;flex-shrink:0">
           <button class="ib" onclick="genMRMensajeWA('${g.gid}')" title="Enviar cotización/confirmación" style="background:#eef2ff">📝</button>
           ${g.fechaDespacho?`<button class="ib" onclick="addToGCalSTAK('${g.gid}')" title="Agendar en Google Calendar" style="background:#eff6ff">🗓️</button>`:""}
+          ${g.costoDelivery>0?`<button class="ib" onclick="openMRQuienEntrego('${g.gid}')" title="¿Quién hizo la entrega?" style="background:#f3e8ff">🚕</button>`:""}
+          ${g.saldo>0?`<button class="ib" onclick="marcarPagadoCompleto('${g.gid}')" title="Marcar pagado por completo" style="background:#e9f9ee">💵</button>`:""}
           ${g.telefono?`<a href="https://wa.me/${waPhone(g.telefono)}" target="_blank" class="ib" style="text-decoration:none;background:#e7fbe9" title="WhatsApp">💬</a>`:""}
         </div>
       </div>
@@ -2871,8 +2929,16 @@ function openMRVenta(gid){
       <div id="mrv-precio-hint" style="display:none;font-size:11px;color:var(--amd);background:var(--aml);border-radius:8px;padding:6px 10px"></div>
       <div class="fld"><label class="flbl">Dirección de entrega</label><input class="inp" id="mrv-dir" value="${group?esc(group.direccion||""):""}" placeholder="Distrito, referencia..."></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
-        <div class="fld"><label class="flbl">Costo de delivery (S/)</label><input class="inp" id="mrv-delivery" type="number" min="0" value="${group?group.costoDelivery||0:0}" oninput="mrvCalc()"></div>
+        <div class="fld"><label class="flbl">Costo de delivery cobrado al cliente (S/)</label><input class="inp" id="mrv-delivery" type="number" min="0" value="${group?group.costoDelivery||0:0}" oninput="mrvCalc()"></div>
         <div class="fld"><label class="flbl">Fecha</label><input class="inp" id="mrv-fecha" type="date" value="${group?group.fecha:todayLocal()}"></div>
+      </div>
+      <div class="fld">
+        <label class="flbl">¿Quién hace la entrega?</label>
+        <select class="inp" id="mrv-entrega-por" onchange="mrvToggleTransporte()">
+          <option value="yo" ${(group?.entregaPor||"yo")==="yo"?"selected":""}>🚗 Yo mismo (la movilidad queda como ganancia)</option>
+          <option value="tercero" ${group?.entregaPor==="tercero"?"selected":""}>🚕 Un tercero / taxi (le pago aparte)</option>
+        </select>
+        <input class="inp" id="mrv-costo-transporte" type="number" min="0" placeholder="¿Cuánto le pagaste al transportista? (S/)" value="${group?group.costoTransporte||0:0}" style="margin-top:7px;display:${group?.entregaPor==="tercero"?"block":"none"}">
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
         <div class="fld"><label class="flbl">Estado del pedido</label><select class="inp" id="mrv-estado">${Object.entries(MR_ESTADOS).map(([k,o])=>`<option value="${k}" ${(group?.estado||"cotizado")===k?"selected":""}>${o.l}</option>`).join("")}</select></div>
@@ -2975,6 +3041,11 @@ function mrvCalc(){
     if(pagadoInput)pagadoInput.value=total;
   }
 }
+function mrvToggleTransporte(){
+  const es=document.getElementById("mrv-entrega-por")?.value;
+  const inp=document.getElementById("mrv-costo-transporte");
+  if(inp)inp.style.display = es==="tercero" ? "block" : "none";
+}
 function mrvTogglePagado(){
   const full=document.getElementById("mrv-pagado-full")?.checked;
   const pagadoInput=document.getElementById("mrv-pagado");
@@ -3005,6 +3076,8 @@ function saveMRVenta(){
   const dniRuc=(document.getElementById("mrv-dniruc")?.value||"").trim();
   const direccion=(document.getElementById("mrv-dir")?.value||"").trim();
   const costoDelivery=parseFloat(document.getElementById("mrv-delivery")?.value)||0;
+  const entregaPor=document.getElementById("mrv-entrega-por")?.value||"yo";
+  const costoTransporte= entregaPor==="tercero" ? (parseFloat(document.getElementById("mrv-costo-transporte")?.value)||0) : 0;
   const pagadoTotal=parseFloat(document.getElementById("mrv-pagado")?.value)||0;
   const fecha=document.getElementById("mrv-fecha")?.value||todayLocal();
   const estado=document.getElementById("mrv-estado")?.value||"cotizado";
@@ -3032,7 +3105,8 @@ function saveMRVenta(){
       id:rid, grupoId:gid, cliente, telefono, dniRuc,
       productId:it.productId, producto, codigo:prodObj?.codigo||"", descripcion:prodObj?.descripcion||"",
       cantidad:it.cantidad, precioUnitario:it.precioUnitario, total:subtotal,
-      direccion, costoDelivery: idx===0?costoDelivery:0, pagado: Math.round(pagadoTotal*share*100)/100,
+      direccion, costoDelivery: idx===0?costoDelivery:0, entregaPor: idx===0?entregaPor:"yo", costoTransporte: idx===0?costoTransporte:0,
+      pagado: Math.round(pagadoTotal*share*100)/100,
       fecha, estado, fechaDespacho, checklist
     };
     if(usedId){ mrSales=mrSales.map(x=>x.id===usedId?venta:x); }
@@ -3102,7 +3176,10 @@ function renderMRStock(){
             <p style="font-size:9px;color:var(--t3)">en stock</p>
             ${out?`<p style="font-size:9px;font-weight:700;color:var(--rd)">⚠️ Agotado — reponer</p>`:low?`<p style="font-size:9px;font-weight:700;color:var(--am)">⚠️ Stock bajo — reponer</p>`:""}
           </td>
-          <td style="padding:9px 6px;text-align:right"><button class="ib" onclick="openMRProd('${p.id}')">✏️</button></td>
+          <td style="padding:9px 6px;text-align:right">
+            ${(out||low)?`<button class="ib" onclick="mrReponerStock('${p.id}')" title="Reponer — repite la última compra de este producto" style="background:#eff6ff">📦</button>`:""}
+            <button class="ib" onclick="openMRProd('${p.id}')">✏️</button>
+          </td>
         </tr>`;}).join("")}</tbody></table>`
     : `<div class="empty"><div class="ei">📦</div><div class="et">Sin productos — crea uno para empezar</div></div>`;
 
@@ -3173,6 +3250,18 @@ function saveMRProd(id){
 
 /** Filas de producto en memoria mientras el formulario de compra está abierto (mismo patrón que en ventas) */
 let mrcItems=[];
+/** ⚡ Acceso rápido: repite la última compra de este producto (mismo proveedor y costo), solo pide confirmar cantidad */
+function mrReponerStock(productId){
+  const p=mrProducts.find(x=>x.id===productId);
+  if(!p)return;
+  const lastCompra=mrPurchases.filter(c=>c.productId===productId).sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""))[0];
+  openMRCompra();
+  mrcItems=[{productId, cantidad: lastCompra?.cantidad||1, costoUnitario: p.costoUnitario||lastCompra?.costoUnitario||0}];
+  mrcRenderItems();
+  const provInput=document.getElementById("mrc-prov");
+  if(provInput && lastCompra?.proveedor) provInput.value=lastCompra.proveedor;
+  toast("📦 Repitiendo compra de "+p.name+(lastCompra?" — mismo proveedor y costo de la última vez":""));
+}
 function openMRCompra(){
   mrcItems=[{productId:mrProducts[0]?.id||"",cantidad:1,costoUnitario:mrProducts[0]?.costoUnitario||0}];
   const html=`
@@ -3345,6 +3434,32 @@ function renderMRFinanzas(){
     </div>`;
   }).join("");
   document.getElementById("mr-an-margen").innerHTML=margenHtml||`<p style="font-size:12px;color:var(--t3)">Sin ventas todavía</p>`;
+
+  // utilidad de movilidad — lo que cobras de más (o pierdes) al hacer/tercerizar la entrega
+  const gruposFin=mrAllGroups();
+  const movHoy=new Date();
+  const mesActualStr=movHoy.getFullYear()+"-"+String(movHoy.getMonth()+1).padStart(2,"0");
+  const gruposMes=gruposFin.filter(g=>(g.fecha||"").startsWith(mesActualStr));
+  const utilMovTotal=gruposFin.reduce((s,g)=>s+g.utilidadMovilidad,0);
+  const utilMovMes=gruposMes.reduce((s,g)=>s+g.utilidadMovilidad,0);
+  const entregasYo=gruposFin.filter(g=>g.costoDelivery>0&&g.entregaPor!=="tercero").length;
+  const entregasTercero=gruposFin.filter(g=>g.costoDelivery>0&&g.entregaPor==="tercero").length;
+  const elMov=document.getElementById("mr-fin-movilidad");
+  if(elMov){
+    elMov.innerHTML = (entregasYo+entregasTercero)>0 ? `
+      <div style="display:flex;gap:9px">
+        <div style="flex:1;background:var(--s2);border-radius:10px;padding:10px 12px">
+          <p style="font-size:10.5px;color:var(--t2);font-weight:600">Este mes</p>
+          <p style="font-size:17px;font-weight:800;color:${utilMovMes>=0?"var(--gr)":"var(--rd)"}">${fM(utilMovMes)}</p>
+        </div>
+        <div style="flex:1;background:var(--s2);border-radius:10px;padding:10px 12px">
+          <p style="font-size:10.5px;color:var(--t2);font-weight:600">Histórico</p>
+          <p style="font-size:17px;font-weight:800;color:${utilMovTotal>=0?"var(--gr)":"var(--rd)"}">${fM(utilMovTotal)}</p>
+        </div>
+      </div>
+      <p style="font-size:11px;color:var(--t2);margin-top:8px">🚗 ${entregasYo} entrega${entregasYo!==1?"s":""} propia${entregasYo!==1?"s":""} · 🚕 ${entregasTercero} con tercero</p>
+    ` : `<p style="font-size:12px;color:var(--t3)">Sin cobros de movilidad todavía</p>`;
+  }
 
   // cobros pendientes — detalle venta por venta, igual que en Finanzas de Chispekas
   const cobros=mrSales.filter(v=>Math.max(0,(v.total||0)-(v.pagado||0))>0).sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
