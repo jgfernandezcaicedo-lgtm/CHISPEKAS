@@ -863,9 +863,17 @@ window.addEventListener("unhandledrejection", function(e){
 
 /* ════════════════ § CONSTANTES Y HELPERS ════════════════ */
 
-/* Formatea teléfono para wa.me — agrega 51 solo si no lo tiene */
+/* Formatea teléfono O username para wa.me
+   - Si tiene letras → es un @username de WhatsApp → se limpia el @ y se devuelve tal cual
+   - Si es solo números → se formatea con prefijo 51 (Perú) igual que antes */
 function waPhone(phone) {
-  const clean = (phone || "").replace(/\D/g, "");
+  const raw = (phone || "").trim();
+  if(!raw) return "";
+  // Si contiene alguna letra, lo tratamos como username (ej: "@negocio.chispekas" o "negocio.chispekas")
+  if(/[a-zA-Z]/.test(raw)) {
+    return raw.replace(/^@/, "").replace(/\s+/g, "");
+  }
+  const clean = raw.replace(/\D/g, "");
   if(!clean) return "";
   if(clean.startsWith("51") && clean.length >= 11) return clean;
   if(clean.startsWith("9") && clean.length === 9) return "51" + clean;
@@ -2066,7 +2074,7 @@ function renderCli(){
 
 function sndWA(rid,tpl){
   const r=reservations.find(x=>x.id===rid);if(!r)return;
-  const tel=(r.phone||"").replace(/\D/g,"");
+  const tel=waPhone(r.phone);
   if(!tel){alert("Esta reserva no tiene teléfono registrado");return;}
   const prods=products.filter(p=>r.products?.includes(p.id));
   const prodList=prods.length?prods.map(p=>"  • "+p.name).join("\n"):"  • Servicio personalizado";
@@ -2129,8 +2137,7 @@ ${r.adelanto>0?"💳 *Saldo pendiente:* "+fM(Math.max(0,r.total-r.adelanto))+" (
 ¿Tienes alguna consulta de último momento? ¡Estamos aquí! 😊`
   };
   const msg=msgs[tpl||"cotizacion"];
-  const prefix=tel.startsWith("51")?"":"51";
-  window.open("https://wa.me/"+prefix+tel+"?text="+encodeURIComponent(msg),"_blank");
+  window.open("https://wa.me/"+tel+"?text="+encodeURIComponent(msg),"_blank");
 }
 function openWAMenu(rid){
   const r=reservations.find(x=>x.id===rid);if(!r)return;
@@ -2846,7 +2853,7 @@ function showDateConflict(date,excludeId){
 const EVENTOS_COMUNES=["Cumpleaños","Cumpleaños adultos","Boda","Graduación","Corporativo","Baby Shower","Bautizo","Aniversario"];
 
 /* ══ WA RECORDATORIO 24h/48h ══ */
-function sendWAReminder(rid,hoursAhead){const r=reservations.find(x=>x.id===rid);if(!r)return;const tel=(r.phone||"").replace(/\D/g,"");if(!tel){toast("Sin teléfono","err");return;}const rp=products.filter(p=>r.products?.includes(p.id));const prodList=rp.length?rp.map(p=>"  • "+p.name).join("\n"):"  • Servicio personalizado";const label=hoursAhead===24?"mañana":"en 2 días";const msg=`¡Hola ${r.client}! 👋 Te saluda *CHISPEKAS* 🎈\n\nTe recordamos que tu evento es *${label}* 🎉\n\n📅 *Fecha:* ${fD(r.date)}\n${r.horaInicio?"⏰ *Hora:* "+r.horaInicio+(r.horaFin?" - "+r.horaFin:"")+"\n":""}🎉 *Evento:* ${r.event}\n${r.notes?"📍 *Lugar:* "+r.notes+"\n":""}\n🎪 *Servicios:*\n${prodList}\n\n${r.adelanto>0&&r.payStatus!=="pagado"?"💳 *Saldo pendiente:* "+fM(Math.max(0,r.total-r.adelanto))+" (se cancela al llegar)\n":""}⏰ Llegamos *1 hora antes*.\n\n¿Alguna consulta? 📸 @chispekas | 📱 923 912 992`;const prefix=tel.startsWith("51")?"":"51";window.open("https://wa.me/"+prefix+tel+"?text="+encodeURIComponent(msg),"_blank");toast("💬 Recordatorio "+hoursAhead+"h → WhatsApp");}
+function sendWAReminder(rid,hoursAhead){const r=reservations.find(x=>x.id===rid);if(!r)return;const tel=waPhone(r.phone);if(!tel){toast("Sin teléfono","err");return;}const rp=products.filter(p=>r.products?.includes(p.id));const prodList=rp.length?rp.map(p=>"  • "+p.name).join("\n"):"  • Servicio personalizado";const label=hoursAhead===24?"mañana":"en 2 días";const msg=`¡Hola ${r.client}! 👋 Te saluda *CHISPEKAS* 🎈\n\nTe recordamos que tu evento es *${label}* 🎉\n\n📅 *Fecha:* ${fD(r.date)}\n${r.horaInicio?"⏰ *Hora:* "+r.horaInicio+(r.horaFin?" - "+r.horaFin:"")+"\n":""}🎉 *Evento:* ${r.event}\n${r.notes?"📍 *Lugar:* "+r.notes+"\n":""}\n🎪 *Servicios:*\n${prodList}\n\n${r.adelanto>0&&r.payStatus!=="pagado"?"💳 *Saldo pendiente:* "+fM(Math.max(0,r.total-r.adelanto))+" (se cancela al llegar)\n":""}⏰ Llegamos *1 hora antes*.\n\n¿Alguna consulta? 📸 @chispekas | 📱 923 912 992`;window.open("https://wa.me/"+tel+"?text="+encodeURIComponent(msg),"_blank");toast("💬 Recordatorio "+hoursAhead+"h → WhatsApp");}
 
 
 /* ════════════════ § FIRMA DIGITAL ════════════════ */
