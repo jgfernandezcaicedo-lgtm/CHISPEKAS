@@ -863,11 +863,16 @@ window.addEventListener("unhandledrejection", function(e){
 
 /* ════════════════ § CONSTANTES Y HELPERS ════════════════ */
 
+/* Limpia caracteres Unicode invisibles que iOS a veces inyecta al autocompletar
+   (bug conocido: marcas direccionales U+2066-U+2069, zero-width, etc.) */
+function stripInvisible(s) {
+  return (s || "").replace(/[\u200B-\u200F\u2028-\u202E\u2060-\u2069\uFEFF]/g, "").trim();
+}
 /* Formatea teléfono O username para wa.me
    - Si tiene letras → es un @username de WhatsApp → se limpia el @ y se devuelve tal cual
    - Si es solo números → se formatea con prefijo 51 (Perú) igual que antes */
 function waPhone(phone) {
-  const raw = (phone || "").trim();
+  const raw = stripInvisible(phone);
   if(!raw) return "";
   // Si contiene alguna letra, lo tratamos como username (ej: "@negocio.chispekas" o "negocio.chispekas")
   if(/[a-zA-Z]/.test(raw)) {
@@ -2572,7 +2577,7 @@ function saveResF(){
   const evFormatted=toTitle(ev);
   const distritoRaw=document.getElementById("f-distrito")?.value?.trim()||"";
   const distritoFormatted=toTitle(distritoRaw);
-  const data={id:eRid||"r"+uid(),client:cliFormatted,event:evFormatted,date:dt,phone:document.getElementById("f-tel")?.value||"",email:document.getElementById("f-email")?.value||"",horaInicio:document.getElementById("f-hinicio")?.value||"",horaFin:document.getElementById("f-hfin")?.value||"",payStatus:document.getElementById("f-pay-st")?.value||"pendiente_pago",status:document.getElementById("f-st")?.value||"cotizacion",dni:document.getElementById("f-dni")?.value||"",ruc:document.getElementById("f-ruc")?.value||"",razon:document.getElementById("f-razon")?.value||"",direccion:document.getElementById("f-direccion")?.value||"",distrito:distritoFormatted,notes:document.getElementById("f-notes")?.value||"",source:document.getElementById("f-src")?.value||"",products:[...selP],total:tot,discount:d,extras:e,adelanto:a,rating:0,review:""};
+  const data={id:eRid||"r"+uid(),client:cliFormatted,event:evFormatted,date:dt,phone:stripInvisible(document.getElementById("f-tel")?.value||""),email:document.getElementById("f-email")?.value||"",horaInicio:document.getElementById("f-hinicio")?.value||"",horaFin:document.getElementById("f-hfin")?.value||"",payStatus:document.getElementById("f-pay-st")?.value||"pendiente_pago",status:document.getElementById("f-st")?.value||"cotizacion",dni:document.getElementById("f-dni")?.value||"",ruc:document.getElementById("f-ruc")?.value||"",razon:document.getElementById("f-razon")?.value||"",direccion:document.getElementById("f-direccion")?.value||"",distrito:distritoFormatted,notes:document.getElementById("f-notes")?.value||"",source:document.getElementById("f-src")?.value||"",products:[...selP],total:tot,discount:d,extras:e,adelanto:a,rating:0,review:""};
   if(eRid){
     const old=reservations.find(x=>x.id===eRid);
     data.rating=old?.rating||0;data.review=old?.review||"";data.signature=old?.signature||"";data.signedAt=old?.signedAt||"";
@@ -3573,7 +3578,7 @@ function saveCliEdit(){
 
   const toTitle = s => s.toLowerCase().replace(/(^|\s|-)([a-záéíóúñü])/gi,(_,p1,p2)=>p1+p2.toUpperCase());
   const newName  = toTitle(document.getElementById('cli-edit-name').value.trim()) || oldName;
-  const newPhone = document.getElementById('cli-edit-phone').value.trim();
+  const newPhone = stripInvisible(document.getElementById('cli-edit-phone').value);
   const newEmail = document.getElementById('cli-edit-email').value.trim();
   const newDni   = document.getElementById('cli-edit-dni').value.trim();
   const newRuc   = document.getElementById('cli-edit-ruc').value.trim();
