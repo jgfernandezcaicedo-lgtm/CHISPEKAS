@@ -1504,10 +1504,48 @@ function buildPDF(r, type) {
 </head>
 <body>
 <button class="sv" onclick="savePDF()">⬇ PDF</button>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"><\/script>
 <script>
 function savePDF(){
-  try{ window.focus(); window.print(); }
-  catch(e){ alert("Tu navegador no permitió imprimir desde aquí. Usa el botón Compartir de Safari → Imprimir, o abre este documento en Safari."); }
+  var btn=document.querySelector('.sv');
+  var el=document.querySelector('.doc');
+  if(!window.html2pdf){
+    try{window.print();}catch(e){alert('No se pudo cargar el generador de PDF. Revisa tu internet e inténtalo de nuevo.');}
+    return;
+  }
+  btn.textContent='Generando…'; btn.disabled=true;
+  var name=(document.title||'Documento').replace(/[^\w\- áéíóúñÁÉÍÓÚÑ]/g,'').trim().replace(/\s+/g,'_')+'.pdf';
+  var opt={margin:0,filename:name,image:{type:'jpeg',quality:0.98},
+    html2canvas:{scale:2,useCORS:true,backgroundColor:'#FAF7F2',windowWidth:800},
+    jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},
+    pagebreak:{mode:['css','legacy'],avoid:['tr','.ci']}};
+  html2pdf().set(opt).from(el).outputPdf('blob').then(function(blob){
+    btn.textContent='⬇ PDF'; btn.disabled=false;
+    showPdfReady(blob,name);
+  }).catch(function(e){
+    btn.textContent='⬇ PDF'; btn.disabled=false;
+    alert('No se pudo generar el PDF: '+(e&&e.message?e.message:e));
+  });
+}
+function showPdfReady(blob,name){
+  var url=URL.createObjectURL(blob);
+  var file=null; try{file=new File([blob],name,{type:'application/pdf'});}catch(e){}
+  var box=document.createElement('div');
+  box.style.cssText='position:fixed;left:0;top:0;right:0;bottom:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px';
+  var card=document.createElement('div');
+  card.style.cssText='background:#fff;border-radius:16px;padding:22px;max-width:320px;width:100%;text-align:center;font-family:Jost,sans-serif';
+  card.innerHTML='<div style="font-size:15px;font-weight:700;margin-bottom:6px">✅ PDF listo</div>';
+  function mk(label,fn,primary){
+    var b=document.createElement('button'); b.textContent=label;
+    b.style.cssText='display:block;width:100%;margin-top:8px;padding:12px;border-radius:12px;border:none;font-size:14px;font-weight:700;cursor:pointer;'+(primary?'background:#C8860A;color:#fff':'background:#eee;color:#222');
+    b.onclick=fn; card.appendChild(b);
+  }
+  var canShare=!!(file&&navigator.canShare&&navigator.canShare({files:[file]}));
+  if(canShare){ mk('📤 Compartir / Guardar en Archivos',function(){navigator.share({files:[file],title:name}).catch(function(){});},true); }
+  mk('👁 Abrir PDF',function(){window.open(url,'_blank');},!canShare);
+  mk('⬇ Descargar',function(){var a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();});
+  mk('Cerrar',function(){box.remove();});
+  box.appendChild(card); document.body.appendChild(box);
 }
 <\/script>
 <div class="wrap">
