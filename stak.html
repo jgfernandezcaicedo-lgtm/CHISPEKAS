@@ -3482,6 +3482,81 @@ function renderMRFinanzas(){
   }
 }
 
+/* ── PDF REAL: genera el archivo y lo descarga / comparte (funciona en iPhone) ── */
+function mrLoadHtml2Pdf(){
+  if(window.html2pdf)return Promise.resolve();
+  return new Promise((ok,ko)=>{
+    const s=document.createElement("script");
+    s.src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js";
+    s.onload=ok;
+    s.onerror=()=>ko(new Error("No se pudo cargar el generador de PDF"));
+    document.head.appendChild(s);
+  });
+}
+function mrPdfFallback(html){
+  const w=window.open("","_blank");
+  if(!w){toast("⚠️ No se pudo generar el PDF. Revisa tu conexión e intenta de nuevo","warn");return;}
+  w.document.open();w.document.write(html);w.document.close();
+}
+function mrShowPdfReady(blob,filename){
+  const old=document.getElementById("mr-pdf-ready");if(old)old.remove();
+  const url=URL.createObjectURL(blob);
+  const file=new File([blob],filename,{type:"application/pdf"});
+  const canShare=!!(navigator.canShare&&navigator.canShare({files:[file]}));
+  const ov=document.createElement("div");
+  ov.id="mr-pdf-ready";
+  ov.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px";
+  ov.innerHTML=`<div style="background:#fff;border-radius:18px;padding:22px;max-width:340px;width:100%;text-align:center;font-family:'DM Sans',Arial,sans-serif">
+    <div style="font-size:34px">📄</div>
+    <div style="font-weight:800;font-size:16px;margin:6px 0 4px">PDF listo</div>
+    <div style="font-size:12px;color:#6b7280;margin-bottom:16px;word-break:break-word">${esc(filename)}</div>
+    ${canShare?`<button id="mr-pdf-share" style="width:100%;border:none;border-radius:12px;padding:13px;font-weight:700;font-size:14px;background:#1d1d1f;color:#fff;margin-bottom:8px">📤 Compartir / Guardar en Archivos</button>`:""}
+    <a id="mr-pdf-dl" href="${url}" download="${esc(filename)}" style="display:block;border-radius:12px;padding:13px;font-weight:700;font-size:14px;background:#0071e3;color:#fff;text-decoration:none;margin-bottom:8px">⬇ Descargar PDF</a>
+    <a href="${url}" target="_blank" style="display:block;border-radius:12px;padding:11px;font-weight:600;font-size:13px;background:#f3f4f6;color:#1d1d1f;text-decoration:none;margin-bottom:8px">👁 Ver PDF</a>
+    <button id="mr-pdf-x" style="width:100%;border:none;background:none;padding:8px;font-weight:600;font-size:13px;color:#6b7280">Cerrar</button>
+  </div>`;
+  document.body.appendChild(ov);
+  const close=()=>{ov.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);};
+  ov.querySelector("#mr-pdf-x").onclick=close;
+  const sh=ov.querySelector("#mr-pdf-share");
+  if(sh)sh.onclick=async()=>{
+    try{await navigator.share({files:[file],title:filename});close();}
+    catch(e){if(!e||e.name!=="AbortError")toast("No se pudo compartir, usa Descargar","warn");}
+  };
+}
+async function mrSavePDF(html,name){
+  const filename=String(name).replace(/[\\/:*?"<>|]+/g,"").replace(/\s+/g," ").trim().slice(0,90)+".pdf";
+  toast("⏳ Generando PDF…");
+  let fr=null;
+  try{
+    await mrLoadHtml2Pdf();
+    fr=document.createElement("iframe");
+    fr.style.cssText="position:fixed;left:-10000px;top:0;width:794px;height:1123px;border:0";
+    document.body.appendChild(fr);
+    await new Promise(res=>{fr.onload=res;fr.srcdoc=html;});
+    const d=fr.contentDocument;
+    try{await d.fonts.ready;}catch(e){}
+    await new Promise(r=>setTimeout(r,350));
+    const ac=d.querySelector(".actions");if(ac)ac.remove();
+    d.body.style.background="#fff";d.body.style.padding="0";
+    const el=d.querySelector(".doc");
+    el.style.boxShadow="none";el.style.borderRadius="0";el.style.margin="0";el.style.maxWidth="720px";
+    const blob=await html2pdf().set({
+      margin:[8,8,8,8],
+      image:{type:"jpeg",quality:.96},
+      html2canvas:{scale:2,useCORS:true,backgroundColor:"#ffffff",windowWidth:794},
+      jsPDF:{unit:"mm",format:"a4",orientation:"portrait"},
+      pagebreak:{mode:["avoid-all","css","legacy"]}
+    }).from(el).outputPdf("blob");
+    fr.remove();fr=null;
+    mrShowPdfReady(blob,filename);
+  }catch(err){
+    console.error("PDF error",err);
+    if(fr)fr.remove();
+    mrPdfFallback(html);
+  }
+}
+
 /* ── NOTA DE VENTA (desde un registro real) ── */
 function mrLogo(){
   return `<svg width="34" height="34" viewBox="0 0 34 34" style="flex-shrink:0">
@@ -3602,9 +3677,7 @@ function genMRNotaVenta(gid){
     <div class="ftr">STAK · San Juan de Lurigancho, Lima · 923 912 992 · jg.fernandez15@gmail.com</div>
   </div>
   </body></html>`;
-  const w=window.open("","_blank");
-  if(!w){toast("⚠️ Permite ventanas emergentes para ver el PDF","warn");return;}
-  w.document.open();w.document.write(html);w.document.close();
+  mrSavePDF(html,"Nota de Venta "+docNum+" - "+g.cliente);
 }
 
 /* ── COTIZACIÓN (no toca ventas ni stock — es solo una propuesta) ── */
@@ -3734,9 +3807,7 @@ function genMRCotizacion(modo){
     <div class="ftr">STAK · San Juan de Lurigancho, Lima · 923 912 992 · jg.fernandez15@gmail.com</div>
   </div>
   </body></html>`;
-  const w=window.open("","_blank");
-  if(!w){toast("⚠️ Permite ventanas emergentes para ver el PDF","warn");return;}
-  w.document.open();w.document.write(html);w.document.close();
+  mrSavePDF(html,"Cotizacion "+docNum+" - "+cliente);
 }
 
 /* ── EXPORTAR CSV ── */
