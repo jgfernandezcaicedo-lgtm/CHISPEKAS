@@ -2611,7 +2611,7 @@ function mrGroupAgg(items){
   const entregaPor=first.entregaPor||"yo";
   const utilidadMovilidad=costoDelivery-costoTransporte;
   const pagado=items.reduce((s,v)=>s+(v.pagado||0),0);
-  const saldo=Math.max(0,total-pagado);
+  const saldo=Math.max(0,total+costoDelivery-pagado);
   const resumenProducto=items.map(v=>`${v.producto} ×${v.cantidad}`).join(", ");
   return {gid:mrGid(first),items,cliente:first.cliente,telefono:first.telefono,dniRuc:first.dniRuc,
     direccion:first.direccion,fecha:first.fecha,estado:first.estado,fechaDespacho:first.fechaDespacho,
@@ -3482,6 +3482,201 @@ function renderMRFinanzas(){
   }
 }
 
+/* ── PDF VECTORIAL (jsPDF): texto nítido, colores exactos, funciona en iPhone ── */
+function mrLoadJsPDF(){
+  if(window.jspdf&&window.jspdf.jsPDF)return Promise.resolve();
+  return new Promise((ok,ko)=>{
+    const s=document.createElement("script");
+    s.src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js";
+    s.onload=ok;
+    s.onerror=()=>ko(new Error("No se pudo cargar el generador de PDF"));
+    document.head.appendChild(s);
+  });
+}
+function mrMoney(n){
+  n=Number(n)||0;
+  return "S/ "+n.toLocaleString("en-US",{minimumFractionDigits:Number.isInteger(n)?0:2,maximumFractionDigits:2});
+}
+function mrPdfClean(s){
+  return String(s==null?"":s).replace(/[\u00a0\u202f\u2009]/g," ").replace(/[^\n\u0020-\u00ff\u2013\u2014\u2018\u2019\u201c\u201d\u2022]/g,"");
+}
+function mrBuildDocPDF(sp){
+  const {jsPDF}=window.jspdf;
+  const d=new jsPDF({unit:"mm",format:"a4",compress:true});
+  const W=210,H=297,M=16,R=W-M,CW=W-2*M;
+  const INK=[31,41,55],MUT=[107,114,128],LINE=[229,231,235],SOFT=[249,250,251],AMBER=[245,166,35];
+  const TONO={
+    amber:{bg:[255,243,224],fg:[161,98,7]},
+    blue:{bg:[234,241,255],fg:[29,95,224]},
+    red:{bg:[254,238,234],fg:[192,68,42]},
+    green:{bg:[233,249,238],fg:[29,138,68]}
+  };
+  const T=mrPdfClean;
+  const fill=c=>d.setFillColor(c[0],c[1],c[2]);
+  const ink=c=>d.setTextColor(c[0],c[1],c[2]);
+  const stroke=c=>d.setDrawColor(c[0],c[1],c[2]);
+  const font=(sz,b)=>{d.setFont("helvetica",b?"bold":"normal");d.setFontSize(sz);};
+  /* etiqueta redondeada alineada a la derecha en x; devuelve su alto */
+  const pill=(txt,x,y,tono)=>{
+    const c=TONO[tono]||TONO.amber;
+    font(7.5,true);
+    const t=T(txt).toUpperCase(),w=d.getTextWidth(t)+8;
+    fill(c.bg);d.roundedRect(x-w,y,w,6,3,3,"F");
+    ink(c.fg);d.text(t,x-w+4,y+4.1);
+    return 6;
+  };
+
+  /* ── Encabezado ── */
+  stroke(AMBER);d.setLineWidth(0.9);
+  d.roundedRect(M,16,11,12,1.2,1.2,"S");
+  d.line(M,20,M+11,20);d.line(M,24,M+11,24);
+  font(20,true);ink(INK);d.text("STAK",M+15,23.5);
+  font(8,false);ink(MUT);d.text("Racks industriales y mobiliario de almacenaje",M+15,28.3);
+  pill(sp.tipo,R,14.5,sp.tono);
+  font(10.5,true);ink(INK);d.text(T("N° "+sp.num),R,26,{align:"right"});
+  font(9,false);ink(MUT);d.text(T(sp.fecha),R,31.2,{align:"right"});
+  fill(AMBER);d.rect(M,36,CW,1,"F");
+  font(8.5,false);ink(MUT);
+  d.text("San Juan de Lurigancho, Lima   ·   Tel. 923 912 992   ·   jg.fernandez15@gmail.com",M,43);
+  stroke(LINE);d.setLineWidth(0.3);d.line(M,46.5,R,46.5);
+
+  /* ── Cliente / lado derecho ── */
+  let y=56;
+  font(7.5,true);ink(MUT);d.text(T(sp.clienteLabel).toUpperCase(),M,y);
+  font(12.5,true);ink(INK);
+  const nl=d.splitTextToSize(T(sp.cliente),105);
+  d.text(nl,M,y+6);
+  let cy=y+6+nl.length*5.4;
+  font(9.5,false);ink(MUT);
+  (sp.clienteLines||[]).forEach(l=>{const ls=d.splitTextToSize(T(l),105);d.text(ls,M,cy);cy+=ls.length*4.8;});
+  font(7.5,true);ink(MUT);d.text(T(sp.derLabel).toUpperCase(),R,y,{align:"right"});
+  font(10.5,true);ink(INK);d.text(T(sp.derValor),R,y+6,{align:"right"});
+  let ry=y+6;
+  if(sp.derSub){font(9,false);ink(MUT);d.text(T(sp.derSub),R,y+11,{align:"right"});ry=y+11;}
+  if(sp.estado){pill(sp.estado.txt,R,ry+3,sp.estado.tono);ry+=9;}
+  y=Math.max(cy,ry)+8;
+
+  /* ── Tabla ── */
+  const col={cod:M+3,desc:M+30,cant:M+108,pu:M+144,tot:R-3};
+  const descW=col.cant-col.desc-9;
+  const tHead=()=>{
+    fill(SOFT);d.rect(M,y,CW,8,"F");
+    font(7.5,true);ink(MUT);
+    d.text("CÓDIGO",col.cod,y+5.3);
+    d.text("DESCRIPCIÓN",col.desc,y+5.3);
+    d.text("CANT.",col.cant,y+5.3,{align:"center"});
+    d.text("P. UNIT.",col.pu,y+5.3,{align:"right"});
+    d.text("TOTAL",col.tot,y+5.3,{align:"right"});
+    y+=8;
+  };
+  const newPage=()=>{
+    d.addPage();
+    font(8,true);ink(MUT);d.text(T("STAK  ·  "+sp.tipo+" N° "+sp.num),M,16);
+    stroke(LINE);d.setLineWidth(0.3);d.line(M,19,R,19);
+    y=25;
+  };
+  tHead();
+  (sp.items||[]).forEach(it=>{
+    font(10,true);
+    const nm=d.splitTextToSize(T(it.producto),descW);
+    font(8.5,false);
+    const ds=it.descripcion?d.splitTextToSize(T(it.descripcion),descW):[];
+    const rh=Math.max(9.5,nm.length*4.4+ds.length*3.6+(ds.length?1:0)+4.6);
+    if(y+rh>H-28){newPage();tHead();}
+    font(8.5,true);ink(MUT);d.text(T(it.codigo||"-"),col.cod,y+6.2);
+    font(10,true);ink(INK);d.text(nm,col.desc,y+6.2);
+    if(ds.length){font(8.5,false);ink(MUT);d.text(ds,col.desc,y+5.6+nm.length*4.4);}
+    font(10,false);ink(INK);
+    d.text(T(String(it.cant)),col.cant,y+6.2,{align:"center"});
+    d.text(T(it.pu),col.pu,y+6.2,{align:"right"});
+    font(10,true);d.text(T(it.total),col.tot,y+6.2,{align:"right"});
+    y+=rh;
+    stroke(LINE);d.setLineWidth(0.25);d.line(M,y,R,y);
+  });
+
+  /* ── Resumen ── */
+  const need=(sp.resumen||[]).length*6+40;
+  if(y+need>H-28){newPage();}
+  y+=8;
+  const sx=R-80;
+  (sp.resumen||[]).forEach(r=>{
+    font(9.5,false);ink(MUT);d.text(T(r[0]),sx,y);
+    ink(INK);d.text(T(r[1]),R,y,{align:"right"});
+    y+=6;
+  });
+  stroke(INK);d.setLineWidth(0.5);d.line(sx,y-2,R,y-2);
+  y+=4.5;
+  font(10.5,true);ink(INK);d.text("TOTAL",sx,y);
+  font(15,true);d.text(T(sp.total),R,y+0.6,{align:"right"});
+  y+=8;
+  if(sp.pagado!=null){
+    font(9.5,false);ink(MUT);d.text("Pagado",sx,y);
+    ink(INK);d.text(T(sp.pagado),R,y,{align:"right"});
+    y+=5;
+  }
+  if(sp.saldo){
+    const c=TONO[sp.saldo.tono]||TONO.green;
+    fill(c.bg);d.roundedRect(sx,y,80,9,2,2,"F");
+    ink(c.fg);font(9.5,true);
+    if(sp.saldo.val){
+      d.text(T(sp.saldo.txt),sx+4,y+6);
+      d.text(T(sp.saldo.val),R-4,y+6,{align:"right"});
+    }else{
+      d.text(T(sp.saldo.txt).toUpperCase(),sx+40,y+6,{align:"center"});
+    }
+  }
+
+  /* ── Pie de página ── */
+  const n=d.getNumberOfPages();
+  for(let i=1;i<=n;i++){
+    d.setPage(i);
+    stroke(LINE);d.setLineWidth(0.3);d.line(M,H-20,R,H-20);
+    font(8,false);ink(MUT);
+    d.text("STAK  ·  San Juan de Lurigancho, Lima  ·  923 912 992  ·  jg.fernandez15@gmail.com",W/2,H-14,{align:"center"});
+    if(n>1)d.text("Página "+i+" de "+n,R,H-9,{align:"right"});
+  }
+  return d;
+}
+
+function mrShowPdfReady(blob,filename){
+  const old=document.getElementById("mr-pdf-ready");if(old)old.remove();
+  const url=URL.createObjectURL(blob);
+  const file=new File([blob],filename,{type:"application/pdf"});
+  const canShare=!!(navigator.canShare&&navigator.canShare({files:[file]}));
+  const ov=document.createElement("div");
+  ov.id="mr-pdf-ready";
+  ov.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px";
+  ov.innerHTML=`<div style="background:#fff;border-radius:18px;padding:22px;max-width:340px;width:100%;text-align:center;font-family:'DM Sans',Arial,sans-serif">
+    <div style="font-size:34px">📄</div>
+    <div style="font-weight:800;font-size:16px;margin:6px 0 4px">PDF listo</div>
+    <div style="font-size:12px;color:#6b7280;margin-bottom:16px;word-break:break-word">${esc(filename)}</div>
+    ${canShare?`<button id="mr-pdf-share" style="width:100%;border:none;border-radius:12px;padding:13px;font-weight:700;font-size:14px;background:#1d1d1f;color:#fff;margin-bottom:8px">📤 Compartir / Guardar en Archivos</button>`:""}
+    <a id="mr-pdf-dl" href="${url}" download="${esc(filename)}" style="display:block;border-radius:12px;padding:13px;font-weight:700;font-size:14px;background:#0071e3;color:#fff;text-decoration:none;margin-bottom:8px">⬇ Descargar PDF</a>
+    <a href="${url}" target="_blank" style="display:block;border-radius:12px;padding:11px;font-weight:600;font-size:13px;background:#f3f4f6;color:#1d1d1f;text-decoration:none;margin-bottom:8px">👁 Ver PDF</a>
+    <button id="mr-pdf-x" style="width:100%;border:none;background:none;padding:8px;font-weight:600;font-size:13px;color:#6b7280">Cerrar</button>
+  </div>`;
+  document.body.appendChild(ov);
+  const close=()=>{ov.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);};
+  ov.querySelector("#mr-pdf-x").onclick=close;
+  const sh=ov.querySelector("#mr-pdf-share");
+  if(sh)sh.onclick=async()=>{
+    try{await navigator.share({files:[file],title:filename});close();}
+    catch(e){if(!e||e.name!=="AbortError")toast("No se pudo compartir, usa Descargar","warn");}
+  };
+}
+async function mrSavePDF(builder,name){
+  const filename=String(name).replace(/[\\/:*?"<>|]+/g,"").replace(/\s+/g," ").trim().slice(0,90)+".pdf";
+  toast("⏳ Generando PDF…");
+  try{
+    await mrLoadJsPDF();
+    const blob=mrBuildDocPDF(builder()).output("blob");
+    mrShowPdfReady(blob,filename);
+  }catch(err){
+    console.error("PDF error",err);
+    toast("⚠️ No se pudo generar el PDF. Revisa tu conexión e intenta de nuevo","warn");
+  }
+}
+
 /* ── NOTA DE VENTA (desde un registro real) ── */
 function mrLogo(){
   return `<svg width="34" height="34" viewBox="0 0 34 34" style="flex-shrink:0">
@@ -3536,75 +3731,22 @@ function mrDocCSS(){
 function genMRNotaVenta(gid){
   const g=mrGroupByGid(gid);
   if(!g){toast("No se encontró la venta","warn");return;}
-  const today=new Date(g.fecha+"T12:00:00").toLocaleDateString("es-PE",{day:"2-digit",month:"long",year:"numeric"});
-  const docNum="NV-"+new Date(g.fecha).getFullYear().toString().slice(-2)+g.gid.slice(-6).toUpperCase();
-
-  const html=`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Nota de Venta ${docNum}</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <style>${mrDocCSS()}</style></head><body>
-  <div class="actions">
-    <button class="pr" onclick="window.print()">⬇ Descargar / Imprimir</button>
-    <button class="cl" onclick="window.close()">✕ Cerrar</button>
-  </div>
-  <div class="doc">
-    <div class="hdr">
-      <div class="brand">${mrLogo()}<div><h1>STAK</h1><p>Racks industriales y mobiliario de almacenaje</p></div></div>
-      <div class="doc-meta">
-        <span class="doc-type">Nota de venta</span>
-        <p class="num">N° ${docNum}</p>
-        <p class="fec">${today}</p>
-      </div>
-    </div>
-    <div class="accent"></div>
-    <div class="bizline">
-      <span>📍 San Juan de Lurigancho, Lima</span>
-      <span>💬 923 912 992</span>
-      <span>✉️ jg.fernandez15@gmail.com</span>
-    </div>
-    <div class="body">
-      <div class="row2">
-        <div class="blk">
-          <div class="lbl">Cliente</div>
-          <div class="v1">${esc(g.cliente.toUpperCase())}</div>
-          <div class="v2">${[g.dniRuc?`DNI/RUC: ${esc(g.dniRuc)}`:"",g.telefono?esc(g.telefono):""].filter(Boolean).join(" · ")}</div>
-          ${g.direccion?`<div class="v2">📦 Entrega: ${esc(g.direccion)}</div>`:""}
-        </div>
-        <div class="blk" style="flex:0 0 auto;text-align:right">
-          <div class="lbl">Vendedor</div>
-          <div class="v1">Junior Fernández Caicedo</div>
-          <div class="v2">923 912 992</div>
-          <span class="status ${g.saldo>0?"pend":"ok"}">${g.saldo>0?"SALDO PENDIENTE":"PAGADO"}</span>
-        </div>
-      </div>
-
-      <table>
-        <thead><tr><th style="width:70px">Código</th><th>Descripción</th><th class="c" style="width:50px">Cant.</th><th class="r" style="width:90px">P. Unit.</th><th class="r" style="width:100px">Total</th></tr></thead>
-        <tbody>
-          ${g.items.map(v=>`<tr>
-            <td style="font-weight:600;color:#5B6069">${esc(v.codigo||"—")}</td>
-            <td class="desc"><strong>${esc(v.producto)}</strong>${v.descripcion?`<small>${esc(v.descripcion).replace(/\n/g,"<br>")}</small>`:""}</td>
-            <td class="c">${v.cantidad}</td>
-            <td class="r">${fM(v.precioUnitario)}</td>
-            <td class="r" style="font-weight:700">${fM(v.total)}</td>
-          </tr>`).join("")}
-        </tbody>
-      </table>
-    </div>
-    <div class="sumwrap">
-      <div class="sum">
-        <div class="ln"><span>Subtotal</span><span>${fM(g.total)}</span></div>
-        ${g.costoDelivery>0?`<div class="ln"><span>Delivery</span><span>${fM(g.costoDelivery)}</span></div>`:""}
-        <div class="tot"><span>Total</span><span>${fM(g.total+g.costoDelivery)}</span></div>
-        <div class="ln" style="margin-top:8px"><span>Pagado</span><span>${fM(g.pagado||0)}</span></div>
-        ${g.saldo>0?`<div class="saldo"><span>Saldo pendiente</span><span>${fM(g.saldo)}</span></div>`:`<div class="pagadocompleto">✓ Pagado por completo</div>`}
-      </div>
-    </div>
-    <div class="ftr">STAK · San Juan de Lurigancho, Lima · 923 912 992 · jg.fernandez15@gmail.com</div>
-  </div>
-  </body></html>`;
-  const w=window.open("","_blank");
-  if(!w){toast("⚠️ Permite ventanas emergentes para ver el PDF","warn");return;}
-  w.document.open();w.document.write(html);w.document.close();
+  const fecha=new Date(g.fecha+"T12:00:00").toLocaleDateString("es-PE",{day:"2-digit",month:"long",year:"numeric"});
+  const num="NV-"+new Date(g.fecha).getFullYear().toString().slice(-2)+g.gid.slice(-6).toUpperCase();
+  const cliLines=[[g.dniRuc?`DNI/RUC: ${g.dniRuc}`:"",g.telefono].filter(Boolean).join("  ·  "),g.direccion?`Entrega: ${g.direccion}`:""].filter(Boolean);
+  const resumen=[["Subtotal",mrMoney(g.total)]];
+  if(g.costoDelivery>0)resumen.push(["Delivery",mrMoney(g.costoDelivery)]);
+  const pagado=g.pagado||0;
+  const saldo=g.saldo;
+  mrSavePDF(()=>({
+    tipo:"Nota de venta",tono:"amber",num,fecha,
+    clienteLabel:"Cliente",cliente:String(g.cliente||"").toUpperCase(),clienteLines:cliLines,
+    derLabel:"Vendedor",derValor:"Junior Fernández Caicedo",derSub:"923 912 992",
+    estado:saldo>0?{txt:"Saldo pendiente",tono:"red"}:{txt:"Pagado",tono:"green"},
+    items:g.items.map(v=>({codigo:v.codigo||"-",producto:v.producto||"",descripcion:v.descripcion||"",cant:v.cantidad,pu:mrMoney(v.precioUnitario),total:mrMoney(v.total)})),
+    resumen,total:mrMoney(g.total+(g.costoDelivery||0)),pagado:mrMoney(pagado),
+    saldo:saldo>0?{txt:"Saldo pendiente",val:mrMoney(saldo),tono:"red"}:{txt:"Pagado por completo",tono:"green"}
+  }),"Nota de Venta "+num+" - "+g.cliente);
 }
 
 /* ── COTIZACIÓN (no toca ventas ni stock — es solo una propuesta) ── */
@@ -3678,65 +3820,14 @@ function genMRCotizacion(modo){
   const fmtFecha=d=>d.toLocaleDateString("es-PE",{day:"2-digit",month:"long",year:"numeric"});
   const docNum="COT-"+today.getFullYear().toString().slice(-2)+uid().toUpperCase();
 
-  const html=`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Cotización ${docNum}</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <style>${mrDocCSS()}</style></head><body>
-  <div class="actions">
-    <button class="pr" onclick="window.print()">⬇ Descargar / Imprimir</button>
-    <button class="cl" onclick="window.close()">✕ Cerrar</button>
-  </div>
-  <div class="doc">
-    <div class="hdr">
-      <div class="brand">${mrLogo()}<div><h1>STAK</h1><p>Racks industriales y mobiliario de almacenaje</p></div></div>
-      <div class="doc-meta">
-        <span class="doc-type" style="background:#EAF1FF;color:#1D5FE0">Cotización</span>
-        <p class="num">N° ${docNum}</p>
-        <p class="fec">${fmtFecha(today)}</p>
-      </div>
-    </div>
-    <div class="accent"></div>
-    <div class="bizline">
-      <span>📍 San Juan de Lurigancho, Lima</span>
-      <span>💬 923 912 992</span>
-      <span>✉️ jg.fernandez15@gmail.com</span>
-    </div>
-    <div class="body">
-      <div class="row2">
-        <div class="blk">
-          <div class="lbl">Cotizado para</div>
-          <div class="v1">${esc(cliente.toUpperCase())}</div>
-          <div class="v2">${[dniRuc?`DNI/RUC: ${esc(dniRuc)}`:"",telefono].filter(Boolean).join(" · ")}</div>
-        </div>
-        <div class="blk" style="flex:0 0 auto;text-align:right">
-          <div class="lbl">Válida hasta</div>
-          <div class="v1">${fmtFecha(validoHasta)}</div>
-        </div>
-      </div>
-
-      <table>
-        <thead><tr><th style="width:70px">Código</th><th>Descripción</th><th class="c" style="width:50px">Cant.</th><th class="r" style="width:90px">P. Unit.</th><th class="r" style="width:100px">Total</th></tr></thead>
-        <tbody>
-          <tr>
-            <td style="font-weight:600;color:#5B6069">${esc(prodObj?.codigo||"—")}</td>
-            <td class="desc"><strong>${esc(producto)}</strong>${prodObj?.descripcion?`<small>${esc(prodObj.descripcion).replace(/\n/g,"<br>")}</small>`:""}</td>
-            <td class="c">${cantidad}</td>
-            <td class="r">${fM(precio)}</td>
-            <td class="r" style="font-weight:700">${fM(total)}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-    <div class="sumwrap">
-      <div class="sum">
-        <div class="tot"><span>Total</span><span>${fM(total)}</span></div>
-      </div>
-    </div>
-    <div class="ftr">STAK · San Juan de Lurigancho, Lima · 923 912 992 · jg.fernandez15@gmail.com</div>
-  </div>
-  </body></html>`;
-  const w=window.open("","_blank");
-  if(!w){toast("⚠️ Permite ventanas emergentes para ver el PDF","warn");return;}
-  w.document.open();w.document.write(html);w.document.close();
+  mrSavePDF(()=>({
+    tipo:"Cotización",tono:"blue",num:docNum,fecha:fmtFecha(today),
+    clienteLabel:"Cotizado para",cliente:String(cliente).toUpperCase(),
+    clienteLines:[[dniRuc?`DNI/RUC: ${dniRuc}`:"",telefono].filter(Boolean).join("  ·  ")].filter(Boolean),
+    derLabel:"Válida hasta",derValor:fmtFecha(validoHasta),derSub:"",estado:null,
+    items:[{codigo:prodObj?.codigo||"-",producto:producto,descripcion:prodObj?.descripcion||"",cant:cantidad,pu:mrMoney(precio),total:mrMoney(total)}],
+    resumen:[["Subtotal",mrMoney(total)]],total:mrMoney(total),pagado:null,saldo:null
+  }),"Cotizacion "+docNum+" - "+cliente);
 }
 
 /* ── EXPORTAR CSV ── */
