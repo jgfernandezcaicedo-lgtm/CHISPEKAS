@@ -1616,8 +1616,8 @@ function renderMRRep(){
   const unidades=moVentas.reduce((s,v)=>s+(v.cantidad||0),0);
   const costo=moVentas.reduce((s,v)=>{const p=mrProducts.find(x=>x.id===v.productId);return s+(v.cantidad||0)*(p?.costoUnitario||0);},0);
   const utilidadMo=vendido-costo;
-  const cobrosPend=moVentas.filter(v=>Math.max(0,(v.total||0)-(v.pagado||0))>0);
-  const totalPend=cobrosPend.reduce((s,v)=>s+Math.max(0,(v.total||0)-(v.pagado||0)),0);
+  const cobrosPend=moVentas.filter(v=>mrSaldoRec(v)>0);
+  const totalPend=cobrosPend.reduce((s,v)=>s+mrSaldoRec(v),0);
 
   const prevDate=new Date(yr,mo-1,1);
   const prevPrefix=prevDate.getFullYear()+"-"+String(prevDate.getMonth()+1).padStart(2,"0");
@@ -1638,7 +1638,7 @@ function renderMRRep(){
     <div class="g2" style="margin-bottom:13px">
       <div class="card cp"><div class="ch"><div class="ct">📋 Ventas de ${MF[mo]} ${yr}</div></div>${
         moVentas.length?moVentas.sort((a,b)=>a.fecha.localeCompare(b.fecha)).map(v=>{
-          const saldo=Math.max(0,(v.total||0)-(v.pagado||0));
+          const saldo=mrSaldoRec(v);
           return `<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--bg)"><div style="min-width:0"><p style="font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(v.cliente)}</p><p style="font-size:10.5px;color:var(--t2)">${fD(v.fecha)} · ${esc(v.producto)} ×${v.cantidad}</p></div><div style="text-align:right;flex-shrink:0;margin-left:7px"><span style="font-weight:700;font-size:12.5px;color:var(--gr)">${fM(v.total)}</span>${saldo>0?`<p style="font-size:9.5px;color:var(--rd);font-weight:700">Saldo ${fM(saldo)}</p>`:""}</div></div>`;
         }).join(""):`<div class="empty"><div class="ei">📭</div><div class="et">Sin ventas</div></div>`
       }</div>
@@ -1659,7 +1659,7 @@ function exportMRRepPDF(){
   const utilidadMo=vendido-costo;
   const today2=new Date().toLocaleDateString("es-PE",{day:"numeric",month:"long",year:"numeric"});
   const rows=moVentas.sort((a,b)=>a.fecha.localeCompare(b.fecha)).map((v,i)=>{
-    const saldo=Math.max(0,(v.total||0)-(v.pagado||0));
+    const saldo=mrSaldoRec(v);
     return `<tr style="background:${i%2?"#fafafa":"#fff"}"><td style="padding:9px 12px;font-size:12.5px;font-weight:600">${esc(v.cliente)}</td><td style="padding:9px 12px;font-size:12px">${fD(v.fecha)}</td><td style="padding:9px 12px;font-size:12px">${esc(v.producto)} ×${v.cantidad}</td><td style="padding:9px 12px"><span style="background:${saldo>0?"#fff5f5":"#f0fdf4"};color:${saldo>0?"#dc2626":"#15803d"};border:1px solid ${saldo>0?"#fecaca":"#bbf7d0"};border-radius:8px;padding:2px 7px;font-size:10px;font-weight:700">${saldo>0?"Saldo "+fM(saldo):"Pagado"}</span></td><td style="padding:9px 12px;text-align:right;font-weight:700;color:#1d4ed8">${fM(v.total)}</td></tr>`;
   }).join("");
   const html=`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Reporte STAK ${MF[mo]} ${yr}</title><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800&display=swap" rel="stylesheet"><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'DM Sans',sans-serif;background:#f0f0f2;-webkit-print-color-adjust:exact;print-color-adjust:exact}.page{max-width:820px;margin:24px auto;background:white;border-radius:18px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08)}.hdr{background:#1d1d1f;padding:28px 32px}.pdf-actions{position:fixed;bottom:20px;right:20px;display:flex;gap:8px;z-index:50}.pb{background:linear-gradient(135deg,#0071e3,#1d4ed8);color:white;border:none;padding:12px 22px;border-radius:40px;font-family:'DM Sans',sans-serif;font-weight:700;font-size:13px;cursor:pointer;box-shadow:0 4px 16px rgba(0,113,227,.4)}.pbx{background:#fff;color:#1d1d1f;border:1.5px solid #e5e7eb;padding:12px 18px;border-radius:40px;font-family:'DM Sans',sans-serif;font-weight:700;font-size:13px;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.1)}table{width:100%;border-collapse:collapse}th{padding:9px 12px;text-align:left;font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;border-bottom:2px solid #f3f4f6;background:#fafafa}@media print{body{background:white}.page{margin:0;border-radius:0;box-shadow:none}.pdf-actions{display:none!important}@page{margin:.8cm;size:A4}}</style></head><body><div class="pdf-actions"><button class="pb" onclick="window.print()">⬇ Guardar PDF</button><button class="pbx" onclick="window.close()">✕ Cerrar</button></div><div class="page"><div class="hdr"><div style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">STAK · REPORTE MENSUAL</div><div style="font-family:serif;font-size:28px;color:#5b9df5">${MF[mo]} ${yr}</div><div style="font-size:11px;color:#9ca3af;margin-top:5px">Generado el ${today2}</div></div><div style="padding:24px 32px"><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:20px"><div style="background:#eff6ff;border-radius:12px;padding:14px;border:1px solid #bfdbfe"><div style="font-size:10px;color:#1d4ed8;font-weight:700;text-transform:uppercase;margin-bottom:4px">Total vendido</div><div style="font-size:22px;font-weight:800;color:#1d4ed8">${fM(vendido)}</div><div style="font-size:11px;color:#1d4ed8;opacity:.7">${moVentas.length} ventas</div></div><div style="background:#f0fdf4;border-radius:12px;padding:14px;border:1px solid #bbf7d0"><div style="font-size:10px;color:#15803d;font-weight:700;text-transform:uppercase;margin-bottom:4px">Utilidad estimada</div><div style="font-size:22px;font-weight:800;color:#15803d">${fM(utilidadMo)}</div><div style="font-size:11px;color:#15803d;opacity:.7">Después de costo</div></div><div style="background:#fff8ec;border-radius:12px;padding:14px;border:1px solid #fde68a"><div style="font-size:10px;color:#92400e;font-weight:700;text-transform:uppercase;margin-bottom:4px">Ticket promedio</div><div style="font-size:22px;font-weight:800;color:#92400e">${moVentas.length?fM(Math.round(vendido/moVentas.length)):"—"}</div><div style="font-size:11px;color:#92400e;opacity:.7">Por venta</div></div></div><div style="border:1.5px solid #f3f4f6;border-radius:12px;overflow:hidden"><table><thead><tr><th>Cliente</th><th>Fecha</th><th>Producto</th><th>Estado</th><th style="text-align:right">Total</th></tr></thead><tbody>${rows}</tbody><tfoot><tr style="background:#eff6ff"><td colspan="4" style="padding:12px;font-weight:800;font-size:14px">TOTAL VENDIDO</td><td style="padding:12px;text-align:right;font-weight:900;color:#1d4ed8;font-size:16px">${fM(vendido)}</td></tr></tfoot></table></div></div></div></body></html>`;
@@ -1695,7 +1695,7 @@ function exportHoldingRepPDF(){
   const vendidoStak=moVentas.reduce((s,v)=>s+(v.total||0),0);
   const costoStak=moVentas.reduce((s,v)=>{const p=mrProducts.find(x=>x.id===v.productId);return s+(v.cantidad||0)*(p?.costoUnitario||0);},0);
   const utilidadStak=vendidoStak-costoStak;
-  const pendStak=moVentas.reduce((s,v)=>s+Math.max(0,(v.total||0)-(v.pagado||0)),0);
+  const pendStak=moVentas.reduce((s,v)=>s+mrSaldoRec(v),0);
 
   const totalCombinado=revChispekas+vendidoStak;
   const utilidadCombinada=revChispekas+utilidadStak; // Chispekas no trackea costo — su ingreso confirmado ≈ su utilidad
@@ -1817,8 +1817,8 @@ function buildStakTextReport(scope){
   const costo = dataset.reduce((s,v)=>{const p=mrProducts.find(x=>x.id===v.productId);return s+(v.cantidad||0)*(p?.costoUnitario||0);},0);
   const utilidad = vendido-costo;
   const margen = vendido?Math.round(utilidad/vendido*100):null;
-  const cobrosPend = dataset.filter(v=>Math.max(0,(v.total||0)-(v.pagado||0))>0);
-  const totalPend = cobrosPend.reduce((s,v)=>s+Math.max(0,(v.total||0)-(v.pagado||0)),0);
+  const cobrosPend = dataset.filter(v=>mrSaldoRec(v)>0);
+  const totalPend = cobrosPend.reduce((s,v)=>s+mrSaldoRec(v),0);
   const capitalStock = mrProducts.reduce((s,p)=>s+mrStock(p.id)*(p.costoUnitario||0),0);
   const stockBajo = mrProducts.filter(p=>{const st=mrStock(p.id);return st<=mrLowThreshold;});
 
@@ -2034,9 +2034,9 @@ function scheduleBusinessAlerts(){
   setTimeout(()=>{
     const stockBajo=mrProducts.filter(p=>mrStock(p.id)<=mrLowThreshold);
     const chispekasVencido=reservations.filter(r=>r.status==="confirmado"&&r.date<todayStr&&(r.adelanto||0)<(r.total||0));
-    const stakVencido=mrSales.filter(v=>(v.fecha||"")<todayStr&&Math.max(0,(v.total||0)-(v.pagado||0))>0);
+    const stakVencido=mrSales.filter(v=>(v.fecha||"")<todayStr&&mrSaldoRec(v)>0);
     const cobrosPendCount=chispekasVencido.length+stakVencido.length;
-    const cobrosPendTotal=chispekasVencido.reduce((s,r)=>s+Math.max(0,(r.total||0)-(r.adelanto||0)),0)+stakVencido.reduce((s,v)=>s+Math.max(0,(v.total||0)-(v.pagado||0)),0);
+    const cobrosPendTotal=chispekasVencido.reduce((s,r)=>s+Math.max(0,(r.total||0)-(r.adelanto||0)),0)+stakVencido.reduce((s,v)=>s+mrSaldoRec(v),0);
     const partes=[];
     if(stockBajo.length)partes.push("📦 "+stockBajo.length+" producto"+(stockBajo.length!==1?"s":"")+" con stock bajo en STAK");
     if(cobrosPendCount)partes.push("💳 "+cobrosPendCount+" cobro"+(cobrosPendCount!==1?"s":"")+" vencido"+(cobrosPendCount!==1?"s":"")+" — "+fM(cobrosPendTotal));
@@ -2602,6 +2602,18 @@ function mrStock(pid){
  * comparten un "grupoId" — así se muestran, cotizan, agendan y confirman como un solo pedido. */
 function mrGid(v){ return v.grupoId || v.id; }
 function mrGroupItems(gid){ return mrSales.filter(v=>mrGid(v)===gid); }
+/** Saldo de un registro de venta: producto + delivery (solo el 1er registro del grupo lo lleva) - pagado */
+function mrSaldoRec(v){ return Math.max(0,Math.round(((v.total||0)+(v.costoDelivery||0)-(v.pagado||0))*100)/100); }
+/** Reparte lo pagado en orden: primero cubre el 1er registro (producto + delivery), luego los siguientes. */
+function mrSplitPago(subs,delivery,pagado){
+  let rest=Math.max(0,pagado||0);
+  const out=subs.map((sub,i)=>{
+    const cap=sub+(i===0?(delivery||0):0);
+    const x=Math.min(rest,cap);rest-=x;return Math.round(x*100)/100;
+  });
+  if(rest>0.004&&out.length)out[out.length-1]=Math.round((out[out.length-1]+rest)*100)/100;
+  return out;
+}
 function mrGroupAgg(items){
   if(!items||!items.length) return null;
   const first=items[0];
@@ -2719,7 +2731,7 @@ function marcarPagadoCompleto(gid){
   const items=mrGroupItems(gid);
   if(!items.length)return;
   if(!confirm("¿Marcar este pedido como pagado por completo?"))return;
-  items.forEach(v=>{ v.pagado=v.total||0; Store.one("mr_sales",v); });
+  items.forEach(v=>{ v.pagado=Math.round(((v.total||0)+(v.costoDelivery||0))*100)/100; Store.one("mr_sales",v); });
   renderMRVentas(); renderMRPipeline();
   toast("💵 Pedido marcado como pagado");
 }
@@ -2952,10 +2964,11 @@ function openMRVenta(gid){
       </div>
       <div class="fld">
         <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;cursor:pointer;background:var(--s2);border:1px solid var(--bd);border-radius:10px;padding:10px 12px">
-          <input type="checkbox" id="mrv-pagado-full" ${(!group || group.pagado>=group.total) ? "checked" : ""} onchange="mrvTogglePagado()" style="width:17px;height:17px">
+          <input type="checkbox" id="mrv-pagado-full" ${(!group || group.pagado>=group.total+(group.costoDelivery||0)-0.005) ? "checked" : ""} onchange="mrvTogglePagado()" style="width:17px;height:17px">
           ✓ Pagado al contado (contra-entrega)
         </label>
-        <input class="inp" id="mrv-pagado" type="number" min="0" value="${group?group.pagado||0:0}" style="margin-top:7px;display:${(!group || group.pagado>=group.total)?"none":"block"}" oninput="mrvCalc()">
+        <input class="inp" id="mrv-pagado" type="number" min="0" value="${group?group.pagado||0:0}" style="margin-top:7px;display:${(!group || group.pagado>=group.total+(group.costoDelivery||0)-0.005)?"none":"block"}" oninput="mrvCalc()">
+        <div id="mrv-saldo-preview" style="margin-top:7px;font-size:12px;font-weight:700"></div>
       </div>
       <div style="background:var(--aml);border-radius:10px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center">
         <span style="font-size:11.5px;font-weight:600;color:var(--amd)">TOTAL</span>
@@ -3033,12 +3046,21 @@ function mrvShowPrecioAnterior(){
 }
 function mrvCalc(){
   const total=mrvItems.reduce((s,it)=>s+(it.cantidad||0)*(it.precioUnitario||0),0);
+  const delivery=parseFloat(document.getElementById("mrv-delivery")?.value)||0;
+  const totalACobrar=total+delivery;
   const el=document.getElementById("mrv-total-preview");
-  if(el)el.textContent=fM(total);
+  if(el)el.textContent=fM(totalACobrar);
   const full=document.getElementById("mrv-pagado-full");
   if(full&&full.checked){
     const pagadoInput=document.getElementById("mrv-pagado");
-    if(pagadoInput)pagadoInput.value=total;
+    if(pagadoInput)pagadoInput.value=totalACobrar;
+  }
+  const sp=document.getElementById("mrv-saldo-preview");
+  if(sp){
+    const pag=full&&full.checked?totalACobrar:(parseFloat(document.getElementById("mrv-pagado")?.value)||0);
+    const saldo=Math.max(0,Math.round((totalACobrar-pag)*100)/100);
+    sp.style.color=saldo>0?"var(--rd)":"var(--gr)";
+    sp.textContent=saldo>0?`Saldo por cobrar: ${fM(saldo)} (incluye delivery)`:`✓ Todo cobrado (${fM(totalACobrar)} con delivery)`;
   }
 }
 function mrvToggleTransporte(){
@@ -3078,7 +3100,7 @@ function saveMRVenta(){
   const costoDelivery=parseFloat(document.getElementById("mrv-delivery")?.value)||0;
   const entregaPor=document.getElementById("mrv-entrega-por")?.value||"yo";
   const costoTransporte= entregaPor==="tercero" ? (parseFloat(document.getElementById("mrv-costo-transporte")?.value)||0) : 0;
-  const pagadoTotal=parseFloat(document.getElementById("mrv-pagado")?.value)||0;
+  const pagadoInputVal=parseFloat(document.getElementById("mrv-pagado")?.value)||0;
   const fecha=document.getElementById("mrv-fecha")?.value||todayLocal();
   const estado=document.getElementById("mrv-estado")?.value||"cotizado";
   const fechaDespacho=document.getElementById("mrv-fecha-despacho")?.value||"";
@@ -3090,6 +3112,10 @@ function saveMRVenta(){
 
   const gid = mrvGid || ("grp"+uid());
   const totalGrupo = mrvItems.reduce((s,it)=>s+it.cantidad*it.precioUnitario,0);
+  const totalACobrarGrupo = totalGrupo + costoDelivery;
+  // si "pagado por completo" está marcado, se toma el total actual (producto + delivery), no un valor viejo
+  const pagadoTotal = document.getElementById("mrv-pagado-full")?.checked ? totalACobrarGrupo : pagadoInputVal;
+  const pagosPorItem = mrSplitPago(mrvItems.map(it=>it.cantidad*it.precioUnitario),costoDelivery,pagadoTotal);
   const existingIds = mrvGid ? mrGroupItems(gid).map(x=>x.id) : [];
   const nuevosIds=[];
 
@@ -3097,7 +3123,6 @@ function saveMRVenta(){
     const prodObj=mrProducts.find(x=>x.id===it.productId);
     const producto=prodObj?.name||"";
     const subtotal=it.cantidad*it.precioUnitario;
-    const share = totalGrupo>0 ? subtotal/totalGrupo : (1/mrvItems.length);
     const usedId = existingIds[idx]; // reutiliza registros existentes en orden, si los hay
     const rid = usedId || ("mrv"+uid());
     nuevosIds.push(rid);
@@ -3106,7 +3131,7 @@ function saveMRVenta(){
       productId:it.productId, producto, codigo:prodObj?.codigo||"", descripcion:prodObj?.descripcion||"",
       cantidad:it.cantidad, precioUnitario:it.precioUnitario, total:subtotal,
       direccion, costoDelivery: idx===0?costoDelivery:0, entregaPor: idx===0?entregaPor:"yo", costoTransporte: idx===0?costoTransporte:0,
-      pagado: Math.round(pagadoTotal*share*100)/100,
+      pagado: pagosPorItem[idx],
       fecha, estado, fechaDespacho, checklist
     };
     if(usedId){ mrSales=mrSales.map(x=>x.id===usedId?venta:x); }
@@ -3376,7 +3401,7 @@ function renderMRAnalisis(){
   const totalCostoProd=mrSales.reduce((s,v)=>{const p=mrProducts.find(x=>x.id===v.productId);return s+(v.cantidad||0)*(p?.costoUnitario||0);},0);
   const ganancia=totalVendido-totalCostoProd; // el delivery lo paga el cliente aparte, no reduce tu margen
   const unidades=mrSales.reduce((s,v)=>s+(v.cantidad||0),0);
-  const totalPorCobrar=mrSales.reduce((s,v)=>s+Math.max(0,(v.total||0)-(v.pagado||0)),0);
+  const totalPorCobrar=mrSales.reduce((s,v)=>s+mrSaldoRec(v),0);
 
   document.getElementById("mr-an-kpis").innerHTML=`
     <div class="kpi"><div class="kv">${fM(totalVendido)}</div><div class="kl">Total vendido</div></div>
@@ -3462,14 +3487,14 @@ function renderMRFinanzas(){
   }
 
   // cobros pendientes — detalle venta por venta, igual que en Finanzas de Chispekas
-  const cobros=mrSales.filter(v=>Math.max(0,(v.total||0)-(v.pagado||0))>0).sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
-  const totalPend=cobros.reduce((s,v)=>s+Math.max(0,(v.total||0)-(v.pagado||0)),0);
+  const cobros=mrSales.filter(v=>mrSaldoRec(v)>0).sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
+  const totalPend=cobros.reduce((s,v)=>s+mrSaldoRec(v),0);
   const el_cob=document.getElementById("mr-fin-cobros");
   if(el_cob){
     el_cob.innerHTML = cobros.length
       ? `<div style="background:#fff5f5;border-radius:10px;padding:9px 12px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center"><span style="font-size:12px;font-weight:700;color:var(--rd)">Total pendiente de cobrar</span><span style="font-size:18px;font-weight:900;color:var(--rd)">${fM(totalPend)}</span></div>`
         + cobros.map(v=>{
-            const saldo=Math.max(0,(v.total||0)-(v.pagado||0));
+            const saldo=mrSaldoRec(v);
             return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--bg)">
               <div><p style="font-weight:600;font-size:12.5px">${esc(v.cliente)}</p><p style="font-size:10.5px;color:var(--t2)">${fD(v.fecha)} · ${esc(v.producto)}</p></div>
               <div style="text-align:right;flex-shrink:0;margin-left:8px">
@@ -3836,7 +3861,7 @@ function exportMRVentasCSV(){
   const data=[...mrSales].sort((a,b)=>(a.fecha||"").localeCompare(b.fecha||""));
   const headers=["Fecha","Cliente","Teléfono","DNI/RUC","Producto","Cantidad","Precio Unit. (S/)","Total (S/)","Delivery (S/)","Pagado (S/)","Saldo (S/)","Dirección"];
   const rows=data.map(v=>{
-    const saldo=Math.max(0,(v.total||0)-(v.pagado||0));
+    const saldo=mrSaldoRec(v);
     return [v.fecha||"",v.cliente||"",v.telefono||"",v.dniRuc||"",v.producto||"",v.cantidad||0,v.precioUnitario||0,v.total||0,v.costoDelivery||0,v.pagado||0,saldo,v.direccion||""]
       .map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(",");
   });
@@ -3981,7 +4006,7 @@ function openClientProfile(name){
   const totalStak=ventasR.reduce((s,v)=>s+(v.total||0),0);
   const totalCombinado=totalChispekas+totalStak;
   const pendChispekas=resR.filter(r=>r.status==="confirmado").reduce((s,r)=>s+Math.max(0,(r.total||0)-(r.adelanto||0)),0);
-  const pendStak=ventasR.reduce((s,v)=>s+Math.max(0,(v.total||0)-(v.pagado||0)),0);
+  const pendStak=ventasR.reduce((s,v)=>s+mrSaldoRec(v),0);
   const pendTotal=pendChispekas+pendStak;
 
   document.getElementById("cp-title").textContent="👤 "+name;
