@@ -2603,7 +2603,9 @@ function mrStock(pid){
 function mrGid(v){ return v.grupoId || v.id; }
 function mrGroupItems(gid){ return mrSales.filter(v=>mrGid(v)===gid); }
 /** Saldo de un registro de venta: producto + delivery (solo el 1er registro del grupo lo lleva) - pagado */
-function mrSaldoRec(v){ return Math.max(0,Math.round(((v.total||0)+(v.costoDelivery||0)-(v.pagado||0))*100)/100); }
+/** Cargos extra del pedido (embalaje + otro cargo); se guardan en el 1er registro, igual que el delivery */
+function mrExtraRec(v){ return (v.embalaje||0)+(v.otroMonto||0); }
+function mrSaldoRec(v){ return Math.max(0,Math.round(((v.total||0)+(v.costoDelivery||0)+mrExtraRec(v)-(v.pagado||0))*100)/100); }
 /** Reparte lo pagado en orden: primero cubre el 1er registro (producto + delivery), luego los siguientes. */
 function mrSplitPago(subs,delivery,pagado){
   let rest=Math.max(0,pagado||0);
@@ -2623,11 +2625,17 @@ function mrGroupAgg(items){
   const entregaPor=first.entregaPor||"yo";
   const utilidadMovilidad=costoDelivery-costoTransporte;
   const pagado=items.reduce((s,v)=>s+(v.pagado||0),0);
-  const saldo=Math.max(0,total+costoDelivery-pagado);
+  const embalaje=items.reduce((s,v)=>s+(v.embalaje||0),0);
+  const otroMonto=items.reduce((s,v)=>s+(v.otroMonto||0),0);
+  const extras=embalaje+otroMonto;
+  const cobroTotal=total+costoDelivery+extras;
+  const saldo=Math.max(0,Math.round((cobroTotal-pagado)*100)/100);
   const resumenProducto=items.map(v=>`${v.producto} ×${v.cantidad}`).join(", ");
   return {gid:mrGid(first),items,cliente:first.cliente,telefono:first.telefono,dniRuc:first.dniRuc,
     direccion:first.direccion,fecha:first.fecha,estado:first.estado,fechaDespacho:first.fechaDespacho,
-    checklist:first.checklist||{},total,costoDelivery,entregaPor,costoTransporte,utilidadMovilidad,pagado,saldo,resumenProducto};
+    checklist:first.checklist||{},total,costoDelivery,entregaPor,costoTransporte,utilidadMovilidad,pagado,saldo,resumenProducto,
+    embalaje,embalajeUnit:first.embalajeUnit||0,embalajeCant:first.embalajeCant||0,otroConcepto:first.otroConcepto||"",otroMonto,
+    movilidadConcepto:first.movilidadConcepto||"",extras,cobroTotal};
 }
 function mrAllGroups(){
   const seen={},order=[];
@@ -2731,7 +2739,7 @@ function marcarPagadoCompleto(gid){
   const items=mrGroupItems(gid);
   if(!items.length)return;
   if(!confirm("¿Marcar este pedido como pagado por completo?"))return;
-  items.forEach(v=>{ v.pagado=Math.round(((v.total||0)+(v.costoDelivery||0))*100)/100; Store.one("mr_sales",v); });
+  items.forEach(v=>{ v.pagado=Math.round(((v.total||0)+(v.costoDelivery||0)+mrExtraRec(v))*100)/100; Store.one("mr_sales",v); });
   renderMRVentas(); renderMRPipeline();
   toast("💵 Pedido marcado como pagado");
 }
@@ -2809,7 +2817,9 @@ function renderMRVentas(){
         const detalles=[];
         if(g.direccion) detalles.push("📍 "+esc(g.direccion));
         if(g.telefono) detalles.push("📞 "+esc(g.telefono));
+        if(g.embalaje>0) detalles.push("📦 Embalaje "+fM(g.embalaje));
         if(g.costoDelivery>0) detalles.push("🚚 Movilidad "+fM(g.costoDelivery));
+        if(g.otroMonto>0) detalles.push("➕ "+(g.otroConcepto||"Otro cargo")+" "+fM(g.otroMonto));
         return `<div style="border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:10px;background:var(--s2)">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
             <div style="min-width:0">
@@ -2818,7 +2828,7 @@ function renderMRVentas(){
               <p style="font-size:11.5px;color:var(--t2);margin-top:1px">${fD(g.fecha)}</p>
             </div>
             <div style="text-align:right;flex-shrink:0">
-              <p style="font-weight:800;color:var(--amd);font-size:18px">${fM(g.total+g.costoDelivery)}</p>
+              <p style="font-weight:800;color:var(--amd);font-size:18px">${fM(g.cobroTotal)}</p>
               <p style="font-size:11.5px;font-weight:700;color:${g.saldo>0?"var(--rd)":"var(--gr)"}">${g.saldo>0?"Saldo "+fM(g.saldo):"Pagado"}</p>
             </div>
           </div>
@@ -2945,6 +2955,15 @@ function openMRVenta(gid){
         <div class="fld"><label class="flbl">Costo de delivery cobrado al cliente (S/)</label><input class="inp" id="mrv-delivery" type="number" min="0" value="${group?group.costoDelivery||0:0}" oninput="mrvCalc()"></div>
         <div class="fld"><label class="flbl">Fecha</label><input class="inp" id="mrv-fecha" type="date" value="${group?group.fecha:todayLocal()}"></div>
       </div>
+      <div class="fld"><label class="flbl">Detalle de la movilidad (opcional)</label><input class="inp" id="mrv-mov-concepto" value="${group?esc(group.movilidadConcepto||""):""}" placeholder="ej. a la agencia" oninput="mrvCalc()"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
+        <div class="fld"><label class="flbl">📦 Embalaje c/u (S/)</label><input class="inp" id="mrv-emb-unit" type="number" min="0" value="${group?group.embalajeUnit||"":""}" placeholder="0" oninput="mrvCalc()"></div>
+        <div class="fld"><label class="flbl">Cant. de embalajes</label><input class="inp" id="mrv-emb-cant" type="number" min="0" value="${group&&group.embalajeCant?group.embalajeCant:""}" placeholder="= unidades" oninput="mrvCalc()"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:9px">
+        <div class="fld"><label class="flbl">➕ Otro cargo (concepto)</label><input class="inp" id="mrv-otro-concepto" value="${group?esc(group.otroConcepto||""):""}" placeholder="ej. Instalación" oninput="mrvCalc()"></div>
+        <div class="fld"><label class="flbl">Monto (S/)</label><input class="inp" id="mrv-otro-monto" type="number" min="0" value="${group?group.otroMonto||"":""}" placeholder="0" oninput="mrvCalc()"></div>
+      </div>
       <div class="fld">
         <label class="flbl">¿Quién hace la entrega?</label>
         <select class="inp" id="mrv-entrega-por" onchange="mrvToggleTransporte()">
@@ -2965,10 +2984,10 @@ function openMRVenta(gid){
       </div>
       <div class="fld">
         <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;cursor:pointer;background:var(--s2);border:1px solid var(--bd);border-radius:10px;padding:10px 12px">
-          <input type="checkbox" id="mrv-pagado-full" ${(!group || group.pagado>=group.total+(group.costoDelivery||0)-0.005) ? "checked" : ""} onchange="mrvTogglePagado()" style="width:17px;height:17px">
+          <input type="checkbox" id="mrv-pagado-full" ${(!group || group.pagado>=group.cobroTotal-0.005) ? "checked" : ""} onchange="mrvTogglePagado()" style="width:17px;height:17px">
           ✓ Pagado al contado (contra-entrega)
         </label>
-        <input class="inp" id="mrv-pagado" type="number" min="0" value="${group?group.pagado||0:0}" style="margin-top:7px;display:${(!group || group.pagado>=group.total+(group.costoDelivery||0)-0.005)?"none":"block"}" oninput="mrvCalc()">
+        <input class="inp" id="mrv-pagado" type="number" min="0" value="${group?group.pagado||0:0}" style="margin-top:7px;display:${(!group || group.pagado>=group.cobroTotal-0.005)?"none":"block"}" oninput="mrvCalc()">
         <div id="mrv-saldo-preview" style="margin-top:7px;font-size:12px;font-weight:700"></div>
       </div>
       <div style="background:var(--aml);border-radius:10px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center">
@@ -3045,10 +3064,22 @@ function mrvShowPrecioAnterior(){
     hint.style.display="none";
   }
 }
+/** Lee del formulario los cargos extra (embalaje y otro cargo). Si no se indica cantidad de embalajes, usa las unidades del pedido. */
+function mrvExtras(){
+  const unidades=mrvItems.reduce((s,it)=>s+(it.cantidad||0),0);
+  const embalajeUnit=parseFloat(document.getElementById("mrv-emb-unit")?.value)||0;
+  const cantTxt=document.getElementById("mrv-emb-cant")?.value;
+  const embalajeCant=embalajeUnit>0?((cantTxt===""||cantTxt==null)?unidades:(parseFloat(cantTxt)||0)):0;
+  const embalaje=Math.round(embalajeUnit*embalajeCant*100)/100;
+  const otroMonto=parseFloat(document.getElementById("mrv-otro-monto")?.value)||0;
+  const otroConcepto=otroMonto>0?(document.getElementById("mrv-otro-concepto")?.value||"").trim():"";
+  const movilidadConcepto=(document.getElementById("mrv-mov-concepto")?.value||"").trim();
+  return {embalajeUnit,embalajeCant,embalaje,otroMonto,otroConcepto,movilidadConcepto,extras:embalaje+otroMonto};
+}
 function mrvCalc(){
   const total=mrvItems.reduce((s,it)=>s+(it.cantidad||0)*(it.precioUnitario||0),0);
   const delivery=parseFloat(document.getElementById("mrv-delivery")?.value)||0;
-  const totalACobrar=total+delivery;
+  const totalACobrar=total+delivery+mrvExtras().extras;
   const el=document.getElementById("mrv-total-preview");
   if(el)el.textContent=fM(totalACobrar);
   const full=document.getElementById("mrv-pagado-full");
@@ -3061,7 +3092,7 @@ function mrvCalc(){
     const pag=full&&full.checked?totalACobrar:(parseFloat(document.getElementById("mrv-pagado")?.value)||0);
     const saldo=Math.max(0,Math.round((totalACobrar-pag)*100)/100);
     sp.style.color=saldo>0?"var(--rd)":"var(--gr)";
-    sp.textContent=saldo>0?`Saldo por cobrar: ${fM(saldo)} (incluye delivery)`:`✓ Todo cobrado (${fM(totalACobrar)} con delivery)`;
+    sp.textContent=saldo>0?`Saldo por cobrar: ${fM(saldo)} (con delivery y extras)`:`✓ Todo cobrado (${fM(totalACobrar)})`;
   }
 }
 function mrvToggleTransporte(){
@@ -3113,10 +3144,11 @@ function saveMRVenta(){
 
   const gid = mrvGid || ("grp"+uid());
   const totalGrupo = mrvItems.reduce((s,it)=>s+it.cantidad*it.precioUnitario,0);
-  const totalACobrarGrupo = totalGrupo + costoDelivery;
+  const ex=mrvExtras();
+  const totalACobrarGrupo = totalGrupo + costoDelivery + ex.extras;
   // si "pagado por completo" está marcado, se toma el total actual (producto + delivery), no un valor viejo
   const pagadoTotal = document.getElementById("mrv-pagado-full")?.checked ? totalACobrarGrupo : pagadoInputVal;
-  const pagosPorItem = mrSplitPago(mrvItems.map(it=>it.cantidad*it.precioUnitario),costoDelivery,pagadoTotal);
+  const pagosPorItem = mrSplitPago(mrvItems.map(it=>it.cantidad*it.precioUnitario),costoDelivery+ex.extras,pagadoTotal);
   const existingIds = mrvGid ? mrGroupItems(gid).map(x=>x.id) : [];
   const nuevosIds=[];
 
@@ -3131,6 +3163,8 @@ function saveMRVenta(){
       id:rid, grupoId:gid, cliente, telefono, dniRuc,
       productId:it.productId, producto, codigo:prodObj?.codigo||"", descripcion:prodObj?.descripcion||"",
       cantidad:it.cantidad, precioUnitario:it.precioUnitario, total:subtotal,
+      embalajeUnit: idx===0?ex.embalajeUnit:0, embalajeCant: idx===0?ex.embalajeCant:0, embalaje: idx===0?ex.embalaje:0,
+      otroConcepto: idx===0?ex.otroConcepto:"", otroMonto: idx===0?ex.otroMonto:0, movilidadConcepto: idx===0?ex.movilidadConcepto:"",
       direccion, costoDelivery: idx===0?costoDelivery:0, entregaPor: idx===0?entregaPor:"yo", costoTransporte: idx===0?costoTransporte:0,
       pagado: pagosPorItem[idx],
       fecha, estado, fechaDespacho, checklist
@@ -3625,6 +3659,7 @@ function mrBuildDocPDF(sp){
   if(y+need>H-28){newPage();}
   y+=8;
   const sx=R-80;
+  const syTop=y;
   (sp.resumen||[]).forEach(r=>{
     font(9.5,false);ink(MUT);d.text(T(r[0]),sx,y);
     ink(INK);d.text(T(r[1]),R,y,{align:"right"});
@@ -3650,6 +3685,17 @@ function mrBuildDocPDF(sp){
     }else{
       d.text(T(sp.saldo.txt).toUpperCase(),sx+40,y+6,{align:"center"});
     }
+  }
+
+  /* ── Observaciones (a la izquierda del resumen) ── */
+  if(sp.notas&&sp.notas.length){
+    let ny=syTop+1;
+    font(7.5,true);ink(MUT);d.text("OBSERVACIONES",M,ny);ny+=5;
+    font(8.5,false);
+    sp.notas.forEach(n=>{
+      const ls=d.splitTextToSize("•  "+T(n),sx-M-8);
+      d.text(ls,M,ny);ny+=ls.length*4.2+1;
+    });
   }
 
   /* ── Pie de página ── */
@@ -3754,6 +3800,16 @@ function mrDocCSS(){
     @media print{.actions{display:none}body{background:#fff;padding:0}.doc{box-shadow:none;border-radius:0;max-width:100%}}
   `;
 }
+const MR_OBS=["Los precios no incluyen IGV.","La venta se realiza sin emisión de factura."];
+/** Filas del resumen del documento: subtotal + embalaje + movilidad + otro cargo */
+function mrResumenDoc(g){
+  const lim=t=>String(t).length>34?String(t).slice(0,33)+"…":String(t);
+  const rows=[["Subtotal",mrMoney(g.total)]];
+  if(g.embalaje>0)rows.push([lim("Embalaje ("+mrMoney(g.embalajeUnit)+" × "+g.embalajeCant+")"),mrMoney(g.embalaje)]);
+  if(g.costoDelivery>0)rows.push([lim("Movilidad"+(g.movilidadConcepto?" "+g.movilidadConcepto:"")),mrMoney(g.costoDelivery)]);
+  if(g.otroMonto>0)rows.push([lim(g.otroConcepto||"Otro cargo"),mrMoney(g.otroMonto)]);
+  return rows;
+}
 /** Cotización en PDF de un pedido ya registrado (varios productos, con movilidad). No pide datos ni crea otra venta. */
 function genMRCotizacionPDF(gid,validezDias){
   const g=mrGroupByGid(gid);
@@ -3763,15 +3819,14 @@ function genMRCotizacionPDF(gid,validezDias){
   const hasta=new Date(hoy.getTime()+dias*86400000);
   const fmt=d=>d.toLocaleDateString("es-PE",{day:"2-digit",month:"long",year:"numeric"});
   const num="COT-"+hoy.getFullYear().toString().slice(-2)+String(g.gid).slice(-6).toUpperCase();
-  const resumen=[["Subtotal",mrMoney(g.total)]];
-  if(g.costoDelivery>0)resumen.push(["Movilidad",mrMoney(g.costoDelivery)]);
+  const resumen=mrResumenDoc(g);
   mrSavePDF(()=>({
     tipo:"Cotización",tono:"blue",num,fecha:fmt(hoy),
     clienteLabel:"Cotizado para",cliente:String(g.cliente||"").toUpperCase(),
     clienteLines:[[g.dniRuc?`DNI/RUC: ${g.dniRuc}`:"",g.telefono].filter(Boolean).join("  ·  "),g.direccion?`Entrega: ${g.direccion}`:""].filter(Boolean),
     derLabel:"Válida hasta",derValor:fmt(hasta),derSub:"Vigencia "+dias+" días",estado:null,
     items:g.items.map(v=>({codigo:v.codigo||"-",producto:v.producto||"",descripcion:v.descripcion||"",cant:v.cantidad,pu:mrMoney(v.precioUnitario),total:mrMoney(v.total)})),
-    resumen,total:mrMoney(g.total+(g.costoDelivery||0)),pagado:null,saldo:null
+    resumen,total:mrMoney(g.cobroTotal),pagado:null,saldo:null,notas:MR_OBS
   }),"Cotizacion "+num+" - "+g.cliente);
 }
 function genMRNotaVenta(gid){
@@ -3780,8 +3835,7 @@ function genMRNotaVenta(gid){
   const fecha=new Date(g.fecha+"T12:00:00").toLocaleDateString("es-PE",{day:"2-digit",month:"long",year:"numeric"});
   const num="NV-"+new Date(g.fecha).getFullYear().toString().slice(-2)+g.gid.slice(-6).toUpperCase();
   const cliLines=[[g.dniRuc?`DNI/RUC: ${g.dniRuc}`:"",g.telefono].filter(Boolean).join("  ·  "),g.direccion?`Entrega: ${g.direccion}`:""].filter(Boolean);
-  const resumen=[["Subtotal",mrMoney(g.total)]];
-  if(g.costoDelivery>0)resumen.push(["Delivery",mrMoney(g.costoDelivery)]);
+  const resumen=mrResumenDoc(g);
   const pagado=g.pagado||0;
   const saldo=g.saldo;
   mrSavePDF(()=>({
@@ -3790,7 +3844,7 @@ function genMRNotaVenta(gid){
     derLabel:"Vendedor",derValor:"Junior Fernández Caicedo",derSub:"923 912 992",
     estado:saldo>0?{txt:"Saldo pendiente",tono:"red"}:{txt:"Pagado",tono:"green"},
     items:g.items.map(v=>({codigo:v.codigo||"-",producto:v.producto||"",descripcion:v.descripcion||"",cant:v.cantidad,pu:mrMoney(v.precioUnitario),total:mrMoney(v.total)})),
-    resumen,total:mrMoney(g.total+(g.costoDelivery||0)),pagado:mrMoney(pagado),
+    resumen,total:mrMoney(g.cobroTotal),pagado:mrMoney(pagado),notas:MR_OBS,
     saldo:saldo>0?{txt:"Saldo pendiente",val:mrMoney(saldo),tono:"red"}:{txt:"Pagado por completo",tono:"green"}
   }),"Nota de Venta "+num+" - "+g.cliente);
 }
@@ -3812,6 +3866,8 @@ function openMRCotizacion(){
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
         <div class="fld"><label class="flbl">Movilidad (S/)</label><input class="inp" id="mrq-delivery" type="number" min="0" value="0"></div>
+        <div class="fld"><label class="flbl">📦 Embalaje c/u (S/)</label><input class="inp" id="mrq-emb" type="number" min="0" value="0"></div>
+        <div class="fld"><label class="flbl">Detalle movilidad</label><input class="inp" id="mrq-mov-concepto" placeholder="ej. a la agencia"></div>
         <div class="fld"><label class="flbl">Válida por (días)</label><input class="inp" id="mrq-validez" type="number" min="1" value="7"></div>
       </div>
     </div>
@@ -3840,6 +3896,9 @@ function genMRCotizacion(modo){
   const dniRuc=(document.getElementById("mrq-dniruc")?.value||"").trim();
   const costoDelivery=parseFloat(document.getElementById("mrq-delivery")?.value)||0;
   const total=cantidad*precio;
+  const embalajeUnit=parseFloat(document.getElementById("mrq-emb")?.value)||0;
+  const embalaje=Math.round(embalajeUnit*cantidad*100)/100;
+  const movilidadConcepto=(document.getElementById("mrq-mov-concepto")?.value||"").trim();
 
   // Guarda el pedido en el pipeline de ventas apenas se cotiza — así no se pierde,
   // aunque el cliente todavía no haya confirmado nada.
@@ -3847,7 +3906,7 @@ function genMRCotizacion(modo){
     id:"mrv"+uid(), cliente, telefono, dniRuc,
     productId, producto, codigo:prodObj?.codigo||"", descripcion:prodObj?.descripcion||"",
     cantidad, precioUnitario:precio, total,
-    direccion:"", costoDelivery, pagado:0, fecha:todayLocal(),
+    direccion:"", costoDelivery, embalajeUnit, embalajeCant:embalajeUnit>0?cantidad:0, embalaje, movilidadConcepto, pagado:0, fecha:todayLocal(),
     estado:"cotizado", fechaDespacho:"",
     checklist:{ubicacion:false,pago:false,racks:false}
   };
@@ -3872,7 +3931,7 @@ function genMRCotizacion(modo){
     clienteLines:[[dniRuc?`DNI/RUC: ${dniRuc}`:"",telefono].filter(Boolean).join("  ·  ")].filter(Boolean),
     derLabel:"Válida hasta",derValor:fmtFecha(validoHasta),derSub:"",estado:null,
     items:[{codigo:prodObj?.codigo||"-",producto:producto,descripcion:prodObj?.descripcion||"",cant:cantidad,pu:mrMoney(precio),total:mrMoney(total)}],
-    resumen:[["Subtotal",mrMoney(total)],...(costoDelivery>0?[["Movilidad",mrMoney(costoDelivery)]]:[])],total:mrMoney(total+costoDelivery),pagado:null,saldo:null
+    resumen:mrResumenDoc({total,embalaje,embalajeUnit,embalajeCant:cantidad,costoDelivery,movilidadConcepto}),total:mrMoney(total+costoDelivery+embalaje),pagado:null,saldo:null,notas:MR_OBS
   }),"Cotizacion "+docNum+" - "+cliente);
 }
 
@@ -3880,10 +3939,10 @@ function genMRCotizacion(modo){
 function exportMRVentasCSV(){
   if(!mrSales.length){toast("No hay ventas para exportar","warn");return;}
   const data=[...mrSales].sort((a,b)=>(a.fecha||"").localeCompare(b.fecha||""));
-  const headers=["Fecha","Cliente","Teléfono","DNI/RUC","Producto","Cantidad","Precio Unit. (S/)","Total (S/)","Delivery (S/)","Pagado (S/)","Saldo (S/)","Dirección"];
+  const headers=["Fecha","Cliente","Teléfono","DNI/RUC","Producto","Cantidad","Precio Unit. (S/)","Total (S/)","Delivery (S/)","Embalaje (S/)","Otro cargo (S/)","Pagado (S/)","Saldo (S/)","Dirección"];
   const rows=data.map(v=>{
     const saldo=mrSaldoRec(v);
-    return [v.fecha||"",v.cliente||"",v.telefono||"",v.dniRuc||"",v.producto||"",v.cantidad||0,v.precioUnitario||0,v.total||0,v.costoDelivery||0,v.pagado||0,saldo,v.direccion||""]
+    return [v.fecha||"",v.cliente||"",v.telefono||"",v.dniRuc||"",v.producto||"",v.cantidad||0,v.precioUnitario||0,v.total||0,v.costoDelivery||0,v.embalaje||0,v.otroMonto||0,v.pagado||0,saldo,v.direccion||""]
       .map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(",");
   });
   downloadCSV("MiniRacks_Ventas",headers,rows,data.length+" ventas");
@@ -3956,31 +4015,32 @@ function mrCobranzaWA(gid){
 function genMRMensajeWA(gid){
   const g=mrGroupByGid(gid);
   if(!g)return;
-  const nf=n=>Number(n||0).toLocaleString("es-PE",{minimumFractionDigits:0,maximumFractionDigits:2});
-  const totalConDelivery=g.total+g.costoDelivery;
+  const pu=n=>Number(n||0).toLocaleString("en-US",{minimumFractionDigits:0,maximumFractionDigits:2});
+  const m2=n=>Number(n||0).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
   const esConfirmado = g.estado==="confirmado"||g.estado==="programado"||g.estado==="entregado";
-  const lineas=[];
-  lineas.push(esConfirmado ? "✅ PEDIDO CONFIRMADO" : "📋 COTIZACIÓN");
-  lineas.push("");
-  g.items.forEach(it=>{
-    lineas.push(`✅ ${it.producto}: S/ ${nf(it.precioUnitario)} c/u`);
-    lineas.push(`✅ Cantidad: ${it.cantidad} unidad${it.cantidad!==1?"es":""}`);
-    lineas.push(`💰 Subtotal: S/ ${nf(it.total)}`);
-    lineas.push("");
-  });
-  if(g.costoDelivery>0){ lineas.push(`🚚 Movilidad: S/ ${nf(g.costoDelivery)}`); lineas.push(""); }
-  lineas.push(`💰 Total: S/ ${nf(totalConDelivery)}`);
-  if(esConfirmado){
-    lineas.push("");
-    if(g.direccion) lineas.push(`📍 Dirección: ${g.direccion}`);
-    if(g.fechaDespacho) lineas.push(`📅 Fecha de despacho: ${fD(g.fechaDespacho)}`);
+  const L=[];
+  L.push(esConfirmado ? "✅ PEDIDO CONFIRMADO" : "📋 COTIZACIÓN");
+  L.push("");
+  g.items.forEach(it=>L.push(`✅ ${it.producto}: S/ ${pu(it.precioUnitario)} c/u × ${it.cantidad} = S/ ${m2(it.total)}`));
+  L.push("");
+  L.push(`💰 Subtotal: S/ ${m2(g.total)}`);
+  if(g.embalaje>0||g.costoDelivery>0||g.otroMonto>0){
+    L.push("");
+    if(g.embalaje>0) L.push(`📦 Embalaje: S/ ${pu(g.embalajeUnit)} c/u × ${g.embalajeCant} = S/ ${m2(g.embalaje)}`);
+    if(g.costoDelivery>0) L.push(`🚚 Movilidad${g.movilidadConcepto?" "+g.movilidadConcepto:""}: S/ ${m2(g.costoDelivery)}`);
+    if(g.otroMonto>0) L.push(`➕ ${g.otroConcepto||"Otro cargo"}: S/ ${m2(g.otroMonto)}`);
   }
-  lineas.push("");
-  lineas.push("Observaciones:");
-  lineas.push("• Los precios no incluyen IGV.");
-  lineas.push("• La venta se realiza sin emisión de factura.");
-  const msg=lineas.join("\n");
-  abrirWA(msg,g.telefono);
+  L.push("");
+  L.push(`💰 TOTAL: S/ ${m2(g.cobroTotal)}`);
+  if(esConfirmado){
+    L.push("");
+    if(g.direccion) L.push(`📍 Dirección: ${g.direccion}`);
+    if(g.fechaDespacho) L.push(`📅 Fecha de despacho: ${fD(g.fechaDespacho)}`);
+  }
+  L.push("");
+  L.push("Observaciones:");
+  MR_OBS.forEach(o=>L.push("• "+o));
+  abrirWA(L.join("\n"),g.telefono);
 }
 /** Agenda el despacho en Google Calendar — mismo patrón que ya usas en CHISPEKAS (link precargado,
  *  sin necesidad de conectar cuenta). Si tienes un calendario STAK aparte, pega su Calendar ID abajo en calId
@@ -3992,7 +4052,7 @@ function addToGCalSTAK(gid){
   const dtStart=new Date(g.fechaDespacho+"T09:00:00");
   const dtEnd=new Date(dtStart.getTime()+2*3600000);
   const fmt=d=>d.toISOString().replace(/[-:]/g,"").split(".")[0]+"Z";
-  const details=["Cliente: "+g.cliente,"Tel: "+(g.telefono||"—"),"Productos: "+g.resumenProducto,"Total: "+fM(g.total+g.costoDelivery),"Estado: "+(MR_ESTADOS[g.estado]?.l||g.estado)].filter(Boolean).join("\n");
+  const details=["Cliente: "+g.cliente,"Tel: "+(g.telefono||"—"),"Productos: "+g.resumenProducto,"Total: "+fM(g.cobroTotal),"Estado: "+(MR_ESTADOS[g.estado]?.l||g.estado)].filter(Boolean).join("\n");
   const url="https://calendar.google.com/calendar/render?action=TEMPLATE"+"&text="+encodeURIComponent("🚚 Despacho STAK — "+g.cliente)+"&dates="+fmt(dtStart)+"/"+fmt(dtEnd)+"&details="+encodeURIComponent(details)+"&location="+encodeURIComponent(g.direccion?g.direccion+", Lima":"Lima, Perú")+(STAK_CAL_ID?"&cid="+encodeURIComponent(STAK_CAL_ID):"");
   window.open(url,"_blank");
   toast("📅 Agendado: "+g.cliente+" · Google Calendar");
