@@ -2836,6 +2836,7 @@ function renderMRVentas(){
             ${g.telefono?`<a href="https://wa.me/${waPhone(g.telefono)}" target="_blank" class="ib" style="text-decoration:none;background:#e7fbe9" title="Abrir chat de WhatsApp">💬</a>`:""}
             <button class="ib" onclick="openMRVenta('${g.gid}')" title="Editar">✏️</button>
             <button class="ib" onclick="genMRNotaVenta('${g.gid}')" title="Nota de venta en PDF (sin emojis, para imprimir)">🧾</button>
+            <button class="ib" onclick="genMRCotizacionPDF('${g.gid}')" title="Cotización en PDF">📋</button>
             <button class="ib" onclick="delMRVenta('${g.gid}')" title="Eliminar" style="background:#fff5f5">🗑</button>
           </div>
         </div>`;}).join("")
@@ -3753,6 +3754,26 @@ function mrDocCSS(){
     @media print{.actions{display:none}body{background:#fff;padding:0}.doc{box-shadow:none;border-radius:0;max-width:100%}}
   `;
 }
+/** Cotización en PDF de un pedido ya registrado (varios productos, con movilidad). No pide datos ni crea otra venta. */
+function genMRCotizacionPDF(gid,validezDias){
+  const g=mrGroupByGid(gid);
+  if(!g){toast("No se encontró el pedido","warn");return;}
+  const dias=validezDias||7;
+  const hoy=new Date();
+  const hasta=new Date(hoy.getTime()+dias*86400000);
+  const fmt=d=>d.toLocaleDateString("es-PE",{day:"2-digit",month:"long",year:"numeric"});
+  const num="COT-"+hoy.getFullYear().toString().slice(-2)+String(g.gid).slice(-6).toUpperCase();
+  const resumen=[["Subtotal",mrMoney(g.total)]];
+  if(g.costoDelivery>0)resumen.push(["Movilidad",mrMoney(g.costoDelivery)]);
+  mrSavePDF(()=>({
+    tipo:"Cotización",tono:"blue",num,fecha:fmt(hoy),
+    clienteLabel:"Cotizado para",cliente:String(g.cliente||"").toUpperCase(),
+    clienteLines:[[g.dniRuc?`DNI/RUC: ${g.dniRuc}`:"",g.telefono].filter(Boolean).join("  ·  "),g.direccion?`Entrega: ${g.direccion}`:""].filter(Boolean),
+    derLabel:"Válida hasta",derValor:fmt(hasta),derSub:"Vigencia "+dias+" días",estado:null,
+    items:g.items.map(v=>({codigo:v.codigo||"-",producto:v.producto||"",descripcion:v.descripcion||"",cant:v.cantidad,pu:mrMoney(v.precioUnitario),total:mrMoney(v.total)})),
+    resumen,total:mrMoney(g.total+(g.costoDelivery||0)),pagado:null,saldo:null
+  }),"Cotizacion "+num+" - "+g.cliente);
+}
 function genMRNotaVenta(gid){
   const g=mrGroupByGid(gid);
   if(!g){toast("No se encontró la venta","warn");return;}
@@ -3796,7 +3817,7 @@ function openMRCotizacion(){
     </div>
     <div style="display:flex;gap:8px;margin-top:16px">
       <button class="btn btnd" style="flex:1;justify-content:center" onclick="genMRCotizacion('wa')">📝 Enviar por WhatsApp</button>
-      <button class="btn btng" onclick="genMRCotizacion('pdf')" title="Generar como PDF">📄</button>
+      <button class="btn btng" onclick="genMRCotizacion('pdf')" title="Generar como PDF">📄 PDF</button>
       <button class="btn btng" onclick="closeOv('ov-mr-cotizacion')">Cancelar</button>
     </div>`;
   document.getElementById("mrq-body").innerHTML=html;
@@ -3851,7 +3872,7 @@ function genMRCotizacion(modo){
     clienteLines:[[dniRuc?`DNI/RUC: ${dniRuc}`:"",telefono].filter(Boolean).join("  ·  ")].filter(Boolean),
     derLabel:"Válida hasta",derValor:fmtFecha(validoHasta),derSub:"",estado:null,
     items:[{codigo:prodObj?.codigo||"-",producto:producto,descripcion:prodObj?.descripcion||"",cant:cantidad,pu:mrMoney(precio),total:mrMoney(total)}],
-    resumen:[["Subtotal",mrMoney(total)]],total:mrMoney(total),pagado:null,saldo:null
+    resumen:[["Subtotal",mrMoney(total)],...(costoDelivery>0?[["Movilidad",mrMoney(costoDelivery)]]:[])],total:mrMoney(total+costoDelivery),pagado:null,saldo:null
   }),"Cotizacion "+docNum+" - "+cliente);
 }
 
